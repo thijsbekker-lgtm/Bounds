@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.3</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.5</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -731,23 +731,10 @@ async function saveRoundToCloud(data,user){
  const {courseRow,tee}=await boundsGetTee();
 
  let roundId=data.cloudRoundId||null;
- if(!roundId){
-   const {data:existing,error:findError}=await boundsClient.from('rounds')
-     .select('id,round_players!inner(id,user_id)')
-     .eq('owner_id',user.id)
-     .eq('course_id',courseRow.id)
-     .eq('tee_id',tee.id)
-     .eq('holes_played',String(round.value))
-     .order('played_at',{ascending:false})
-     .limit(20);
-   if(findError) throw findError;
-   const match=(existing||[]).find(r=>(r.round_players||[]).some(p=>p.user_id===user.id));
-   if(match) roundId=match.id;
- }
  if(roundId){
    const {error}=await boundsClient.from('rounds').update({
      course_id:courseRow.id,tee_id:tee.id,holes_played:String(round.value),
-     loop:loop.value,played_at:new Date().toISOString(),status:'in_progress'
+     loop:loop.value,played_at:new Date().toISOString(),status:'completed'
    }).eq('id',roundId).eq('owner_id',user.id);
    if(error)throw error;
  }else{
@@ -1431,4 +1418,170 @@ window.saveGoalHcp=function(){
 
 /* Cloud save is intentionally an additional action in v0.1; localStorage remains the fallback. */
 </script>
+
+<script>
+/* ===== BOUNDS v0.4 — HISTORY + CLOUD SYNC ORCHESTRATION ===== */
+
+function boundsMergeRoundIdentity(next, previous){
+  if(previous){
+    if(previous.localId) next.localId=previous.localId;
+    if(previous.cloudRoundId) next.cloudRoundId=previous.cloudRoundId;
+  }
+  return next;
+}
+
+async function boundsSaveRoundFinal(){
+  const data=buildEnhancedRound();
+  if(!data.holes.some(x=>x.score)){
+    alert('Vul eerst minimaal één score in.');
+    return;
+  }
+
+  const history=getHistory();
+  const previous=(editingHistoryIndex>=0 ? history[editingHistoryIndex] : null);
+  boundsMergeRoundIdentity(data, previous);
+
+  // Local-first: the user never loses the round if connectivity fails.
+  upsertLocalRound(data);
+  renderHistory();
+  renderRecords();
+  renderDashboard();
+  renderCourseHistory();
+  renderAnalysis(data);
+  boundsSaveMessage('Lokaal opgeslagen — synchroniseren…','pending');
+
+  const user=await boundsCurrentUser().catch(()=>null);
+  if(!user){
+    boundsSaveMessage('✓ Lokaal opgeslagen.','ok');
+    editingHistoryIndex=-1;
+    const btn=document.querySelector('.action-grid .primary');
+    if(btn)btn.textContent='Opslaan';
+    return;
+  }
+
+  try{
+    boundsSetStatus('Opslaan…','busy');
+    const cloudId=await saveRoundToCloud(data,user);
+    data.cloudRoundId=cloudId;
+    upsertLocalRound(data);
+
+    // If this was an edit, keep the same history position. Otherwise the round
+    // is already at the top because it was inserted local-first.
+    renderHistory();
+    renderRecords();
+    renderDashboard();
+    renderCourseHistory();
+
+    boundsSaveMessage('✓ Opgeslagen en gesynchroniseerd.','ok');
+    boundsSetStatus('Gesynchroniseerd','ok');
+    const cm=document.getElementById('accountMessage');
+    if(cm)cm.textContent='Synchronisatie actief.';
+  }catch(e){
+    console.error(e);
+    boundsSetStatus('Offline','busy');
+    boundsSaveMessage('✓ Lokaal opgeslagen — wordt later gesynchroniseerd.','pending');
+    const cm=document.getElementById('accountMessage');
+    if(cm)cm.textContent='Tijdelijk offline. Je ronde blijft veilig lokaal bewaard.';
+  }
+
+  editingHistoryIndex=-1;
+  const btn=document.querySelector('.action-grid .primary');
+  if(btn)btn.textContent='Opslaan';
+}
+window.saveRound=boundsSaveRoundFinal;
+
+async function boundsDeleteRoundFinal(i){
+  const history=getHistory();
+  const r=history[i];
+  if(!r)return;
+
+  if(!confirm('Deze opgeslagen ronde verwijderen?'))return;
+
+  // Remove locally immediately.
+  history.splice(i,1);
+  localStorage.setItem('golf_history',JSON.stringify(history));
+  renderHistory();
+  renderRecords();
+  renderDashboard();
+  renderCourseHistory();
+
+  // Delete remotely when the round exists in the cloud.
+  if(r.cloudRoundId){
+    try{
+      const user=await boundsCurrentUser().catch(()=>null);
+      if(user){
+        const {error}=await boundsClient.from('rounds')
+          .delete()
+          .eq('id',r.cloudRoundId)
+          .eq('owner_id',user.id);
+        if(error)throw error;
+      }
+    }catch(e){
+      console.error(e);
+      // Keep the local delete; cloud cleanup can be retried by the sync layer.
+    }
+  }
+}
+window.deleteRound=boundsDeleteRoundFinal;
+
+function boundsOpenSavedRoundFinal(i){
+  const history=getHistory();
+  const r=history[i];
+  if(!r)return;
+
+  // Existing openRound restores all hole scores/stats into the live scorecard.
+  openRound(i);
+  editingHistoryIndex=i;
+
+  const saveBtn=document.querySelector('.action-grid .primary');
+  if(saveBtn)saveBtn.textContent='Wijzigingen opslaan';
+
+  boundsSaveMessage('Ronde geopend. Pas je score aan en sla opnieuw op.','pending');
+  showTab('round');
+}
+window.openSavedRound=boundsOpenSavedRoundFinal;
+
+/* Keep the main history view as the user-facing source of truth. */
+function renderHistoryFinal(){
+  const el=document.getElementById('historyList');
+  const history=getHistory();
+  if(!history.length){
+    el.innerHTML='<div class="empty">Nog geen opgeslagen rondes.</div>';
+    return;
+  }
+  el.innerHTML=history.map((r,i)=>{
+    const label=`${r.date} — ${r.course} — ${r.round}${r.loop&&r.loop!=='Hele baan'?' ('+r.loop+')':''}`;
+    const sync=r.cloudRoundId
+      ? '<span class="round-sync">✓</span>'
+      : '<span class="round-sync pending">•</span>';
+    return `<div class="rounditem">
+      <button class="roundopen" onclick="openSavedRound(${i})">
+        <div>
+          <b>${label} ${sync}</b>
+          <div class="roundmeta">Hcp ${r.handicap} • baanhcp ${r.courseHcp} • ${r.total} slagen • ${r.sft} Stableford</div>
+        </div>
+      </button>
+      <button class="delete" onclick="deleteRound(${i})">Wis</button>
+    </div>`;
+  }).join('');
+}
+window.renderHistory=renderHistoryFinal;
+
+/* After background cloud sync, redraw all user-facing history. */
+const boundsOriginalLoadCloudRounds=window.loadCloudRounds;
+window.loadCloudRounds=async function(silent=false){
+  await boundsOriginalLoadCloudRounds(silent);
+  renderHistoryFinal();
+  renderRecords();
+  renderDashboard();
+  renderCourseHistory();
+};
+
+/* Small, understandable status styling in history. */
+</script>
+<style>
+.round-sync{display:inline-block;margin-left:4px;font-size:12px;color:#2b7a43}
+.round-sync.pending{color:#9a6500}
+</style>
+
 </html>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.6</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.9</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -183,7 +183,7 @@
  <div class="card settings">
   <div class="section-title">Ronde instellen <span class="round-status"><i></i> Ronde bezig</span></div>
   <div class="grid">
-   <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label><label id="teeLabel" class="tee-select-wrap">Tee<select id="tee" disabled><option value="">Kies eerst een baan…</option></select><small class="tee-help">Kies de tee die je speelt.</small></label>
+   <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option><option value="almkreek">Golfpark Almkreek</option></select></label><label id="teeLabel" class="tee-select-wrap">Tee<select id="tee" disabled><option value="">Kies eerst een baan…</option></select><small class="tee-help">Kies de tee die je speelt.</small></label>
    <label>Ronde<select id="round"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
    <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
    <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
@@ -281,6 +281,13 @@
 </section>
 </main>
 </div>
+
+['course','round','loop'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('change',()=>setTimeout(boundsRefreshTees,0));
+});
+setTimeout(boundsRefreshTees,200);
+
 </body>
 <script>
 // -------------------- COURSE DATA --------------------
@@ -404,41 +411,77 @@ function tableHcp(table,h){
  return row ? row[2] : null;
 }
 
+
+// Golfpark Almkreek — men's 18-hole course data from the 2026 course booklet.
+// The handicap tables supplied by Hollandsche Golfclub are dated 06-10-2022.
+const almkreek={
+ first:{
+  cr:{Geel:36.5,Rood:34.7,Oranje:33.1},
+  sr:{Geel:133,Rood:119,Oranje:110},
+  par:36,
+  holes:[[1,4,5],[2,4,13],[3,4,9],[4,5,1],[5,3,11],[6,4,15],[7,4,7],[8,3,17],[9,5,3]]
+ },
+ second:{
+  cr:{Geel:35.1,Rood:33.1,Oranje:32.1},
+  sr:{Geel:124,Rood:109,Oranje:96},
+  par:36,
+  holes:[[10,4,16],[11,5,2],[12,4,12],[13,3,18],[14,4,4],[15,3,8],[16,5,6],[17,4,14],[18,4,10]]
+ },
+ eighteen:{
+  cr:{Geel:71.5,Rood:67.7,Oranje:64.8},
+  sr:{Geel:128,Rood:114,Oranje:103},
+  par:72,
+  holes:[
+   [1,4,5],[2,4,13],[3,4,9],[4,5,1],[5,3,11],[6,4,15],[7,4,7],[8,3,17],[9,5,3],
+   [10,4,16],[11,5,2],[12,4,12],[13,3,18],[14,4,4],[15,3,8],[16,5,6],[17,4,14],[18,4,10]
+  ]
+ }
+};
+
 function currentConfig(){
  const h=+hi.value||0;
  const c=course.value;
  const n=+round.value;
+ const t=tee.value || 'Geel';
  let holes, cr, sr, par, table, note;
 
  if(c==='crimpenerhout'){
    if(n===9){
      holes=crimp.nine.first.holes; cr=32.3; sr=107; par=33; table=crimp9Table;
-     note='Crimpenerhout geel heren • 9 holes • CR 32,3 / SR 107.';
+     note=`Crimpenerhout ${t} heren • 9 holes • CR ${cr.toFixed(1)} / SR ${sr}.`;
    }else{
-     holes=crimp.eighteen.holes; cr=68.8; sr=124; par=66; table=null;
-     // The supplied official 18-hole table is already directly represented
-     // by the course handicap values. For the current user's table, 14.2 = 13.
-     table='crimp18';
-     note='Crimpenerhout geel heren • 18 holes • CR 68,8 / SR 124.';
+     holes=crimp.eighteen.holes; cr=68.8; sr=124; par=66; table='crimp18';
+     note=`Crimpenerhout ${t} heren • 18 holes • CR ${cr.toFixed(1)} / SR ${sr}.`;
    }
  }else if(c==='kroonprins'){
    if(n===9){
      if(loop.value==='second'){
        holes=kpSecond9; cr=35.0; sr=128; par=36; table=kpSecond9Table;
-       note='De Kroonprins geel heren • 2e 9 • CR 35,0 / SR 128 • baanhcp volgens 9-holes berekening.';
+       note=`De Kroonprins ${t} heren • 2e 9 • CR ${cr.toFixed(1)} / SR ${sr}.`;
      }else{
        holes=kpFirst9; cr=34.5; sr=132; par=35; table=kpFirst9Table;
-       note='De Kroonprins geel heren • 1e 9 • CR 34,5 / SR 132 • baanhcp volgens 9-holes berekening.';
+       note=`De Kroonprins ${t} heren • 1e 9 • CR ${cr.toFixed(1)} / SR ${sr}.`;
      }
    }else{
      holes=kpMain18; cr=69.4; sr=130; par=71; table=kp18Table;
-     note='De Kroonprins geel heren • 18 holes • CR 69,4 / SR 130 • baanhcp volgens 18-holes berekening.';
+     note=`De Kroonprins ${t} heren • 18 holes • CR ${cr.toFixed(1)} / SR ${sr}.`;
+   }
+ }else if(c==='almkreek'){
+   if(n===9 && loop.value==='second'){
+     holes=almkreek.second.holes; cr=almkreek.second.cr[t]??almkreek.second.cr.Geel; sr=almkreek.second.sr[t]??almkreek.second.sr.Geel; par=36; table='alm_formula';
+     note=`Golfpark Almkreek ${t} heren • 2e 9 • CR ${cr.toFixed(1)} / SR ${sr}.`;
+   }else if(n===9){
+     holes=almkreek.first.holes; cr=almkreek.first.cr[t]??almkreek.first.cr.Geel; sr=almkreek.first.sr[t]??almkreek.first.sr.Geel; par=36; table='alm_formula';
+     note=`Golfpark Almkreek ${t} heren • 1e 9 • CR ${cr.toFixed(1)} / SR ${sr}.`;
+   }else{
+     holes=almkreek.eighteen.holes; cr=almkreek.eighteen.cr[t]??almkreek.eighteen.cr.Geel; sr=almkreek.eighteen.sr[t]??almkreek.eighteen.sr.Geel; par=72; table='alm_formula';
+     note=`Golfpark Almkreek ${t} heren • 18 holes • CR ${cr.toFixed(1)} / SR ${sr}.`;
    }
  }else{
    holes=kpPar3First9; cr=24.6; sr=67; par=27; table=kpPar3_9Table;
    note='';
  }
- return {h,c,n,holes,cr,sr,par,table,note};
+ return {h,c,n,t,holes,cr,sr,par,table,note};
 }
 
 function isKpPar3(){
@@ -464,6 +507,13 @@ function getCourseHcp(cfg){
     [53.9,54.0,53]
    ];
    return tableHcp(t,h);
+ }
+
+ if(cfg.c==='almkreek'){
+   const raw = cfg.n===9
+     ? h*cfg.sr/226 + (cfg.cr-cfg.par)/2
+     : h*cfg.sr/113 + (cfg.cr-cfg.par);
+   return Math.round(raw);
  }
 
  if(cfg.c==='kroonprins'){
@@ -688,6 +738,44 @@ function upsertLocalRound(data){
  if(idx>=0) history[idx]={...history[idx],...data};
  else history.unshift(data);
  localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
+}
+async function boundsRefreshTees(){
+  const sel=document.getElementById('tee');
+  if(!sel)return;
+  const courseName=course.options[course.selectedIndex]?.text||'';
+  const variant=boundsCourseVariant();
+  const holes=Number(round.value);
+  const loopValue=holes===9?loop.value:'full';
+
+  const {data:courseRow,error:courseError}=await boundsClient
+    .from('courses').select('id').eq('name',courseName).eq('country','NL').single();
+
+  if(courseError){
+    sel.innerHTML='<option value="">—</option>';
+    sel.disabled=true;
+    return;
+  }
+
+  const {data:tees,error}=await boundsClient.from('course_tees')
+    .select('id,tee_name,course_rating,slope_rating,par')
+    .eq('course_id',courseRow.id)
+    .eq('course_variant',variant)
+    .eq('gender','men')
+    .eq('holes',holes)
+    .eq('loop',loopValue)
+    .order('tee_name');
+
+  if(error||!tees?.length){
+    sel.innerHTML='<option value="">—</option>';
+    sel.disabled=true;
+    return;
+  }
+
+  const previous=sel.value;
+  sel.innerHTML=tees.map(t=>`<option value="${t.tee_name}">${t.tee_name}</option>`).join('');
+  sel.disabled=tees.length<=1;
+  if(tees.some(t=>t.tee_name===previous))sel.value=previous;
+  update();
 }
 async function saveRound(){
  const data=currentRoundData();
@@ -1254,6 +1342,13 @@ function boundsSaveMessage(text, kind=''){
 function boundsLoopLabel(v){
   return v==='first'?'1e 9':v==='second'?'2e 9':'Hele baan';
 }
+
+function boundsCourseVariant(){
+  const name=(course.options[course.selectedIndex]?.text||'').toLowerCase();
+  if(name.includes('par 3')) return 'par3';
+  return 'main';
+}
+
 function boundsCourseInfo(){
   if(course.value==='kroonprins_par3'){
     return {courseName:'De Kroonprins', teeName:'Par 3 Geel'};
@@ -1262,13 +1357,22 @@ function boundsCourseInfo(){
 }
 async function boundsGetTee(){
   const info=boundsCourseInfo();
+  const variant=boundsCourseVariant();
   const {data:courseRow,error:courseError}=await boundsClient
     .from('courses').select('id,name').eq('name',info.courseName).eq('country','NL').single();
   if(courseError)throw courseError;
-  let q=boundsClient.from('course_tees').select('id,course_id,holes,loop,course_rating,slope_rating,par,tee_name')
-    .eq('course_id',courseRow.id).eq('tee_name',info.teeName).eq('gender','men').eq('holes',Number(round.value));
-  if(course.value==='kroonprins' && round.value==='9') q=q.eq('loop',loop.value);
+
+  let q=boundsClient.from('course_tees')
+    .select('id,course_id,course_variant,holes,loop,course_rating,slope_rating,par,tee_name')
+    .eq('course_id',courseRow.id)
+    .eq('course_variant',variant)
+    .eq('tee_name',tee.value)
+    .eq('gender','men')
+    .eq('holes',Number(round.value));
+
+  if(Number(round.value)===9) q=q.eq('loop',loop.value);
   else q=q.eq('loop','full');
+
   const {data:tee,error}=await q.single();
   if(error)throw error;
   return {courseRow,tee};
@@ -1622,7 +1726,7 @@ async function boundsLoadTeeOptions(){
   const courseName=course.value==='kroonprins_par3'?'De Kroonprins':
     (course.value==='crimpenerhout'?'Crimpenerhout':'De Kroonprins');
   const holes=Number(round.value);
-  const loopValue=(course.value==='kroonprins' && holes===9)?loop.value:'full';
+  const loopValue=(holes===9)?loop.value:'full';
 
   try{
     const {data:courseRow,error:courseError}=await boundsClient
@@ -1690,7 +1794,7 @@ window.currentConfig=function(){
   const cfg=boundsOriginalCurrentConfig();
   if(boundsSelectedTee &&
      Number(cfg.n)===Number(boundsSelectedTee.holes) &&
-     ((cfg.n===9 && course.value==='kroonprins') ? boundsSelectedTee.loop===loop.value : boundsSelectedTee.loop==='full')){
+     ((cfg.n===9) ? boundsSelectedTee.loop===loop.value : boundsSelectedTee.loop==='full')){
     cfg.cr=Number(boundsSelectedTee.course_rating);
     cfg.sr=Number(boundsSelectedTee.slope_rating);
     cfg.par=Number(boundsSelectedTee.par);

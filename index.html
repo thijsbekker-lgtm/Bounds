@@ -1,0 +1,1356 @@
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype + Supabase Cloud</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
+.hero{padding:26px 8px 18px}.eyebrow{font-size:11px;letter-spacing:1.4px;font-weight:700;color:#8a9297}.hero h1{font-size:34px;line-height:1.05;letter-spacing:-1.5px;margin:8px 0 16px}.hero h1 span{color:#8a9297}.new-round{border:0;background:#111;color:white;border-radius:20px;padding:10px 16px;font-weight:700}
+.tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;background:#f5f5f7cc;backdrop-filter:blur(18px);padding:6px;border-bottom:1px solid #ddd}.tab{border:0;background:transparent;border-radius:14px;padding:9px;color:#8a9297;font-weight:700}.tab span{display:block;font-size:11px;margin-top:2px}.tab.active{background:white;color:#111;box-shadow:0 2px 10px #0000000b}
+.tabpage{display:none;padding-top:10px}.tabpage.active{display:block}.card{background:var(--card);border-radius:24px;padding:16px;margin:10px 0;box-shadow:0 3px 18px #00000008}.section-title{font-size:15px;font-weight:700;margin-bottom:11px;display:flex;justify-content:space-between;align-items:center}.section-title span{font-size:9px;background:#eaf5ed;color:#2b7a43;border-radius:10px;padding:4px 7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:11px;color:var(--muted);font-weight:600}select,input{display:block;width:100%;height:44px;margin-top:5px;border:1px solid #d7d7dc;border-radius:13px;background:#fff;text-align:center;font-size:16px;font-weight:600;color:var(--ink);outline:none}select:focus,input:focus{border-color:#8bbcff;box-shadow:0 0 0 3px #007aff18}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:11px}.stat,.metric{background:#f5f5f7;border-radius:16px;padding:11px;text-align:center}.stat small,.metric span{display:block;color:var(--muted);font-size:10px}.stat b{font-size:16px}.score-card{padding:10px;overflow:hidden}.score-head{display:flex;justify-content:space-between;align-items:center;padding:6px 5px 10px}.score-head b{display:block;font-size:17px}.score-head small{color:var(--muted);font-size:10px}.ghost{border:0;background:#f1f1f3;border-radius:12px;padding:8px 10px;font-weight:700;color:#333}table{width:100%;border-collapse:collapse;background:#fff;border-radius:18px;overflow:hidden}th{height:40px;font-size:10px;color:#98a1a5;letter-spacing:.7px}td{height:64px;text-align:center;border-bottom:1px solid var(--line);font-size:19px}td+td{border-left:1px solid var(--line)}.hole{font-weight:700}.ik{font-size:10px;vertical-align:super;margin-left:2px;color:#6c7a80}.scorebox{display:flex;align-items:center;justify-content:center;gap:5px}.scorebox button{border:0;background:#f0f0f2;border-radius:50%;width:36px;height:36px;font-size:21px;color:#111}.score{min-width:25px;font-weight:800}.sf{font-weight:800}tfoot td{height:55px;border-bottom:0;font-weight:800}.extra-row td{height:auto!important;padding:0;border:0!important}.extra-panel{display:none;background:#f7f7f8;border-radius:14px;padding:10px;margin:0 4px 8px}.extra-panel.open{display:block}.extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.extra-grid input,.extra-grid select{height:38px;font-size:14px}.mini-action{border:0;background:#f0f0f2;border-radius:10px;padding:7px 9px;font-size:12px;font-weight:700}.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:9px 0}.primary,.secondary{border:0;border-radius:15px;padding:14px;font-weight:800;font-size:15px}.primary{background:#111;color:white}.secondary{background:#e9e9ec;color:#111}.player{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.player button{border:0;background:#f0f0f2;border-radius:50%;width:26px;height:26px}.muted{color:var(--muted);font-size:12px;line-height:1.5}.dashboard h2{font-size:28px;margin:5px 0 16px;letter-spacing:-1px}.dashboard-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.metric b{display:block;font-size:24px;letter-spacing:-1px}.metric:last-child{grid-column:span 2}.barrow{display:grid;grid-template-columns:18px 1fr 35px;gap:8px;align-items:center;margin:8px 0;font-size:11px}.barrow div{height:8px;background:#ececf0;border-radius:8px;overflow:hidden}.barrow i{display:block;height:100%;background:#111;border-radius:8px}.barrow b{text-align:right}.course-card{display:grid;grid-template-columns:1fr 65px 65px;gap:8px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.course-card b{display:block}.course-card small{display:block;color:var(--muted);font-size:10px}.course-card strong{display:block;text-align:center}.empty{color:var(--muted);font-size:12px;padding:8px 0}.rounditem{display:flex;gap:7px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.roundopen{flex:1;text-align:left;border:0;background:transparent;color:var(--ink);padding:4px}.roundmeta{color:var(--muted);font-size:10px;margin-top:3px}.delete{border:0;background:#f0f0f2;border-radius:9px;padding:7px 9px}.goal{font-size:15px;line-height:1.6}.goalbar{height:8px;background:#e8e8ec;border-radius:8px;margin-top:12px;overflow:hidden}.goalbar i{display:block;width:65%;height:100%;background:#111;border-radius:8px}h3{font-size:14px;margin:18px 0 10px}@media print{.tabs,.hero,.settings,.action-grid,.history,.new-round{display:none!important}.tabpage{display:block}.card{box-shadow:none}body{background:#fff}}
+</style>
+
+<style>
+/* Duidelijke spelerkeuze */
+.player-switcher{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px !important;
+  width:100%;
+  padding-top:12px !important;
+}
+.player-chip{
+  appearance:none;
+  border:1px solid #d2d2d7 !important;
+  background:#f5f5f7 !important;
+  color:#111 !important;
+  border-radius:16px !important;
+  min-height:52px !important;
+  padding:12px 16px !important;
+  font-size:17px !important;
+  font-weight:700 !important;
+  text-align:center;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);
+}
+.player-chip.active{
+  background:#111 !important;
+  color:#fff !important;
+  border-color:#111 !important;
+  box-shadow:0 4px 12px rgba(0,0,0,.16);
+}
+.current-player-card .current-player-name{
+  font-size:15px !important;
+  color:#6e6e73;
+  margin-bottom:2px;
+}
+.current-player-card .section-title{
+  margin-bottom:0;
+}
+</style>
+<style>
+.optional-label{font-size:10px;font-weight:600;color:#8e8e93;margin-left:3px;text-transform:lowercase}
+.extra-grid input::placeholder{color:#8e8e93}
+</style>
+<style>
+.stat-stepper{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-height:48px;
+}
+.stat-stepper button{
+  width:38px !important;
+  height:38px !important;
+  border-radius:50% !important;
+  background:#f2f2f7 !important;
+  color:#111 !important;
+  font-size:22px !important;
+  font-weight:500 !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.stat-stepper span{
+  min-width:28px;
+  text-align:center;
+  font-size:18px;
+  font-weight:700;
+}
+</style>
+<style>
+.round-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-left:8px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#e9f7ee;
+  color:#248a45;
+  font-size:12px;
+  font-weight:700;
+  vertical-align:middle;
+}
+.round-status i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#34c759;
+  display:inline-block;
+}
+</style>
+<style>
+.course-history-block{border-top:1px solid var(--line)}
+.course-history-block:first-child{border-top:0}
+.course-card-button{
+  width:100%;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--ink);
+  padding:14px 4px;
+  display:grid;
+  grid-template-columns:1fr auto auto 24px;
+  gap:14px;
+  align-items:center;
+  text-align:left;
+  cursor:pointer;
+}
+.course-card-button>div{min-width:0}
+.course-card-button strong{font-size:18px}
+.course-card-button small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.course-chevron{font-size:20px;color:var(--muted);text-align:center}
+.course-rounds{display:none;padding:0 4px 8px}
+.course-rounds.open{display:block}
+.course-round{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  padding:11px 4px;
+  border-top:1px solid var(--line);
+}
+.course-round-main{min-width:0}
+.course-round-main b{display:block;font-size:13px}
+.course-round-main small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.history-action{
+  border:0;
+  border-radius:12px;
+  background:#f0f0f2;
+  color:#007aff;
+  padding:9px 11px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+@media(max-width:600px){
+ .course-card-button{grid-template-columns:1fr auto 20px;gap:8px}
+ .course-card-button>div:nth-child(3){display:none}
+ .course-round{align-items:flex-start;flex-direction:column}
+ .history-action{align-self:flex-start}
+}
+</style>
+
+<style>
+.bounds-auth-card .section-title > span:first-child{font-size:11px;background:transparent;color:var(--ink);padding:0}
+.cloud-status{font-size:9px!important;background:#eef3f5!important;color:#66727a!important;border-radius:10px;padding:4px 7px!important}
+.cloud-status.ok{background:#eaf5ed!important;color:#2b7a43!important}
+.cloud-status.busy{background:#fff4df!important;color:#9a6500!important}
+.cloud-status.error{background:#fdeceb!important;color:#a63b35!important}
+.bounds-auth-card input{background:#fff}
+.bounds-auth-card .muted{display:block;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="hero">
+  <div class="eyebrow">GOLF SCOREKAART</div>
+  <h1>Jouw ronde.<br><span>Eenvoudig bijgehouden.</span></h1>
+  <button class="new-round" onclick="resetScores()">＋ Nieuwe ronde</button>
+</header>
+
+<nav class="tabs">
+ <button class="tab active" data-tab="round" onclick="showTab('round')">⛳<span>Ronde</span></button>
+ <button class="tab" data-tab="history" onclick="showTab('history')">◷<span>Rondes</span></button>
+ <button class="tab" data-tab="game" onclick="showTab('game')">◌<span>Mijn spel</span></button>
+</nav>
+
+<main>
+
+<section class="card bounds-auth-card">
+  <div class="section-title">
+    <span>BOUNDS CLOUD</span>
+    <span id="cloudStatus" class="cloud-status">Niet ingelogd</span>
+  </div>
+  <div id="authSignedOut">
+    <div class="grid">
+      <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
+      <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+    </div>
+    <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
+    <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens"></label>
+    <div class="action-grid" style="margin-top:10px">
+      <button class="primary" type="button" onclick="boundsSignUp()">Account maken</button>
+      <button class="secondary" type="button" onclick="boundsSignIn()">Inloggen</button>
+    </div>
+    <small id="authMessage" class="muted">Je lokale scorekaart blijft behouden; cloudopslag komt erbij.</small>
+  </div>
+  <div id="authSignedIn" style="display:none">
+    <div id="authUserLabel" class="muted"></div>
+    <div class="action-grid" style="margin-top:10px">
+      <button class="primary" type="button" onclick="syncCurrentRoundToCloud()">☁️ Ronde naar cloud</button>
+      <button class="secondary" type="button" onclick="loadCloudRounds()">↻ Cloudrondes laden</button>
+    </div>
+    <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
+    <small id="cloudMessage" class="muted">Cloudsync actief.</small>
+  </div>
+</section>
+
+<section id="page-round" class="tabpage active">
+ <div class="card settings">
+  <div class="section-title">Ronde instellen <span class="round-status"><i></i> Ronde bezig</span></div>
+  <div class="grid">
+   <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
+   <label>Ronde<select id="round"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
+   <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
+   <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+  </div>
+  <div class="stats">
+   <div class="stat"><small>Baanhcp</small><b id="courseHcp">—</b></div>
+   <div class="stat"><small>CR / Slope</small><b id="crsr">—</b></div>
+   <div class="stat"><small>Par</small><b id="coursePar">—</b></div>
+  </div>
+ </div>
+
+ <div class="card current-player-card"><div class="section-title">Speler</div><div id="currentPlayerName" class="current-player-name">Ik</div><div id="playerSwitcher" class="player-switcher"></div></div><div class="card score-card">
+  <div class="score-head"><div><b>Scorekaart</b><small id="note">Kies eerst een baan om je ronde te starten.</small></div><button class="ghost" id="statsToggle" onclick="toggleStatsAll()">Statistieken per hole</button></div>
+  <table>
+   <thead><tr><th>HOLE</th><th>PAR + IK</th><th>SLAGEN</th><th>STABLEFORD</th></tr></thead>
+   <tbody id="rows"></tbody>
+   <tfoot><tr><td colspan="2">Totaal</td><td id="total">0</td><td id="sfTotal">0</td></tr></tfoot>
+  </table>
+ </div>
+
+ <div class="card">
+  <div class="section-title">Spelers <button class="mini-action" onclick="addPlayer()">＋ Speler</button></div>
+  <div id="playersList"></div>
+  <small class="muted">Je kunt meerdere spelers toevoegen; je eigen scorekaart blijft leidend.</small>
+ </div>
+
+ <div class="action-grid">
+  <button class="primary" onclick="saveRound()">Opslaan</button>
+  <button class="secondary" onclick="printRound()">PDF / print</button>
+ </div>
+ <div class="action-grid">
+  <button class="secondary" onclick="addHoleNote()">📝 Notitie</button>
+  <button class="secondary" onclick="resetScores()">Nieuwe ronde</button>
+ </div>
+</section>
+
+<section id="page-history" class="tabpage">
+ <div class="card dashboard">
+  <div class="eyebrow">OVERZICHT</div><h2>Mijn golf</h2>
+  <div class="dashboard-grid">
+   <div class="metric"><b id="dRounds">0</b><span>rondes</span></div>
+   <div class="metric"><b id="dBest">—</b><span>beste score</span></div>
+   <div class="metric"><b id="dAvg">—</b><span>gem. score</span></div>
+   <div class="metric"><b id="dSf">—</b><span>gem. Stableford</span></div>
+   <div class="metric"><b id="dBestSf">—</b><span>beste Stableford</span></div>
+  </div>
+  <h3>Scoretrend</h3><div id="trend"></div>
+ </div>
+
+ <div class="card"><div class="section-title">⛳ Baanhistorie</div><div id="courseHistory"></div></div>
+
+ <div class="card"><div class="section-title">📋 Opgeslagen rondes</div><div id="historyList">Nog geen opgeslagen rondes.</div></div>
+ <div class="card"><div class="section-title">🏆 Persoonlijke records</div><div id="recordsText" class="muted">Nog geen opgeslagen rondes.</div></div>
+ <div class="card" id="analysisCard" style="display:none"><div class="section-title">📊 Laatste ronde</div><div class="stats" id="analysisStats"></div><div id="analysisText" class="muted"></div></div>
+</section>
+
+<section id="page-game" class="tabpage">
+ <div class="card">
+  <div class="eyebrow">MIJN SPEL</div><h2>Waar sta je?</h2>
+  <label class="goal-input-label">Doelhandicap<input id="goalHcp" type="number" min="-10" max="54" step="0.1" value="12.0" onchange="saveGoalHcp();renderMyGame()"></label><div id="goalText" class="goal"></div>
+  <div class="goalbar"><i></i></div>
+  <h3>Per par-type</h3>
+  <div id="parBreakdown" class="dashboard-grid"></div>
+ </div>
+ <div class="card">
+  <h3>Waar verlies je slagen?</h3>
+  <p class="muted">De app kijkt naar je opgeslagen scorekaarten. Hoe meer rondes je speelt, hoe nuttiger dit overzicht wordt.</p>
+ </div>
+</section>
+</main>
+</div>
+</body>
+<script>
+// -------------------- COURSE DATA --------------------
+
+// Crimpenerhout geel heren, 9 holes.
+// SI's are the actual Stroke Index ranking on the 9-hole loop.
+const crimp={
+ name:"Crimpenerhout",
+ nine:{
+  first:{
+   cr:32.3,sr:107,par:33,
+   holes:[[1,4,11],[2,3,17],[3,4,5],[4,3,9],[5,4,3],[6,3,15],[7,4,13],[8,5,1],[9,3,7]]
+  }
+ },
+ eighteen:{
+  cr:68.8,sr:124,par:66,
+  holes:[
+   [1,4,11],[2,3,17],[3,4,5],[4,3,9],[5,4,3],[6,3,15],[7,4,13],[8,5,1],[9,3,7],
+   [10,4,12],[11,3,18],[12,4,6],[13,3,10],[14,4,4],[15,3,16],[16,4,8],[17,4,14],[18,5,2]
+  ]
+ }
+};
+
+// Crimpenerhout 9-hole official men's yellow course-handicap table.
+const crimp9Table=[
+ [-10,0.4,0],[0.5,2.5,0],[2.6,4.6,1],[4.7,6.7,2],[6.8,8.8,3],
+ [8.9,10.9,4],[11.0,13.0,5],[13.1,15.2,6],[15.3,17.3,7],[17.4,19.4,8],
+ [19.5,21.5,9],[21.6,23.6,10],[23.7,25.7,11],[25.8,27.8,12],[27.9,29.9,13],
+ [30.0,32.1,14],[32.2,34.2,15],[34.3,36.3,16],[36.4,38.4,17],[38.5,40.5,18],
+ [40.6,42.6,19],[42.7,44.7,20],[44.8,46.8,21],[46.9,49.0,22],[49.1,51.1,23],
+ [51.2,53.2,24],[53.3,54.0,25]
+];
+
+// De Kroonprins 18-hole men's yellow course-handicap table.
+// Official table: CR 69.4, par 71, SR 130.
+const kp18Table=[
+ [-10,0.2,0],[0.3,1.0,1],[1.1,1.9,2],[2.0,2.7,3],[2.8,3.5,4],
+ [3.6,4.4,5],[4.5,5.2,6],[5.3,6.1,7],[6.2,6.9,8],[7.0,7.7,9],
+ [7.8,8.6,10],[8.7,9.4,11],[9.5,10.2,12],[10.3,11.1,13],[11.2,11.9,14],
+ [12.0,12.8,15],[12.9,13.6,16],[13.7,14.4,17],[14.5,15.3,18],[15.4,16.1,19],
+ [16.2,16.9,20],[17.0,17.8,21],[17.9,18.6,22],[18.7,19.5,23],[19.6,20.3,24],
+ [20.4,21.1,25],[21.2,22.0,26],[22.1,22.8,27],[22.9,23.6,28],[23.7,24.5,29],
+ [24.6,25.3,30],[25.4,26.1,31],[26.2,27.0,32],[27.1,27.8,33],[27.9,28.7,34],
+ [28.8,29.5,35],[29.6,30.3,36],[30.4,31.2,37],[31.3,32.0,38],[32.1,32.8,39],
+ [32.9,33.7,40],[33.8,34.5,41],[34.6,35.4,42],[35.5,36.2,43],[36.3,37.0,44],
+ [37.1,37.9,45],[38.0,38.7,46],[38.8,39.5,47],[39.6,40.4,48],[40.5,41.2,49],
+ [41.3,42.1,50],[42.2,42.9,51],[43.0,43.7,52],[43.8,44.6,53],[44.7,45.4,54],
+ [45.5,46.2,55],[46.3,47.1,56],[47.2,47.9,57],[48.0,48.7,58],[48.8,49.6,59],
+ [49.7,50.4,60],[50.5,51.3,61],[51.4,52.1,62],[52.2,52.9,63],[53.0,53.8,64],[53.9,54.0,65]
+];
+
+// De Kroonprins 1e 9 men's yellow table: CR 34.5, par 35, SR 132.
+const kpFirst9Table=[
+ [-10,0.5,0],[0.6,2.2,1],[2.3,3.9,2],[4.0,5.6,3],[5.7,7.3,4],[7.4,9.0,5],
+ [9.1,10.7,6],[10.8,12.4,7],[12.5,14.1,8],[14.2,15.8,9],[15.9,17.5,10],
+ [17.6,19.2,11],[19.3,20.9,12],[21.0,22.5,13],[22.6,24.2,14],[24.3,25.9,15],
+ [26.0,27.6,16],[27.7,29.3,17],[29.4,31.0,18],[31.1,32.7,19],[32.8,34.4,20],
+ [34.5,36.1,21],[36.2,37.8,22],[37.9,39.5,23],[39.6,41.2,24],[41.3,42.9,25],
+ [43.0,44.6,26],[44.7,46.3,27],[46.4,48.0,28],[48.1,49.7,29],[49.8,51.4,30],
+ [51.5,53.1,31],[53.2,54.0,32]
+];
+
+// De Kroonprins 2e 9 men's yellow table: CR 35.0, par 36, SR 128.
+const kpSecond9Table=[
+ [-10,0.8,0],[0.9,2.4,1],[2.5,4.1,2],[4.2,5.8,3],[5.9,7.4,4],[7.5,9.1,5],
+ [9.2,10.8,6],[10.9,12.4,7],[12.5,14.1,8],[14.2,15.7,9],[15.8,17.4,10],
+ [17.5,19.1,11],[19.2,20.7,12],[20.8,22.4,13],[22.5,24.0,14],[24.1,25.7,15],
+ [25.8,27.4,16],[27.5,29.0,17],[29.1,30.7,18],[30.8,32.4,19],[32.5,34.0,20],
+ [34.1,35.7,21],[35.8,37.3,22],[37.4,39.0,23],[39.1,40.7,24],[40.8,42.3,25],
+ [42.4,44.0,26],[44.1,45.6,27],[45.7,47.3,28],[47.4,49.0,29],[49.1,50.6,30],
+ [50.7,52.3,31],[52.4,54.0,32]
+];
+
+// Kroonprins main 18-hole yellow scorecard: par and SI.
+const kpMain18=[
+ [1,4,8],[2,4,14],[3,4,10],[4,3,16],[5,4,2],[6,5,4],[7,4,12],[8,4,6],[9,3,18],
+ [10,4,11],[11,4,9],[12,4,13],[13,3,15],[14,5,3],[15,3,7],[16,4,1],[17,4,17],[18,5,5]
+];
+const kpFirst9=kpMain18.slice(0,9);
+const kpSecond9=kpMain18.slice(9,18);
+
+// Kroonprins Par 3 yellow scorecard: par 3 each hole.
+// 9-hole SI: 7,17,1,5,15,3,13,11,9.
+// 18-hole second loop: 8,18,2,6,16,4,14,12,10.
+const kpPar3First9=[
+ [1,3,7],[2,3,17],[3,3,1],[4,3,5],[5,3,15],[6,3,3],[7,3,13],[8,3,11],[9,3,9]
+];
+const kpPar3Second9=[
+ [10,3,8],[11,3,18],[12,3,2],[13,3,6],[14,3,16],[15,3,4],[16,3,14],[17,3,12],[18,3,10]
+];
+
+// Kroonprins Par 3 official men's tables.
+const kpPar3_9Table=[
+ [-10,3.0,2],[3.1,6.4,1],[6.5,9.7,0],[9.8,13.1,1],[13.2,16.5,2],
+ [16.6,19.9,3],[20.0,23.2,4],[23.3,26.6,5],[26.7,30.0,6],[30.1,33.3,7],
+ [33.4,36.7,8],[36.8,40.1,9],[40.2,43.5,10],[43.6,46.8,11],[46.9,50.2,12],
+ [50.3,53.6,13],[53.7,54.0,14]
+];
+const kpPar3_18Table=[
+ [-10,0.5,4],[0.6,2.1,4],[2.2,3.8,3],[3.9,5.5,2],[5.6,7.2,1],[7.3,8.9,0],
+ [9.0,10.6,1],[10.7,12.3,2],[12.4,13.9,3],[14.0,15.6,4],[15.7,17.3,5],
+ [17.4,19.0,6],[19.1,20.7,7],[20.8,22.4,8],[22.5,24.1,9],[24.2,25.8,10],
+ [25.9,27.4,11],[27.5,29.1,12],[29.2,30.8,13],[30.9,32.5,14],[32.6,34.2,15],
+ [34.3,35.9,16],[36.0,37.6,17],[37.7,39.2,18],[39.3,40.9,19],[41.0,42.6,20],
+ [42.7,44.3,21],[44.4,46.0,22],[46.1,47.7,23],[47.8,49.4,24],[49.5,51.1,25],
+ [51.2,52.7,26],[52.8,54.0,27]
+];
+
+// -------------------- LOGIC --------------------
+
+const course=document.getElementById('course');
+const round=document.getElementById('round');
+const loop=document.getElementById('loop');
+const loopLabel=document.getElementById('loopLabel');
+const hi=document.getElementById('hi');
+const rows=document.getElementById('rows');
+const scores={};
+
+function tableHcp(table,h){
+ const row=table.find(r=>h>=r[0] && h<=r[1]);
+ return row ? row[2] : null;
+}
+
+function currentConfig(){
+ const h=+hi.value||0;
+ const c=course.value;
+ const n=+round.value;
+ let holes, cr, sr, par, table, note;
+
+ if(c==='crimpenerhout'){
+   if(n===9){
+     holes=crimp.nine.first.holes; cr=32.3; sr=107; par=33; table=crimp9Table;
+     note='Crimpenerhout geel heren • 9 holes • CR 32,3 / SR 107.';
+   }else{
+     holes=crimp.eighteen.holes; cr=68.8; sr=124; par=66; table=null;
+     // The supplied official 18-hole table is already directly represented
+     // by the course handicap values. For the current user's table, 14.2 = 13.
+     table='crimp18';
+     note='Crimpenerhout geel heren • 18 holes • CR 68,8 / SR 124.';
+   }
+ }else if(c==='kroonprins'){
+   if(n===9){
+     if(loop.value==='second'){
+       holes=kpSecond9; cr=35.0; sr=128; par=36; table=kpSecond9Table;
+       note='De Kroonprins geel heren • 2e 9 • CR 35,0 / SR 128 • baanhcp volgens 9-holes berekening.';
+     }else{
+       holes=kpFirst9; cr=34.5; sr=132; par=35; table=kpFirst9Table;
+       note='De Kroonprins geel heren • 1e 9 • CR 34,5 / SR 132 • baanhcp volgens 9-holes berekening.';
+     }
+   }else{
+     holes=kpMain18; cr=69.4; sr=130; par=71; table=kp18Table;
+     note='De Kroonprins geel heren • 18 holes • CR 69,4 / SR 130 • baanhcp volgens 18-holes berekening.';
+   }
+ }else{
+   holes=kpPar3First9; cr=24.6; sr=67; par=27; table=kpPar3_9Table;
+   note='';
+ }
+ return {h,c,n,holes,cr,sr,par,table,note};
+}
+
+function isKpPar3(){
+ return course.value==='kroonprins' && false;
+}
+
+function getCourseHcp(cfg){
+ const h=cfg.h;
+ if(cfg.c==='crimpenerhout' && cfg.n===18){
+   // Crimpenerhout uses the supplied official 18-hole table.
+   const t=[
+    [-10,0.2,0],[0.3,1.2,1],[1.3,2.2,0],[2.3,3.2,1],[3.3,4.2,2],
+    [4.3,5.2,3],[5.3,6.2,4],[6.3,7.2,5],[7.3,8.2,6],[8.3,9.2,7],
+    [9.3,10.2,8],[10.3,11.2,9],[11.3,12.1,10],[12.2,13.1,11],[13.2,14.1,12],
+    [14.2,15.1,13],[15.2,16.1,14],[16.2,17.1,15],[17.2,18.1,16],[18.2,19.1,17],
+    [19.2,20.1,18],[20.2,21.1,19],[21.2,22.1,20],[22.2,23.0,21],[23.1,24.0,22],
+    [24.1,25.0,23],[25.1,26.0,24],[26.1,27.0,25],[27.1,28.0,26],[28.1,29.0,27],
+    [29.1,30.0,28],[30.1,31.0,29],[31.1,32.0,30],[32.1,33.0,31],[33.1,33.9,32],
+    [34.0,34.9,33],[35.0,35.9,34],[36.0,36.9,35],[37.0,37.9,36],[38.0,38.9,37],
+    [39.0,39.9,38],[40.0,40.9,39],[41.0,41.9,40],[42.0,42.9,41],[43.0,43.9,42],
+    [44.0,44.9,43],[45.0,45.8,44],[45.9,46.8,45],[46.9,47.8,46],[47.9,48.8,47],
+    [48.9,49.8,48],[49.9,50.8,49],[50.9,51.8,50],[51.9,52.8,51],[52.9,53.8,52],
+    [53.9,54.0,53]
+   ];
+   return tableHcp(t,h);
+ }
+
+ if(cfg.c==='kroonprins'){
+   // For De Kroonprins we use the course-handicap calculation that matches
+   // the values you supplied for HCP 14.2: 1e 9 = 8, 2e 9 = 7, 18 holes = 15.
+   // 9-hole formula: H.I. × SR / 226 + (CR - Par) / 2.
+   // 18-hole formula: H.I. × SR / 113 + (CR - Par).
+   // The result is truncated to the whole playing handicap.
+   const raw = cfg.n===9
+     ? h*cfg.sr/226 + (cfg.cr-cfg.par)/2
+     : h*cfg.sr/113 + (cfg.cr-cfg.par);
+   return Math.floor(raw);
+ }
+
+ return tableHcp(cfg.table,h);
+}
+
+function strokesForSI(si,cfg){
+ const ch=getCourseHcp(cfg);
+ if(ch===null || ch<=0) return 0;
+ const sorted=[...new Set(cfg.holes.map(x=>x[2]))].sort((a,b)=>a-b);
+ const idx=sorted.indexOf(si);
+ if(idx<0)return 0;
+ const n=sorted.length;
+ return Math.floor(ch/n)+(idx<(ch%n)?1:0);
+}
+
+function stableford(par,score,si,cfg){
+ if(!score)return null;
+ return Math.max(0,2+par-(score-strokesForSI(si,cfg)));
+}
+
+function storageKey(h){
+ return `golf_${course.value}_${round.value}_${loop.value}_h${h}`;
+}
+
+function loadScores(){
+ for(let i=1;i<=18;i++) scores[i]=+(localStorage.getItem(storageKey(i))||0);
+}
+
+function render(){
+ const cfg=currentConfig();
+ rows.innerHTML='';
+ cfg.holes.forEach(h=>{
+  const v=scores[h[0]]||0;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td class="hole"><div class="hole-number">${h[0]}</div><button class="hole-stats-btn" type="button" data-hole-stats="${h[0]}" onclick="showHoleStats(${h[0]})">＋ Stats</button></td>
+  <td>${h[1]}<span class="ik" id="ik${h[0]}"></span></td>
+  <td><div class="scorebox"><button onclick="chg(${h[0]},-1)">−</button><span class="score" id="s${h[0]}">${v||'—'}</span><button onclick="chg(${h[0]},1)">+</button></div></td>
+  <td class="sf" id="sf${h[0]}">—</td>`;
+  rows.appendChild(tr);
+ });
+
+ const ch=getCourseHcp(cfg);
+ document.getElementById('courseHcp').textContent=ch===null?'—':ch;
+ document.getElementById('crsr').textContent=`${cfg.cr.toFixed(1)} / ${cfg.sr}`;
+ document.getElementById('coursePar').textContent=cfg.par;
+ document.getElementById('note').textContent=cfg.note;
+
+ let total=0,sft=0;
+ cfg.holes.forEach(h=>{
+   const v=scores[h[0]]||0;
+   const st=strokesForSI(h[2],cfg);
+   document.getElementById('ik'+h[0]).textContent=st?` +${st}`:'';
+   document.getElementById('s'+h[0]).textContent=v||'—';
+   const sf=stableford(h[1],v,h[2],cfg);
+   document.getElementById('sf'+h[0]).textContent=sf===null?'—':sf;
+   if(v)total+=v;
+   if(sf!==null)sft+=sf;
+ });
+ document.getElementById('total').textContent=total;
+ document.getElementById('sfTotal').textContent=sft;
+}
+
+function chg(h,d){
+ const cfg=currentConfig();
+ const hole=cfg.holes.find(x=>x[0]===h);
+ const current=scores[h]||0;
+
+ // Before the first tap the field is blank.
+ // First + starts at par; first - starts at par - 1.
+ let next;
+ if(current===0){
+   next = hole ? hole[1] : 0;
+   if(d<0) next=Math.max(1,next-1);
+ }else{
+   next=Math.max(1,current+d);
+ }
+
+ scores[h]=next;
+ localStorage.setItem(storageKey(h),scores[h]);
+ render();
+}
+function resetScores(){
+ if(confirm('Een nieuwe ronde starten? De huidige scores worden gewist en je moet opnieuw een baan kiezen.')){
+  for(let i=1;i<=18;i++){scores[i]=0;localStorage.removeItem(storageKey(i));}
+  course.value='';
+  localStorage.removeItem('golf_course');
+  // Keep handicap, but reset round settings to a neutral state.
+  round.value='9';
+  loop.value='first';
+  saveSettings();
+  updateUI();
+  window.scrollTo({top:0,behavior:'smooth'});
+ }
+}
+
+function saveSettings(){
+ localStorage.setItem('golf_course',course.value);
+ localStorage.setItem('golf_round',round.value);
+ localStorage.setItem('golf_loop',loop.value);
+ localStorage.setItem('golf_hi',hi.value);
+}
+
+function updateUI(){
+ const hasCourse=!!course.value;
+ round.disabled=!hasCourse;
+ loop.disabled=!hasCourse;
+ // Loop selector is relevant only for 9 holes on the main Kroonprins.
+ const kpMain9=course.value==='kroonprins' && round.value==='9';
+ loopLabel.style.display=(hasCourse && kpMain9)?'block':'none';
+
+ if(hasCourse){
+   render();
+   saveSettings();
+ }else{
+   rows.innerHTML='';
+   document.getElementById('courseHcp').textContent='—';
+   document.getElementById('crsr').textContent='—';
+   document.getElementById('coursePar').textContent='—';
+   document.getElementById('total').textContent='0';
+   document.getElementById('sfTotal').textContent='0';
+   document.getElementById('note').textContent='Kies eerst een baan om je ronde te starten.';
+ }
+}
+
+// Add Par 3 as a distinct course choice.
+const par3Option=document.createElement('option');
+par3Option.value='kroonprins_par3';
+par3Option.textContent='De Kroonprins – Par 3';
+course.appendChild(par3Option);
+
+// Override currentConfig for the Par 3 course while retaining all shared logic.
+const originalCurrentConfig=currentConfig;
+window.currentConfig=function(){
+ if(course.value!=='kroonprins_par3') return originalCurrentConfig();
+ const h=+hi.value||0,n=+round.value;
+ const holes=n===9?kpPar3First9:kpPar3First9.concat(kpPar3Second9);
+ const table=n===9?kpPar3_9Table:kpPar3_18Table;
+ return {h,c:'kroonprins_par3',n,holes,cr:n===9?24.6:49.2,sr:67,par:n===9?27:54,table,note:`De Kroonprins Par 3 geel heren • ${n} holes • CR ${n===9?'24,6':'49,2'} / SR 67.`};
+};
+
+// Event handling.
+[course,round,loop,hi].forEach(el=>el.addEventListener('change',()=>{
+ loadScores(); updateUI();
+}));
+hi.addEventListener('input',()=>{saveSettings();render();});
+
+const savedCourse=localStorage.getItem('golf_course');
+const savedRound=localStorage.getItem('golf_round');
+const savedLoop=localStorage.getItem('golf_loop');
+const savedHI=localStorage.getItem('golf_hi');
+if(savedCourse)course.value=savedCourse;
+if(savedRound)round.value=savedRound;
+if(savedLoop)loop.value=savedLoop;
+if(savedHI)hi.value=savedHI;
+
+loadScores();
+updateUI();
+
+
+function addHoleNote(){
+ const cfg=currentConfig();
+ const n=prompt('Voor welke hole wil je een notitie toevoegen? (1-'+cfg.holes.length+')');
+ const hole=parseInt(n,10);
+ if(!hole || hole<1 || hole>cfg.holes.length)return;
+ const text=prompt('Notitie voor hole '+hole+':',localStorage.getItem('note_'+course.value+'_'+round.value+'_'+loop.value+'_'+hole)||'');
+ if(text!==null)localStorage.setItem('note_'+course.value+'_'+round.value+'_'+loop.value+'_'+hole,text);
+}
+
+function currentRoundData(){
+ const cfg=currentConfig();
+ const ch=getCourseHcp(cfg);
+ let total=0,sft=0;
+ const holes=cfg.holes.map(h=>{
+   const score=scores[h[0]]||0;
+   const strokes=strokesForSI(h[2],cfg);
+   const sf=stableford(h[1],score,h[2],cfg);
+   if(score) total+=score;
+   if(sf!==null) sft+=sf;
+   return {hole:h[0],par:h[1],si:h[2],score,strokes,sf,
+     note:localStorage.getItem('note_'+course.value+'_'+round.value+'_'+loop.value+'_'+h[0])||''};
+ });
+ return {
+   date:new Date().toLocaleDateString('nl-NL'),
+   time:new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),
+   course:course.options[course.selectedIndex].text,
+   round:round.options[round.selectedIndex].text,
+   loop:loop.options[loop.selectedIndex].text,
+   handicap:+hi.value||0,
+   courseHcp:ch,
+   total,sft,holes
+ };
+}
+
+function getHistory(){
+ try{return JSON.parse(localStorage.getItem('golf_history')||'[]')}catch(e){return []}
+}
+function saveRound(){
+ const data=currentRoundData();
+ if(!data.holes.some(x=>x.score)){
+   alert('Vul eerst minimaal één score in.');
+   return;
+ }
+ const history=getHistory();
+ history.unshift(data);
+ localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
+ renderHistory();
+ renderAnalysis(data);
+ renderRecords();
+ alert('Ronde opgeslagen.');
+}
+
+function renderAnalysis(r){
+ const card=document.getElementById('analysisCard');
+ const stats=document.getElementById('analysisStats');
+ const text=document.getElementById('analysisText');
+ const played=r.holes.filter(x=>x.score>0);
+ if(!played.length){card.style.display='none';return;}
+ const par=played.reduce((a,x)=>a+x.par,0);
+ const score=played.reduce((a,x)=>a+x.score,0);
+ const birdies=played.filter(x=>x.score<x.par).length;
+ const pars=played.filter(x=>x.score===x.par).length;
+ const bogeys=played.filter(x=>x.score===x.par+1).length;
+ const doubles=played.filter(x=>x.score>=x.par+2).length;
+ const diff=score-par;
+ const diffText=diff===0?'par':(diff>0?'+'+diff:String(diff));
+ stats.innerHTML=[
+  ['Slagen',score],['Stableford',r.sft],['T.o.v. par',diffText],
+  ['Birdies+',birdies],['Pars',pars],['Bogeys',bogeys]
+ ].map(x=>`<div class="analysis-item"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('');
+ const sorted=[...played].sort((a,b)=>(b.score-b.par)-(a.score-a.par));
+ const best=[...played].sort((a,b)=>(a.score-a.par)-(b.score-b.par))[0];
+ const worst=sorted[0];
+ text.innerHTML=`Sterkste hole: <b>hole ${best.hole}</b> (${best.score===best.par?'par':(best.score<best.par?'onder par':'boven par')}). `+
+  `Meest uitdagende hole: <b>hole ${worst.hole}</b>. `+
+  `Gemiddeld ${ (score/played.length).toFixed(2).replace('.',',') } slagen per gespeelde hole.`;
+ card.style.display='block';
+}
+
+function renderRecords(){
+ const el=document.getElementById('recordsText');
+ const h=getHistory();
+ if(!h.length){el.textContent='Nog geen opgeslagen rondes.';return;}
+ const bestScore=h.reduce((a,b)=>b.total<a.total?b:a);
+ const bestSF=h.reduce((a,b)=>b.sft>a.sft?b:a);
+ const avg=(h.reduce((a,b)=>a+b.sft,0)/h.length).toFixed(1).replace('.',',');
+ el.innerHTML=`Beste score: <b>${bestScore.total}</b> slagen (${bestScore.course})<br>`+
+  `Beste Stableford: <b>${bestSF.sft}</b> (${bestSF.course})<br>`+
+  `Gemiddelde Stableford: <b>${avg}</b> over ${h.length} opgeslagen ronde${h.length===1?'':'s'}.`;
+}
+
+function renderHistory(){
+ const el=document.getElementById('historyList');
+ const history=getHistory();
+ if(!history.length){el.textContent='Nog geen opgeslagen rondes.';return;}
+ el.innerHTML=history.map((r,i)=>{
+   const label=`${r.date} — ${r.course} — ${r.round}${r.loop&&r.loop!=='Hele baan'?' ('+r.loop+')':''}`;
+   return `<div class="rounditem">
+     <button class="roundopen" onclick="openRound(${i})">
+       <div><b>${label}</b><div class="roundmeta">Hcp ${r.handicap} • baanhcp ${r.courseHcp} • ${r.total} slagen • ${r.sft} Stableford</div></div>
+     </button>
+     <button class="delete" onclick="deleteRound(${i})">Wis</button>
+   </div>`;
+ }).join('');
+}
+let editingHistoryIndex=-1;
+
+function openSavedRound(i){
+  openRound(i);
+  editingHistoryIndex=i;
+  const saveBtn=document.querySelector('.action-grid .primary');
+  if(saveBtn)saveBtn.textContent='Wijzigingen opslaan';
+  showTab('round');
+}
+
+function openRound(i){
+ const history=getHistory();
+ const r=history[i];
+ if(!r)return;
+
+ const courseIndex=[...course.options].findIndex(o=>o.text===r.course);
+ if(courseIndex>=0) course.value=course.options[courseIndex].value;
+ const roundIndex=[...round.options].findIndex(o=>o.text===r.round);
+ if(roundIndex>=0) round.value=round.options[roundIndex].value;
+ const loopIndex=[...loop.options].findIndex(o=>o.text===r.loop);
+ if(loopIndex>=0) loop.value=loop.options[loopIndex].value;
+ hi.value=r.handicap;
+
+ for(let n=1;n<=18;n++) scores[n]=0;
+ r.holes.forEach(x=>{
+   scores[x.hole]=x.score||0;
+   if(x.extra) extraStats[`${course.value}|${round.value}|${loop.value}|${x.hole}`]={...getExtra(x.hole),...x.extra};
+   if(x.note!==undefined)localStorage.setItem('note_'+course.value+'_'+round.value+'_'+loop.value+'_'+x.hole,x.note||'');
+ });
+ localStorage.setItem('golf_extra_stats',JSON.stringify(extraStats));
+
+ localStorage.setItem('golf_hi',hi.value);
+ localStorage.setItem('golf_course',course.value);
+ localStorage.setItem('golf_round',round.value);
+ localStorage.setItem('golf_loop',loop.value);
+ for(let n=1;n<=18;n++) localStorage.setItem(storageKey(n),scores[n]||0);
+
+ render();
+ renderAnalysis(r);
+ renderRecords();
+ setTimeout(()=>renderExtraStats(),50);
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteRound(i){
+ const history=getHistory();
+ if(confirm('Deze opgeslagen ronde verwijderen?')){
+   history.splice(i,1);
+   localStorage.setItem('golf_history',JSON.stringify(history));
+   renderHistory();
+   renderRecords();
+ }
+}
+function printRound(){
+ const data=currentRoundData();
+ if(!data.holes.some(x=>x.score)){
+   alert('Vul eerst minimaal één score in.');
+   return;
+ }
+ window.print();
+}
+
+/* ===== V2 ENHANCEMENTS ===== */
+const originalSaveRound = window.saveRound;
+const originalCurrentRoundData = window.currentRoundData;
+let extraStats = JSON.parse(localStorage.getItem('golf_extra_stats') || '{}');
+let players = JSON.parse(localStorage.getItem('golf_players') || '["Ik"]');
+
+function extraKey(h){ return `${course.value}|${round.value}|${loop.value}|${h}`; }
+function getExtra(h){ return extraStats[extraKey(h)] || {putts:'',fairway:'',gir:'',penalty:'',note:''}; }
+function changeStat(h, field, delta){
+  const e=getExtra(h);
+  const current=Number(e[field]||0);
+  const next=Math.max(0, Math.min(field==='putts'?10:10, current+delta));
+  setExtra(h,{[field]:next ? String(next) : ''});
+  const el=document.getElementById(`${field}-${h}`);
+  if(el) el.textContent=next || '—';
+}
+function setExtra(h, patch){
+  extraStats[extraKey(h)]={...getExtra(h),...patch};
+  localStorage.setItem('golf_extra_stats',JSON.stringify(extraStats));
+}
+
+function showHoleStats(h){
+  let box=document.getElementById('extra-'+h);
+  if(!box){
+    renderExtraStats();
+    box=document.getElementById('extra-'+h);
+  }
+  if(!box)return;
+  const open=box.classList.toggle('open');
+  const btn=document.querySelector(`.hole-stats-btn[data-hole-stats="${h}"]`);
+  if(btn)btn.textContent=open?'− Sluit stats':'＋ Stats';
+}
+function saveHoleNote(h){
+  const e=getExtra(h);
+  const val=prompt(`Notitie voor hole ${h}:`,e.note||'');
+  if(val!==null)setExtra(h,{note:val});
+}
+function renderExtraStats(){
+  document.querySelectorAll('.extra-row').forEach(x=>x.remove());
+  if(!course.value)return;
+  const cfg=currentConfig();
+  cfg.holes.forEach(h=>{
+    const tr=document.createElement('tr');
+    tr.className='extra-row';
+    tr.dataset.hole=h[0];
+    const e=getExtra(h[0]);
+    tr.innerHTML=`<td colspan="4">
+      <div class="extra-panel" id="extra-${h[0]}">
+        <div class="extra-grid">
+          <label>Putts <span class="optional-label">optioneel</span><div class="stat-stepper"><button type="button" onclick="changeStat(${h[0]},'putts',-1)">−</button><span id="putts-${h[0]}">${e.putts||'—'}</span><button type="button" onclick="changeStat(${h[0]},'putts',1)">+</button></div></label>
+          <label>Penalty <span class="optional-label">optioneel</span><div class="stat-stepper"><button type="button" onclick="changeStat(${h[0]},'penalty',-1)">−</button><span id="penalty-${h[0]}">${e.penalty||'—'}</span><button type="button" onclick="changeStat(${h[0]},'penalty',1)">+</button></div></label>
+          <label>Fairway <span class="optional-label">optioneel</span><select onchange="setExtra(${h[0]},{fairway:this.value})"><option value="" ${e.fairway===''?'selected':''}>Niet ingevuld</option><option value="hit" ${e.fairway==='hit'?'selected':''}>✓ geraakt</option><option value="miss" ${e.fairway==='miss'?'selected':''}>✕ gemist</option></select></label>
+          <label>GIR <span class="optional-label">optioneel</span><select onchange="setExtra(${h[0]},{gir:this.value})"><option value="" ${e.gir===''?'selected':''}>Niet ingevuld</option><option value="yes" ${e.gir==='yes'?'selected':''}>✓ GIR</option><option value="no" ${e.gir==='no'?'selected':''}>✕ geen GIR</option></select></label>
+        </div>
+        <button class="mini-action" type="button" onclick="saveHoleNote(${h[0]})">📝 ${e.note?'Notitie bekijken/wijzigen':'Notitie toevoegen'}</button>
+      </div>
+    </td>`;
+
+    // The previous version tried to insert a detached <tr> using
+    // previousElementSibling, which can never work. Find the actual score row
+    // and insert the stats row immediately after it.
+    const scoreRow=[...document.querySelectorAll('#rows > tr:not(.extra-row)')]
+      .find(row=>row.querySelector('.hole-number')?.textContent.trim()===String(h[0]));
+    if(scoreRow) scoreRow.after(tr);
+  });
+}
+function toggleStatsAll(){
+  if(!course.value){
+    alert('Kies eerst een baan. Daarna kun je per hole de optionele statistieken invullen.');
+    return;
+  }
+  // Zorg dat de statistiekregels altijd aanwezig zijn voordat we ze openen.
+  if(!document.querySelector('.extra-panel')) renderExtraStats();
+  const panels=[...document.querySelectorAll('.extra-panel')];
+  if(!panels.length){
+    alert('Er zijn geen holes beschikbaar voor deze ronde.');
+    return;
+  }
+  const shouldOpen=panels.some(x=>!x.classList.contains('open'));
+  panels.forEach(x=>x.classList.toggle('open',shouldOpen));
+}
+function addStatsRows(){
+  if(!course.value)return;
+  renderExtraStats();
+}
+
+function calculateStatsForRound(r){
+  const played=r.holes.filter(x=>x.score>0);
+  const stats=played.map(x=>x.extra||{});
+  const avg=(arr)=>{const a=arr.map(Number).filter(Number.isFinite);return a.length?(a.reduce((x,y)=>x+y,0)/a.length):null};
+  const putts=avg(stats.filter(x=>x.putts!==''&&x.putts!=null).map(x=>x.putts));
+  const fw=stats.filter(x=>x.fairway==='hit'||x.fairway==='miss');
+  const gir=stats.filter(x=>x.gir==='yes'||x.gir==='no');
+  return {
+    avgPutts:putts,
+    fw:fw.length?fw.filter(x=>x.fairway==='hit').length/fw.length:null,
+    gir:gir.length?gir.filter(x=>x.gir==='yes').length/gir.length:null
+  };
+}
+
+function buildEnhancedRound(){
+  const r=originalCurrentRoundData();
+  r.players=players.slice();
+  r.holes=r.holes.map(x=>({...x,extra:getExtra(x.hole)}));
+  r.analysis=calculateStatsForRound(r);
+  return r;
+}
+window.currentRoundData=buildEnhancedRound;
+
+function saveRoundEnhanced(){
+  const data=buildEnhancedRound();
+  if(!data.holes.some(x=>x.score)){alert('Vul eerst minimaal één score in.');return;}
+  const history=getHistory();
+  if(editingHistoryIndex>=0 && history[editingHistoryIndex]){
+    history[editingHistoryIndex]=data;
+    localStorage.setItem('golf_history',JSON.stringify(history.slice(0,100)));
+    alert('Wijzigingen opgeslagen.');
+  }else{
+    history.unshift(data);
+    localStorage.setItem('golf_history',JSON.stringify(history.slice(0,100)));
+    alert('Ronde opgeslagen.');
+  }
+  editingHistoryIndex=-1;
+  const saveBtn=document.querySelector('.action-grid .primary');
+  if(saveBtn)saveBtn.textContent='Opslaan';
+  renderHistory(); renderRecords(); renderDashboard(); renderCourseHistory();
+}
+window.saveRound=saveRoundEnhanced;
+
+function renderDashboard(){
+  const h=getHistory();
+  const scores=h.map(x=>Number(x.total)).filter(Number.isFinite);
+  const sf=h.map(x=>Number(x.sft)).filter(Number.isFinite);
+  const avg=(a)=>a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1).replace('.',','):'—';
+  document.getElementById('dRounds').textContent=h.length;
+  document.getElementById('dBest').textContent=scores.length?Math.min(...scores):'—';
+  document.getElementById('dAvg').textContent=avg(scores);
+  document.getElementById('dSf').textContent=avg(sf);
+  document.getElementById('dBestSf').textContent=sf.length?Math.max(...sf):'—';
+
+  const last=h.slice(0,10);
+  const trend=document.getElementById('trend');
+  if(last.length<2){trend.innerHTML='<div class="empty">Speel nog een paar rondes om je trend te zien.</div>';return;}
+  trend.innerHTML=last.slice().reverse().map((r,i)=>`<div class="barrow"><span>${i+1}</span><div><i style="width:${Math.min(100,Math.max(10,(r.total-70)*3+20))}%"></i></div><b>${r.total}</b></div>`).join('');
+}
+
+function renderCourseHistory(){
+  const h=getHistory(), el=document.getElementById('courseHistory');
+  const names=[...new Set(h.map(x=>x.course))];
+  if(!names.length){el.innerHTML='<div class="empty">Je baanhistorie verschijnt hier na je eerste opgeslagen ronde.</div>';return;}
+  el.innerHTML=names.map((name,ni)=>{
+    const indexed=h.map((r,i)=>({r,i})).filter(x=>x.r.course===name);
+    const rs=indexed.map(x=>x.r);
+    const best=Math.min(...rs.map(x=>x.total));
+    const avg=(rs.reduce((a,x)=>a+x.total,0)/rs.length).toFixed(1).replace('.',',');
+    const avgSf=(rs.reduce((a,x)=>a+x.sft,0)/rs.length).toFixed(1).replace('.',',');
+    const details=indexed.map(({r,i})=>`
+      <div class="course-round">
+        <div class="course-round-main">
+          <b>${r.date} · ${r.round}${r.loop&&r.loop!=='Hele baan'?' · '+r.loop:''}</b>
+          <small>${r.total} slagen · ${r.sft} Stableford · HCP ${r.handicap} · baanhcp ${r.courseHcp}</small>
+        </div>
+        <button class="history-action" type="button" onclick="openSavedRound(${i})">Bekijk / bewerk</button>
+      </div>`).join('');
+    return `<div class="course-history-block">
+      <button class="course-card course-card-button" type="button" onclick="toggleCourseHistory(${ni})">
+        <div><b>${name}</b><small>${rs.length} ronde${rs.length===1?'':'s'} • beste ${best}</small></div>
+        <div><strong>${avg}</strong><small>gem. slagen</small></div>
+        <div><strong>${avgSf}</strong><small>gem. SF</small></div>
+        <span class="course-chevron" id="course-chevron-${ni}">⌄</span>
+      </button>
+      <div class="course-rounds" id="course-rounds-${ni}">${details}</div>
+    </div>`;
+  }).join('');
+}
+function toggleCourseHistory(i){
+  const box=document.getElementById('course-rounds-'+i);
+  const chevron=document.getElementById('course-chevron-'+i);
+  if(!box)return;
+  const open=box.classList.toggle('open');
+  if(chevron)chevron.textContent=open?'⌃':'⌄';
+}
+
+function renderMyGame(){
+  const h=getHistory();
+  const parStats={3:[],4:[],5:[]};
+  h.forEach(r=>r.holes.filter(x=>x.score>0).forEach(x=>{if(parStats[x.par])parStats[x.par].push(x.score-x.par)}));
+  const el=document.getElementById('parBreakdown');
+  el.innerHTML=[3,4,5].map(p=>{
+    const a=parStats[p]; const v=a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
+    return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`;
+  }).join('');
+  const target=12.0;
+  const current=Number(hi.value)||14.2;
+  document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${target.toFixed(1)}</b> • nog <b>${Math.max(0,current-target).toFixed(1)}</b> te gaan.`;
+}
+
+function showTab(tab){
+  document.querySelectorAll('.tabpage').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  if(tab==='game')renderMyGame();
+  if(tab==='history'){renderDashboard();renderCourseHistory();}
+}
+
+const oldRender=window.render;
+window.render=function(){
+  oldRender();
+  setTimeout(renderExtraStats,0);
+};
+
+const oldReset=window.resetScores;
+window.resetScores=function(){
+  oldReset();
+  extraStats={};
+  localStorage.setItem('golf_extra_stats','{}');
+  setTimeout(()=>{renderExtraStats();showTab('round');},50);
+};
+
+function addPlayer(){
+  const n=prompt('Naam van speler toevoegen:');
+  if(n && n.trim()){players.push(n.trim());players=[...new Set(players)];localStorage.setItem('golf_players',JSON.stringify(players));renderPlayers();}
+}
+function removePlayer(i){players.splice(i,1);if(!players.length)players=['Ik'];localStorage.setItem('golf_players',JSON.stringify(players));renderPlayers();}
+function renderPlayers(){
+  const el=document.getElementById('playersList');
+  el.innerHTML=players.map((p,i)=>`<div class="player"><span>👤 ${p}</span>${players.length>1?`<button onclick="removePlayer(${i})">×</button>`:''}</div>`).join('');
+}
+function openLatest(){
+  showTab('history');
+  renderDashboard();renderCourseHistory();
+}
+
+renderDashboard();renderCourseHistory();renderMyGame();renderPlayers();
+</script><script>
+/* Player profiles: each player has an independent handicap and scorecard. */
+let playerProfiles;
+try{playerProfiles=JSON.parse(localStorage.getItem('golf_player_profiles')||'null')}catch(e){playerProfiles=null}
+if(!Array.isArray(playerProfiles)||!playerProfiles.length) playerProfiles=[{name:'Ik',hcp:Number(hi.value)||14.2}];
+let activePlayerIndex=Number(localStorage.getItem('golf_active_player_index')||0);
+if(!playerProfiles[activePlayerIndex]) activePlayerIndex=0;
+
+function pKey(pi,h){return `golf_player_${pi}_${course.value}_${round.value}_${loop.value}_hole_${h}`;}
+function savePlayerProfiles(){localStorage.setItem('golf_player_profiles',JSON.stringify(playerProfiles));localStorage.setItem('golf_active_player_index',String(activePlayerIndex));}
+function loadActivePlayer(){
+ const p=playerProfiles[activePlayerIndex]; hi.value=p.hcp;
+ for(let h=1;h<=18;h++){const v=localStorage.getItem(pKey(activePlayerIndex,h));scores[h]=v?Number(v):0;}
+}
+function switchPlayer(i){
+ if(!playerProfiles[i])return;
+ playerProfiles[activePlayerIndex].hcp=Number(hi.value)||0; savePlayerProfiles();
+ activePlayerIndex=i; loadActivePlayer(); savePlayerProfiles();
+ renderPlayers();renderPlayerSwitcher();updateUI();
+}
+function addPlayer(){
+ const name=prompt('Naam van de speler:'); if(!name||!name.trim())return;
+ const h=Number(prompt('Handicap Index van '+name.trim()+':','14.2'));
+ if(!Number.isFinite(h)||h<-10||h>54){alert('Voer een geldige Handicap Index in.');return;}
+ playerProfiles.push({name:name.trim(),hcp:h}); savePlayerProfiles(); switchPlayer(playerProfiles.length-1);
+}
+function removePlayer(i){
+ if(playerProfiles.length===1)return;
+ if(!confirm('Speler '+playerProfiles[i].name+' verwijderen?'))return;
+ playerProfiles.splice(i,1); if(activePlayerIndex>=playerProfiles.length)activePlayerIndex=playerProfiles.length-1;
+ savePlayerProfiles();loadActivePlayer();renderPlayers();renderPlayerSwitcher();updateUI();
+}
+function updatePlayerHcp(i,v){
+ const h=Number(v); if(!Number.isFinite(h)||h<-10||h>54)return;
+ playerProfiles[i].hcp=h; if(i===activePlayerIndex)hi.value=h; savePlayerProfiles(); if(i===activePlayerIndex)render();
+}
+function renderPlayers(){
+ const el=document.getElementById('playersList'); if(!el)return;
+ el.innerHTML=playerProfiles.map((p,i)=>`<div class="player-profile"><b>👤 ${p.name}</b><input type="number" min="-10" max="54" step="0.1" value="${p.hcp}" onchange="updatePlayerHcp(${i},this.value)">${playerProfiles.length>1?`<button onclick="removePlayer(${i})">×</button>`:''}</div>`).join('');
+}
+function renderPlayerSwitcher(){
+ const el=document.getElementById('playerSwitcher'),name=document.getElementById('currentPlayerName'); if(!el||!name)return;
+ name.textContent=playerProfiles[activePlayerIndex].name;
+ el.innerHTML=playerProfiles.map((p,i)=>`<button class="player-chip ${i===activePlayerIndex?'active':''}" onclick="switchPlayer(${i})">${p.name}</button>`).join('');
+}
+function saveGoalHcp(){
+ const v=Number(document.getElementById('goalHcp').value);
+ if(Number.isFinite(v)&&v>=-10&&v<=54)localStorage.setItem('golf_goal_hcp',String(v));
+}
+function renderMyGame(){
+ const h=getHistory(),parStats={3:[],4:[],5:[]};
+ h.forEach(r=>r.holes.filter(x=>x.score>0).forEach(x=>{if(parStats[x.par])parStats[x.par].push(x.score-x.par)}));
+ const el=document.getElementById('parBreakdown');
+ el.innerHTML=[3,4,5].map(p=>{const a=parStats[p],v=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`}).join('');
+ const goal=Number(document.getElementById('goalHcp').value)||12,current=Number(playerProfiles[activePlayerIndex].hcp)||14.2;
+ document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${goal.toFixed(1)}</b> • nog <b>${Math.max(0,current-goal).toFixed(1)}</b> te gaan.`;
+}
+const originalChgForPlayers=window.chg;
+window.chg=function(h,d){
+ const cfg=currentConfig(),hole=cfg.holes.find(x=>x[0]===h),current=scores[h]||0;
+ let next=current===0?(hole?hole[1]:0):current+d; if(current===0&&d<0)next=Math.max(1,next-1); else next=Math.max(1,next);
+ scores[h]=next;localStorage.setItem(pKey(activePlayerIndex,h),String(next));render();
+};
+const originalResetForPlayers=window.resetScores;
+window.resetScores=function(){
+ if(!confirm('Een nieuwe ronde starten? Scores van alle spelers worden gewist en je moet opnieuw een baan kiezen.'))return;
+ for(let h=1;h<=18;h++){scores[h]=0;localStorage.removeItem(storageKey(h));for(let i=0;i<playerProfiles.length;i++)localStorage.removeItem(pKey(i,h));}
+ course.value='';localStorage.removeItem('golf_course');round.value='9';loop.value='first';updateUI();showTab('round');
+};
+const originalUpdateUIForPlayers=window.updateUI;
+window.updateUI=function(){loadActivePlayer();originalUpdateUIForPlayers();renderPlayers();renderPlayerSwitcher();};
+const savedGoal=localStorage.getItem('golf_goal_hcp');if(savedGoal!==null)document.getElementById('goalHcp').value=savedGoal;
+loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== BOUNDS SUPABASE FOUNDATION v0.1 ===== */
+const BOUNDS_SUPABASE_URL = 'https://ynlncjnjnbujzfjsfdwb.supabase.co';
+const BOUNDS_SUPABASE_KEY = 'sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+const boundsClient = window.supabase.createClient(BOUNDS_SUPABASE_URL, BOUNDS_SUPABASE_KEY);
+
+function boundsSetStatus(text, kind=''){
+  const el=document.getElementById('cloudStatus');
+  if(!el)return;
+  el.textContent=text;
+  el.className='cloud-status '+kind;
+}
+function boundsMessage(text, error=false){
+  const a=document.getElementById('authMessage'), c=document.getElementById('cloudMessage');
+  if(a)a.textContent=text;
+  if(c)c.textContent=text;
+  boundsSetStatus(error?'Fout':'Verbonden', error?'error':'ok');
+}
+function boundsLoopLabel(v){
+  return v==='first'?'1e 9':v==='second'?'2e 9':'Hele baan';
+}
+function boundsCourseInfo(){
+  if(course.value==='kroonprins_par3'){
+    return {courseName:'De Kroonprins', teeName:'Par 3 Geel'};
+  }
+  return {courseName:course.value==='crimpenerhout'?'Crimpenerhout':'De Kroonprins', teeName:'Geel'};
+}
+async function boundsGetTee(){
+  const info=boundsCourseInfo();
+  const {data:courseRow,error:courseError}=await boundsClient
+    .from('courses').select('id,name').eq('name',info.courseName).eq('country','NL').single();
+  if(courseError)throw courseError;
+  let q=boundsClient.from('course_tees').select('id,course_id,holes,loop,course_rating,slope_rating,par,tee_name')
+    .eq('course_id',courseRow.id).eq('tee_name',info.teeName).eq('gender','men').eq('holes',Number(round.value));
+  if(course.value==='kroonprins' && round.value==='9') q=q.eq('loop',loop.value);
+  else q=q.eq('loop','full');
+  const {data:tee,error}=await q.single();
+  if(error)throw error;
+  return {courseRow,tee};
+}
+async function boundsCurrentUser(){
+  const {data:{user},error}=await boundsClient.auth.getUser();
+  if(error)throw error;
+  return user;
+}
+async function boundsSignUp(){
+  const email=(document.getElementById('authEmail').value||'').trim();
+  const password=document.getElementById('authPassword').value||'';
+  const name=(document.getElementById('authName').value||'').trim();
+  const hcp=Number(document.getElementById('authHcp').value);
+  if(!email||!password||!name||!Number.isFinite(hcp)||hcp<-10||hcp>54){
+    boundsMessage('Vul naam, geldig e-mailadres, wachtwoord en handicap in.',true); return;
+  }
+  boundsSetStatus('Account maken…','busy');
+  const {data,error}=await boundsClient.auth.signUp({
+    email,password,
+    options:{data:{display_name:name,handicap_index:hcp}}
+  });
+  if(error){boundsMessage(error.message,true);return;}
+  if(data.session){
+    await boundsRefreshAuth();
+  }else{
+    boundsSetStatus('Bevestig e-mail','busy');
+    boundsMessage('Account aangemaakt. Bevestig eerst je e-mail en log daarna in.');
+  }
+}
+async function boundsSignIn(){
+  const email=(document.getElementById('authEmail').value||'').trim();
+  const password=document.getElementById('authPassword').value||'';
+  if(!email||!password){boundsMessage('Vul e-mail en wachtwoord in.',true);return;}
+  boundsSetStatus('Inloggen…','busy');
+  const {error}=await boundsClient.auth.signInWithPassword({email,password});
+  if(error){boundsMessage(error.message,true);return;}
+  await boundsRefreshAuth();
+}
+async function boundsSignOut(){
+  await boundsClient.auth.signOut();
+  await boundsRefreshAuth();
+}
+async function boundsRefreshAuth(){
+  const {data:{session}}=await boundsClient.auth.getSession();
+  const out=document.getElementById('authSignedOut'), inn=document.getElementById('authSignedIn');
+  if(session?.user){
+    out.style.display='none'; inn.style.display='block';
+    document.getElementById('authUserLabel').textContent=session.user.email||'Ingelogde golfer';
+    boundsSetStatus('Verbonden','ok');
+    try{
+      const {data:p,error}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',session.user.id).single();
+      if(!error&&p){
+        document.getElementById('authHcp').value=p.handicap_index;
+        hi.value=p.handicap_index;
+        if(p.target_handicap!==null && document.getElementById('goalHcp'))document.getElementById('goalHcp').value=p.target_handicap;
+        render();
+      }
+    }catch(e){}
+    await loadCloudRounds(true);
+  }else{
+    out.style.display='block'; inn.style.display='none';
+    boundsSetStatus('Niet ingelogd');
+  }
+}
+async function syncProfile(){
+  const user=await boundsCurrentUser();
+  const name=(document.getElementById('authName').value||user.user_metadata?.display_name||'Golfer').trim();
+  const hcp=Number(hi.value)||Number(user.user_metadata?.handicap_index)||0;
+  const target=Number(document.getElementById('goalHcp')?.value);
+  const payload={id:user.id,display_name:name,handicap_index:hcp};
+  if(Number.isFinite(target)&&target>=-10&&target<=54)payload.target_handicap=target;
+  const {error}=await boundsClient.from('profiles').upsert(payload);
+  if(error)throw error;
+}
+async function syncCurrentRoundToCloud(){
+  try{
+    boundsSetStatus('Opslaan…','busy');
+    const user=await boundsCurrentUser();
+    if(!user){boundsMessage('Log eerst in.',true);return;}
+    const data=currentRoundData();
+    if(!data.holes.some(x=>x.score)){
+      boundsMessage('Vul eerst minimaal één score in.',true);return;
+    }
+    await syncProfile();
+    const {courseRow,tee}=await boundsGetTee();
+    const {data:roundRow,error:roundError}=await boundsClient.from('rounds').insert({
+      owner_id:user.id,course_id:courseRow.id,tee_id:tee.id,
+      holes_played:String(round.value),loop:loop.value,played_at:new Date().toISOString(),status:'completed'
+    }).select('id').single();
+    if(roundError)throw roundError;
+
+    const {data:playerRow,error:playerError}=await boundsClient.from('round_players').insert({
+      round_id:roundRow.id,user_id:user.id,handicap_index_at_round:Number(hi.value)||0,
+      course_handicap:Number(data.courseHcp)||0,final_score:Number(data.total)||null,
+      stableford:Number(data.sft)||0,is_owner:true
+    }).select('id').single();
+    if(playerError)throw playerError;
+
+    const {data:courseHoles,error:holesError}=await boundsClient.from('course_holes')
+      .select('id,hole_number,par,stroke_index').eq('tee_id',tee.id).order('hole_number');
+    if(holesError)throw holesError;
+    const holeByNumber=Object.fromEntries((courseHoles||[]).map(h=>[h.hole_number,h]));
+    for(const h of data.holes){
+      const e=getExtra(h.hole);
+      const ch=holeByNumber[h.hole];
+      if(!ch)continue;
+      if(h.score||e.putts||e.penalty||e.fairway||e.gir){
+        const {data:hs,error:hsError}=await boundsClient.from('hole_scores').insert({
+          round_player_id:playerRow.id,course_hole_id:ch.id,
+          score:h.score||null,stableford:h.sf,
+          putts:e.putts?Number(e.putts):null,
+          penalty:e.penalty?Number(e.penalty):null,
+          fairway:e.fairway==='hit'?'yes':e.fairway==='miss'?'no':null,
+          gir:e.gir==='yes'?'yes':e.gir==='no'?'no':null
+        }).select('id').single();
+        if(hsError)throw hsError;
+        if(e.note){
+          const {error:noteError}=await boundsClient.from('hole_score_notes').insert({
+            hole_score_id:hs.id,note:e.note
+          });
+          if(noteError)throw noteError;
+        }
+      }
+    }
+    localStorage.setItem('bounds_last_cloud_round',roundRow.id);
+    boundsMessage('Ronde opgeslagen in BOUNDS Cloud.');
+  }catch(e){
+    console.error(e);
+    boundsMessage(e.message||'Cloud opslaan mislukt.',true);
+  }
+}
+function boundsCloudToLocal(r){
+  const rp=(r.round_players||[])[0];
+  if(!rp)return null;
+  const tee=r.tee||{};
+  const holes=(rp.hole_scores||[]).map(h=>{
+    const ch=h.course_hole||{};
+    const note=(h.hole_score_notes||[])[0]?.note||'';
+    const extra={
+      putts:h.putts==null?'':String(h.putts),
+      penalty:h.penalty==null?'':String(h.penalty),
+      fairway:h.fairway==='yes'?'hit':h.fairway==='no'?'miss':'',
+      gir:h.gir||'',
+      note
+    };
+    return {hole:ch.hole_number,par:ch.par,si:ch.stroke_index,score:h.score||0,
+      strokes:0,sf:h.stableford,extra,note};
+  });
+  return {
+    cloudRoundId:r.id,
+    date:new Date(r.played_at).toLocaleDateString('nl-NL'),
+    time:new Date(r.played_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),
+    course:r.course?.name||'Onbekende baan',
+    round:r.holes_played==='9'?'9 holes':'18 holes',
+    loop:boundsLoopLabel(r.loop),
+    handicap:rp.handicap_index_at_round,
+    courseHcp:rp.course_handicap,
+    total:rp.final_score||0,
+    sft:rp.stableford||0,
+    holes
+  };
+}
+async function loadCloudRounds(silent=false){
+  try{
+    if(!silent)boundsSetStatus('Laden…','busy');
+    const {data,error}=await boundsClient.from('rounds')
+      .select('id,course_id,tee_id,holes_played,loop,played_at,status,course:courses(name),tee:course_tees(tee_name,loop,course_rating,slope_rating,par),round_players!inner(id,user_id,handicap_index_at_round,course_handicap,final_score,stableford,hole_scores(id,course_hole_id,score,stableford,putts,penalty,fairway,gir,course_hole:course_holes(hole_number,par,stroke_index),hole_score_notes(note)))')
+      .order('played_at',{ascending:false});
+    if(error)throw error;
+    const cloud=(data||[]).map(boundsCloudToLocal).filter(Boolean);
+    const local=getHistory();
+    const byId=new Map(local.filter(x=>x.cloudRoundId).map(x=>[x.cloudRoundId,x]));
+    cloud.forEach(r=>byId.set(r.cloudRoundId,r));
+    const merged=[...byId.values()].sort((a,b)=>{
+      const da=new Date((a.cloudRoundId?0:0)); return 0;
+    });
+    // Keep the local history intact and prepend cloud rounds that are not present.
+    const localNoCloud=local.filter(x=>!x.cloudRoundId);
+    const mergedFinal=[...cloud,...localNoCloud];
+    localStorage.setItem('golf_history',JSON.stringify(mergedFinal.slice(0,50)));
+    renderHistory();renderRecords();renderCourseHistory();renderDashboard();
+    if(!silent)boundsMessage(`${cloud.length} cloudronde${cloud.length===1?'':'s'} geladen.`);
+    else boundsSetStatus('Verbonden','ok');
+  }catch(e){
+    console.error(e);
+    if(!silent)boundsMessage(e.message||'Cloud laden mislukt.',true);
+  }
+}
+boundsClient.auth.onAuthStateChange(()=>setTimeout(boundsRefreshAuth,0));
+boundsRefreshAuth();
+
+/* Keep target handicap in the cloud when the existing prototype saves it. */
+const boundsOriginalSaveGoalHcp=window.saveGoalHcp;
+window.saveGoalHcp=function(){
+  boundsOriginalSaveGoalHcp();
+  boundsClient.auth.getUser().then(({data:{user}})=>{
+    if(!user)return;
+    const target=Number(document.getElementById('goalHcp')?.value);
+    if(!Number.isFinite(target))return;
+    boundsClient.from('profiles').update({target_handicap:target}).eq('id',user.id);
+  });
+};
+
+/* Cloud save is intentionally an additional action in v0.1; localStorage remains the fallback. */
+</script>
+</html>

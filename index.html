@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v1.0</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v1.1</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -633,9 +633,11 @@ function updateUI(){
  const hasCourse=!!course.value;
  round.disabled=!hasCourse;
  loop.disabled=!hasCourse;
- // Loop selector is relevant only for 9 holes on the main Kroonprins.
- const kpMain9=course.value==='kroonprins' && round.value==='9';
- loopLabel.style.display=(hasCourse && kpMain9)?'block':'none';
+ // 9 holes can be played as the 1e or 2e 9 on courses that publish
+ // separate loop data. Almkreek and De Kroonprins both do.
+ const loopCourses=['almkreek','kroonprins'];
+ const hasSelectableLoop=round.value==='9' && loopCourses.includes(course.value);
+ loopLabel.style.display=(hasCourse && hasSelectableLoop)?'block':'none';
 
  if(hasCourse){
    render();

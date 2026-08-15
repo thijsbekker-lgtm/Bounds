@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.9</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v1.0</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -1713,36 +1713,52 @@ async function boundsLoadTeeOptions(){
   const select=document.getElementById('tee');
   const label=document.getElementById('teeLabel');
   if(!select||!label)return;
+
   const hasCourse=!!course.value;
   select.disabled=!hasCourse;
   if(!hasCourse){
     select.innerHTML='<option value="">Kies eerst een baan…</option>';
-    label.style.display='block';
     boundsTeeOptions=[];
     boundsSelectedTee=null;
     return;
   }
 
-  const courseName=course.value==='kroonprins_par3'?'De Kroonprins':
-    (course.value==='crimpenerhout'?'Crimpenerhout':'De Kroonprins');
+  const courseMap={
+    crimpenerhout:{name:'Crimpenerhout',variant:'main'},
+    kroonprins:{name:'De Kroonprins',variant:'main'},
+    kroonprins_par3:{name:'De Kroonprins',variant:'par3'},
+    almkreek:{name:'Golfpark Almkreek',variant:'main'}
+  };
+  const meta=courseMap[course.value];
+  if(!meta){
+    select.innerHTML='<option value="">Geen tees beschikbaar</option>';
+    select.disabled=true;
+    boundsTeeOptions=[];
+    boundsSelectedTee=null;
+    return;
+  }
+
   const holes=Number(round.value);
   const loopValue=(holes===9)?loop.value:'full';
 
   try{
     const {data:courseRow,error:courseError}=await boundsClient
-      .from('courses').select('id').eq('name',courseName).eq('country','NL').single();
+      .from('courses')
+      .select('id')
+      .eq('name',meta.name)
+      .eq('country','NL')
+      .single();
     if(courseError)throw courseError;
 
-    let q=boundsClient.from('course_tees')
-      .select('id,tee_name,gender,holes,loop,course_rating,slope_rating,par')
+    const {data,error}=await boundsClient.from('course_tees')
+      .select('id,course_id,course_variant,tee_name,gender,holes,loop,course_rating,slope_rating,par')
       .eq('course_id',courseRow.id)
+      .eq('course_variant',meta.variant)
       .eq('gender','men')
       .eq('holes',holes)
-      .eq('loop',loopValue);
+      .eq('loop',loopValue)
+      .order('tee_name');
 
-    if(course.value==='kroonprins_par3') q=q.eq('tee_name','Par 3 Geel');
-
-    const {data,error}=await q.order('tee_name');
     if(error)throw error;
 
     boundsTeeOptions=data||[];
@@ -1755,6 +1771,7 @@ async function boundsLoadTeeOptions(){
 
     const savedId=localStorage.getItem('golf_tee_id');
     const savedName=localStorage.getItem('golf_tee_name');
+
     let chosen=boundsTeeOptions.find(t=>t.id===savedId) ||
       boundsTeeOptions.find(t=>t.tee_name===savedName) ||
       boundsTeeOptions.find(t=>t.tee_name==='Geel') ||
@@ -1763,12 +1780,16 @@ async function boundsLoadTeeOptions(){
     select.innerHTML=boundsTeeOptions.map(t=>
       `<option value="${t.id}">${boundsTeeDisplayName(t.tee_name)}</option>`
     ).join('');
+
     select.value=chosen.id;
     boundsSelectTee(chosen.id,false);
+    updateUI();
   }catch(e){
     console.error(e);
     select.innerHTML='<option value="">Teegegevens laden…</option>';
     select.disabled=true;
+    boundsTeeOptions=[];
+    boundsSelectedTee=null;
   }
 }
 
@@ -1886,5 +1907,41 @@ document.addEventListener('change',e=>{
 /* First load. */
 setTimeout(boundsLoadTeeOptions,0);
 </script>
+
+
+/* ===== v1.0: selected DB tee is the single source of truth ===== */
+const boundsConfigBeforeTeeAuthoritative=window.currentConfig;
+window.currentConfig=function(){
+  const cfg=boundsConfigBeforeTeeAuthoritative();
+  const t=boundsSelectedTee;
+
+  if(!t)return cfg;
+
+  // Keep the correct hole layout from the legacy course data, but replace all
+  // tee-dependent values with the selected database record.
+  if(Number(cfg.n)===Number(t.holes) &&
+     ((cfg.n===9 && t.loop===loop.value) || (cfg.n===18 && t.loop==='full'))){
+    cfg.t=t.tee_name;
+    cfg.cr=Number(t.course_rating);
+    cfg.sr=Number(t.slope_rating);
+    cfg.par=Number(t.par);
+    const courseName=course.options[course.selectedIndex]?.text||'';
+    cfg.note=`${courseName} ${boundsTeeDisplayName(t.tee_name).toLowerCase()} • ${cfg.n} holes • CR ${cfg.cr.toFixed(1).replace('.',',')} / SR ${cfg.sr}.`;
+  }
+  return cfg;
+};
+
+
+/* v1.0: prevent stale tee metadata when the course/layout changes. */
+const boundsOriginalCourseChangeHandler = null;
+[course,round,loop].forEach(el=>{
+  el.addEventListener('change',()=>{
+    localStorage.removeItem('golf_tee_id');
+    localStorage.removeItem('golf_tee_name');
+    boundsSelectedTee=null;
+    boundsTeeOptions=[];
+    setTimeout(()=>boundsLoadTeeOptions(),10);
+  });
+});
 
 </html>

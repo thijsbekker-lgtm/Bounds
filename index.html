@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype + Supabase Cloud v0.2</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v0.3</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -150,13 +150,17 @@
 </style>
 
 <style>
-.bounds-auth-card .section-title > span:first-child{font-size:11px;background:transparent;color:var(--ink);padding:0}
-.cloud-status{font-size:9px!important;background:#eef3f5!important;color:#66727a!important;border-radius:10px;padding:4px 7px!important}
-.cloud-status.ok{background:#eaf5ed!important;color:#2b7a43!important}
-.cloud-status.busy{background:#fff4df!important;color:#9a6500!important}
-.cloud-status.error{background:#fdeceb!important;color:#a63b35!important}
-.bounds-auth-card input{background:#fff}
-.bounds-auth-card .muted{display:block;margin-top:8px}
+.account-card .section-title > span:first-child{font-size:11px;background:transparent;color:var(--ink)}
+.account-status{font-size:9px!important;background:#eef3f5!important;color:#66727a!important;border-radius:10px;padding:4px 7px!important}
+.account-status.ok{background:#eaf5ed!important;color:#2b7a43!important}
+.account-status.busy{background:#fff4df!important;color:#9a6500!important}
+.account-status.error{background:#fdeceb!important;color:#a63b35!important}
+.account-card input{background:#fff}
+.account-card .muted{display:block;margin-top:8px}
+.save-status{min-height:18px;margin:7px 3px 0;font-size:11px;font-weight:600;color:#7b858a}
+.save-status.ok{color:#2b7a43}
+.save-status.pending{color:#9a6500}
+.save-status.error{color:#a63b35}
 </style>
 </head>
 <body>
@@ -174,34 +178,6 @@
 </nav>
 
 <main>
-
-<section class="card bounds-auth-card">
-  <div class="section-title">
-    <span>BOUNDS CLOUD</span>
-    <span id="cloudStatus" class="cloud-status">Niet ingelogd</span>
-  </div>
-  <div id="authSignedOut">
-    <div class="grid">
-      <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
-      <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
-    </div>
-    <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
-    <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens"></label>
-    <div class="action-grid" style="margin-top:10px">
-      <button class="primary" type="button" onclick="boundsSignUp()">Account maken</button>
-      <button class="secondary" type="button" onclick="boundsSignIn()">Inloggen</button>
-    </div>
-    <small id="authMessage" class="muted">Je lokale scorekaart blijft behouden; cloudopslag komt erbij.</small>
-  </div>
-  <div id="authSignedIn" style="display:none">
-    <div id="authUserLabel" class="muted"></div>
-    <div class="action-grid" style="margin-top:10px">
-      <button class="secondary" type="button" onclick="loadCloudRounds()">↻ Cloudrondes laden</button>
-    </div>
-    <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
-    <small id="cloudMessage" class="muted">Opslaan is local-first; ingelogde rondes worden automatisch met BOUNDS Cloud gesynchroniseerd.</small>
-  </div>
-</section>
 
 <section id="page-round" class="tabpage active">
  <div class="card settings">
@@ -238,6 +214,7 @@
   <button class="primary" onclick="saveRound()">Opslaan</button>
   <button class="secondary" onclick="printRound()">PDF / print</button>
  </div>
+ <div id="saveStatus" class="save-status" aria-live="polite"></div>
  <div class="action-grid">
   <button class="secondary" onclick="addHoleNote()">📝 Notitie</button>
   <button class="secondary" onclick="resetScores()">Nieuwe ronde</button>
@@ -276,6 +253,31 @@
   <h3>Waar verlies je slagen?</h3>
   <p class="muted">De app kijkt naar je opgeslagen scorekaarten. Hoe meer rondes je speelt, hoe nuttiger dit overzicht wordt.</p>
  </div>
+
+ <section class="card account-card">
+  <div class="section-title">
+    <span>ACCOUNT</span>
+    <span id="accountStatus" class="account-status">Niet ingelogd</span>
+  </div>
+  <div id="accountSignedOut">
+    <div class="grid">
+      <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
+      <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+    </div>
+    <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
+    <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens"></label>
+    <div class="action-grid" style="margin-top:10px">
+      <button class="primary" type="button" onclick="boundsSignUp()">Account maken</button>
+      <button class="secondary" type="button" onclick="boundsSignIn()">Inloggen</button>
+    </div>
+    <small id="authMessage" class="muted">Je rondes worden automatisch lokaal bewaard en, zodra je bent ingelogd, gesynchroniseerd.</small>
+  </div>
+  <div id="accountSignedIn" style="display:none">
+    <div id="authUserLabel" class="muted"></div>
+    <small id="accountMessage" class="muted">Synchronisatie actief.</small>
+    <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
+  </div>
+ </section>
 </section>
 </main>
 </div>
@@ -700,10 +702,11 @@ async function saveRound(){
  renderHistory();
  renderAnalysis(data);
  renderRecords();
+ boundsSaveMessage('Lokaal opgeslagen — synchroniseren…','pending');
 
  const user=await boundsCurrentUser().catch(()=>null);
  if(!user){
-   boundsMessage('Lokaal opgeslagen — log in om automatisch naar BOUNDS Cloud te synchroniseren.');
+   boundsSaveMessage('✓ Lokaal opgeslagen.','ok');
    return;
  }
 
@@ -713,11 +716,13 @@ async function saveRound(){
    data.cloudRoundId=cloudId;
    upsertLocalRound(data);
    renderHistory();
-   boundsMessage('Opgeslagen in BOUNDS Cloud.');
+   boundsSaveMessage('✓ Opgeslagen en gesynchroniseerd.','ok');
+   boundsSetStatus('Gesynchroniseerd','ok');
  }catch(e){
    console.error(e);
-   boundsSetStatus('Lokaal opgeslagen','busy');
-   boundsMessage('Lokaal opgeslagen — cloudsync volgt later. '+(e.message||''),true);
+   boundsSetStatus('Offline','busy');
+   boundsSaveMessage('✓ Lokaal opgeslagen — wordt later gesynchroniseerd.','pending');
+   const cm=document.getElementById('accountMessage'); if(cm)cm.textContent='Tijdelijk offline. Je ronde blijft veilig lokaal bewaard.';
  }
 }
 
@@ -1242,16 +1247,22 @@ const BOUNDS_SUPABASE_KEY = 'sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
 const boundsClient = window.supabase.createClient(BOUNDS_SUPABASE_URL, BOUNDS_SUPABASE_KEY);
 
 function boundsSetStatus(text, kind=''){
-  const el=document.getElementById('cloudStatus');
+  const el=document.getElementById('accountStatus');
   if(!el)return;
   el.textContent=text;
-  el.className='cloud-status '+kind;
+  el.className='account-status '+kind;
 }
 function boundsMessage(text, error=false){
-  const a=document.getElementById('authMessage'), c=document.getElementById('cloudMessage');
+  const a=document.getElementById('authMessage'), c=document.getElementById('accountMessage');
   if(a)a.textContent=text;
   if(c)c.textContent=text;
-  boundsSetStatus(error?'Fout':'Verbonden', error?'error':'ok');
+  boundsSetStatus(error?'Fout':'Gesynchroniseerd', error?'error':'ok');
+}
+function boundsSaveMessage(text, kind=''){
+  const el=document.getElementById('saveStatus');
+  if(!el)return;
+  el.textContent=text;
+  el.className='save-status '+kind;
 }
 function boundsLoopLabel(v){
   return v==='first'?'1e 9':v==='second'?'2e 9':'Hele baan';
@@ -1316,11 +1327,11 @@ async function boundsSignOut(){
 }
 async function boundsRefreshAuth(){
   const {data:{session}}=await boundsClient.auth.getSession();
-  const out=document.getElementById('authSignedOut'), inn=document.getElementById('authSignedIn');
+  const out=document.getElementById('accountSignedOut'), inn=document.getElementById('accountSignedIn');
   if(session?.user){
     out.style.display='none'; inn.style.display='block';
     document.getElementById('authUserLabel').textContent=session.user.email||'Ingelogde golfer';
-    boundsSetStatus('Verbonden','ok');
+    boundsSetStatus('Gesynchroniseerd','ok');
     try{
       const {data:p,error}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',session.user.id).single();
       if(!error&&p){
@@ -1396,7 +1407,7 @@ async function loadCloudRounds(silent=false){
     const mergedFinal=[...cloud,...localNoCloud];
     localStorage.setItem('golf_history',JSON.stringify(mergedFinal.slice(0,50)));
     renderHistory();renderRecords();renderCourseHistory();renderDashboard();
-    if(!silent)boundsMessage(`${cloud.length} cloudronde${cloud.length===1?'':'s'} geladen.`);
+    if(!silent)boundsSaveMessage(`✓ ${cloud.length} opgeslagen ${cloud.length===1?'ronde':'rondes'} gesynchroniseerd.`,'ok');
     else boundsSetStatus('Verbonden','ok');
   }catch(e){
     console.error(e);

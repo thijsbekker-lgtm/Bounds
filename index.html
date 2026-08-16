@@ -263,7 +263,7 @@
   <div id="accountSignedOut">
     <div class="grid">
       <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
-      <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+      <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value=""></label>
     </div>
     <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
     <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens"></label>
@@ -1317,8 +1317,8 @@ function renderMyGame(){
     const a=parStats[p]; const v=a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
     return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`;
   }).join('');
-  const target=12.0;
-  const current=Number(hi.value)||14.2;
+  const target=Number(document.getElementById('goalHcp')?.value);
+  const current=Number(hi.value);
   document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${target.toFixed(1)}</b> • nog <b>${Math.max(0,current-target).toFixed(1)}</b> te gaan.`;
 }
 
@@ -1416,7 +1416,7 @@ function renderMyGame(){
  el.innerHTML=[3,4,5].map(p=>{const a=parStats[p],v=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`}).join('');
  const raw=document.getElementById('goalHcp').value.trim();
  const current=Number(playerProfiles[activePlayerIndex].hcp)||14.2;
- if(!raw){document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • vul je doelhandicap in.`;}
+ if(!raw || !Number.isFinite(current)){document.getElementById('goalText').innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';}
  else {const goal=Number(raw);document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${goal.toFixed(1)}</b> • nog <b>${Math.max(0,current-goal).toFixed(1)}</b> te gaan.`;}
 }
 const originalChgForPlayers=window.chg;
@@ -2378,4 +2378,146 @@ async function boundsApplyIdentityState(session){
 })();
 
 
+<script>
+/* ============================================================
+   BOUNDS v2.7 — FINAL AUTH / GUEST ISOLATION CONTROLLER
+   This is deliberately the LAST executable code in the document.
+   Guest: no personal handicap, target handicap, history or profile.
+   Authenticated: profile values are loaded from Supabase and editable.
+   ============================================================ */
+(function(){
+  const personalKeys = [
+    'golf_history','golf_course','golf_round','golf_loop','golf_tee',
+    'golf_tee_id','golf_tee_name','golf_hi','golf_goal_hcp','golf_players',
+    'golf_player_profiles','golf_active_player_index','golf_extra_stats',
+    'bounds_active_round_id','bounds_last_course','bounds_goal_hcp'
+  ];
+
+  function session(){ return window.boundsSession && window.boundsSession.user ? window.boundsSession : null; }
+
+  function wipeGuestStorage(){
+    const remove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(!k) continue;
+      if(personalKeys.includes(k) || k.startsWith('golf_player_') || k.startsWith('note_') || /^bounds_user_/i.test(k)) remove.push(k);
+    }
+    [...new Set(remove)].forEach(k=>localStorage.removeItem(k));
+  }
+
+  function setValue(id,value){ const e=document.getElementById(id); if(e)e.value=value; }
+  function setText(id,value){ const e=document.getElementById(id); if(e)e.textContent=value; }
+
+  function applyGuestFinal(){
+    if(session()) return;
+    wipeGuestStorage();
+
+    // No personal handicap or goal may survive sign-out / first load.
+    setValue('hi','');
+    setValue('goalHcp','');
+    setValue('authHcp','');
+    setValue('authName','');
+
+    const goal=document.getElementById('goalHcp');
+    if(goal){ goal.disabled=true; goal.removeAttribute('value'); }
+
+    const h=document.getElementById('hi');
+    if(h){ h.disabled=false; h.removeAttribute('value'); }
+
+    const course=document.getElementById('course');
+    const tee=document.getElementById('tee');
+    if(course && !course.value){
+      if(tee){ tee.innerHTML='<option value="">Kies eerst een baan…</option>'; tee.value=''; tee.disabled=true; }
+    }
+
+    setText('accountStatus','Niet ingelogd');
+    const out=document.getElementById('accountSignedOut');
+    const inn=document.getElementById('accountSignedIn');
+    if(out)out.style.display='block';
+    if(inn)inn.style.display='none';
+
+    const goalText=document.getElementById('goalText');
+    if(goalText)goalText.textContent='Log in om je persoonlijke golfdoelen te bekijken.';
+
+    const pb=document.getElementById('parBreakdown');
+    if(pb)pb.innerHTML='<div class="muted">Log in om je persoonlijke statistieken te bekijken.</div>';
+
+    const players=document.getElementById('playersList');
+    if(players)players.innerHTML='<div class="muted">Log in om spelers en persoonlijke handicaps te gebruiken.</div>';
+
+    // Prevent old render functions from immediately restoring 14.2 / 12.
+    window.boundsGuestFinal=true;
+  }
+
+  function applyAuthFinal(s){
+    window.boundsSession=s;
+    const goal=document.getElementById('goalHcp');
+    const h=document.getElementById('hi');
+    if(goal)goal.disabled=false;
+    if(h)h.disabled=false;
+
+    const out=document.getElementById('accountSignedOut');
+    const inn=document.getElementById('accountSignedIn');
+    if(out)out.style.display='none';
+    if(inn)inn.style.display='block';
+  }
+
+  async function resolve(){
+    try{
+      if(window.boundsClient?.auth){
+        const r=await window.boundsClient.auth.getSession();
+        window.boundsSession=r?.data?.session||null;
+      }else window.boundsSession=null;
+    }catch(e){ window.boundsSession=null; }
+
+    if(!session()) applyGuestFinal();
+    else applyAuthFinal(window.boundsSession);
+  }
+
+  if(window.boundsClient?.auth){
+    window.boundsClient.auth.onAuthStateChange((event,s)=>{
+      window.boundsSession=s||null;
+      if(!s){
+        wipeGuestStorage();
+        // Run after Supabase's own auth handler and after any render triggered by it.
+        setTimeout(applyGuestFinal,0);
+        setTimeout(applyGuestFinal,50);
+        setTimeout(applyGuestFinal,250);
+      }else{
+        setTimeout(()=>applyAuthFinal(s),0);
+      }
+    });
+  }
+
+  // Final render guards: earlier prototype functions contain legacy 14.2/12 fallbacks.
+  ['renderMyGame','renderPlayers','renderPlayerSwitcher','loadActivePlayer'].forEach(name=>{
+    const fn=window[name];
+    if(typeof fn!=='function' || fn.__boundsV27Guard)return;
+    const wrapped=function(){
+      if(!session()){ applyGuestFinal(); return; }
+      return fn.apply(this,arguments);
+    };
+    wrapped.__boundsV27Guard=true;
+    window[name]=wrapped;
+  });
+
+  const oldUpdateUI=window.updateUI;
+  if(typeof oldUpdateUI==='function' && !oldUpdateUI.__boundsV27FinalGuard){
+    const wrapped=function(){
+      const r=oldUpdateUI.apply(this,arguments);
+      if(!session())setTimeout(applyGuestFinal,0);
+      return r;
+    };
+    wrapped.__boundsV27FinalGuard=true;
+    window.updateUI=wrapped;
+  }
+
+  // Final passes are intentional: earlier prototype code has several initializers.
+  resolve();
+  setTimeout(resolve,100);
+  setTimeout(resolve,500);
+  setTimeout(resolve,1200);
+  setTimeout(()=>{ if(!session())applyGuestFinal(); },2000);
+})();
+</script>
 </html>

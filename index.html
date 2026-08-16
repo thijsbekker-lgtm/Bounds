@@ -658,6 +658,42 @@ tfoot td{
 }
 </style>
 
+
+<style>
+/* BOUNDS Design System v1.1 — Courses / Discover */
+.discover-page{padding-top:24px}
+.discover-controls{position:sticky;top:0;z-index:4;padding:0 0 14px;background:#F5F5F3E8;backdrop-filter:blur(18px)}
+#discoverSearch{height:48px;margin:0;border:1px solid var(--line);border-radius:15px;text-align:left;padding:0 16px;background:var(--card);font-size:15px;font-weight:500}
+.discover-filters{display:flex;gap:6px;overflow:auto;padding:9px 0 5px}
+.discover-filter{border:0;background:var(--soft);color:var(--muted);border-radius:999px;padding:9px 13px;font-size:12px;font-weight:600;white-space:nowrap}
+.discover-filter.active{background:var(--ink);color:#fff}
+.discover-list{display:grid;gap:10px}
+.discover-course{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px}
+.discover-course-main{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.discover-course h3{font-size:18px;margin:0 0 5px;letter-spacing:-.3px}
+.discover-course-location{font-size:12px;color:var(--muted)}
+.discover-distance{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap}
+.discover-badges{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0}
+.discover-badge{font-size:10px;font-weight:600;color:var(--muted);background:var(--soft);border-radius:999px;padding:6px 8px}
+.discover-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.discover-actions button{width:100%}
+.discover-empty{padding:22px 4px;color:var(--muted);font-size:13px}
+.course-profile-backdrop{display:none;position:fixed;inset:0;background:#00000040;z-index:50;align-items:flex-end;justify-content:center}
+.course-profile-backdrop.open{display:flex}
+.course-profile-sheet{width:min(720px,100%);max-height:86vh;overflow:auto;background:var(--bg);border-radius:24px 24px 0 0;padding:22px 20px calc(28px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px #00000018}
+.course-profile-top{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.course-profile-top h2{margin:0;font-size:28px;letter-spacing:-1px}
+.course-profile-close{border:0;background:var(--soft);border-radius:50%;width:38px;height:38px;font-size:18px}
+.course-profile-meta{color:var(--muted);font-size:13px;margin-top:5px}
+.course-profile-section{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:17px;margin-top:12px}
+.course-profile-section h3{margin:0 0 10px}
+.course-profile-stat{display:flex;justify-content:space-between;align-items:end}
+.course-profile-stat b{font-size:28px}
+.course-profile-stat span{font-size:11px;color:var(--muted)}
+.course-profile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+@media(max-width:520px){.discover-actions,.course-profile-actions{grid-template-columns:1fr}.discover-course{padding:16px}}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -671,6 +707,7 @@ tfoot td{
  <button class="tab" data-tab="round" onclick="showTab('round')"><span>Play</span></button>
  <button class="tab" data-tab="game" onclick="showTab('game')"><span>My Game</span></button>
  <button class="tab" data-tab="friends" onclick="showTab('friends')"><span>Friends</span></button>
+<button class="tab" data-tab="discover" onclick="showTab('discover')"><span>Courses</span></button>
 </nav>
 
 <main>
@@ -810,6 +847,29 @@ tfoot td{
   <div class="friends-hero"><div><div class="eyebrow">PLAY TOGETHER</div><h2>Start a shared round.</h2><p>Select your friends and keep one live scorecard for everyone.</p></div><button class="primary" onclick="showTab('round')">Start together <span>→</span></button></div>
   <div class="card friends-list-card"><div class="section-title">Your golfers</div><div class="empty">Je hebt nog geen vrienden toegevoegd. Zodra Friends is gekoppeld aan je BOUNDS-account verschijnen je echte contacten hier.</div><button class="secondary" type="button" onclick="showTab('game');setTimeout(()=>document.getElementById('accountCard')?.scrollIntoView({behavior:'smooth',block:'start'}),50)">Account openen →</button></div>
 </section>
+
+<section id="page-discover" class="tabpage discover-page">
+  <div class="home-intro">
+    <div class="eyebrow">YOUR COURSES</div>
+    <h1>Courses<span>.</span></h1>
+    <p>Ontdek banen, bekijk locaties en vind een baan in de buurt.</p>
+  </div>
+
+  <div class="discover-controls">
+    <input id="discoverSearch" type="search" placeholder="Zoek een golfbaan…" autocomplete="off">
+    <div class="discover-filters">
+      <button class="discover-filter active" data-filter="nearby" onclick="boundsDiscoverFilter('nearby')">In de buurt</button>
+      <button class="discover-filter" data-filter="all" onclick="boundsDiscoverFilter('all')">Alle banen</button>
+      <button class="discover-filter" data-filter="favorites" onclick="boundsDiscoverFilter('favorites')">Favorieten</button>
+    </div>
+    <div id="discoverHint" class="muted">Locatie wordt alleen gebruikt om afstanden tot banen te tonen.</div>
+  </div>
+
+  <div id="discoverList" class="discover-list">
+    <div class="card"><div class="muted">Banen laden…</div></div>
+  </div>
+</section>
+
 </main>
 </div>
 </body>
@@ -1732,4 +1792,338 @@ async function boundsRefreshAuth(){
 if(boundsClient?.auth){boundsClient.auth.onAuthStateChange(()=>setTimeout(boundsRefreshAuth,0));boundsRefreshAuth();}
 window.addEventListener('load',()=>setTimeout(boundsLoadTeeOptions,100));
 </script>
+
+<script>
+/* ===== BOUNDS v1.1 — Courses / Discover ===== */
+(function(){
+  let discoverCourses=[];
+  let discoverRelations=[];
+  let discoverFilter='nearby';
+  let discoverUser=null;
+  let courseGeoCache={};
+
+  const PDOK='https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
+
+  const COURSE_GEO_FALLBACK={
+    crimpenerhout:{latitude:51.9289,longitude:4.6514},
+    kroonprins:{latitude:51.9840,longitude:5.0480},
+    almkreek:{latitude:51.8265,longitude:4.9180}
+  };
+
+  function esc(v){
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function courseValueByName(name){
+    const n=String(name||'').toLowerCase();
+    if(n.includes('crimpenerhout'))return 'crimpenerhout';
+    if(n.includes('kroonprins') && n.includes('par 3'))return 'kroonprins_par3';
+    if(n.includes('kroonprins'))return 'kroonprins';
+    if(n.includes('almkreek'))return 'almkreek';
+    return '';
+  }
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371,p=Math.PI/180;
+    const a=.5-Math.cos((lat2-lat1)*p)/2+
+      Math.cos(lat1*p)*Math.cos(lat2*p)*(1-Math.cos((lon2-lon1)*p))/2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  function distanceLabel(km){
+    if(km==null)return '';
+    if(km<1)return '< 1 km';
+    return Math.round(km)+' km';
+  }
+  async function geocodeCourse(c){
+    if(courseGeoCache[c.id])return courseGeoCache[c.id];
+    const fallback=COURSE_GEO_FALLBACK[courseValueByName(c.name)]||null;
+    try{
+      const res=await fetch(PDOK+'?'+new URLSearchParams({q:[c.name,c.location].filter(Boolean).join(', '),rows:'10'}).toString(),{
+        headers:{Accept:'application/json'}
+      });
+      if(res.ok){
+        const json=await res.json(),docs=json?.response?.docs||[];
+        const d=docs.find(x=>String(x.type||'').toLowerCase().includes('adres'))||docs.find(x=>x.woonplaatsnaam)||docs[0];
+        const s=d?.centroide_ll;
+        if(typeof s==='string'){
+          const m=s.match(/POINT\s*\(([-0-9.]+)\s+([-0-9.]+)\)/i);
+          if(m){
+            const point={latitude:Number(m[2]),longitude:Number(m[1])};
+            if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude)){
+              courseGeoCache[c.id]=point;
+              localStorage.setItem('bounds_course_geo',JSON.stringify(courseGeoCache));
+              return point;
+            }
+          }
+        }
+      }
+    }catch(e){}
+    if(fallback){
+      courseGeoCache[c.id]=fallback;
+      localStorage.setItem('bounds_course_geo',JSON.stringify(courseGeoCache));
+      return fallback;
+    }
+    return null;
+  }
+  async function getUserLocation(){
+    if(discoverUser && Number.isFinite(Number(discoverUser.latitude)) && Number.isFinite(Number(discoverUser.longitude)))
+      return discoverUser;
+    return new Promise(resolve=>{
+      if(!navigator.geolocation){resolve(null);return;}
+      navigator.geolocation.getCurrentPosition(
+        pos=>resolve({...discoverUser,latitude:pos.coords.latitude,longitude:pos.coords.longitude}),
+        ()=>resolve(discoverUser||null),
+        {enableHighAccuracy:false,maximumAge:300000,timeout:5000}
+      );
+    });
+  }
+
+  async function boundsDiscoverLoad(){
+    const list=document.getElementById('discoverList'),hint=document.getElementById('discoverHint');
+    if(!list||!window.boundsClient)return;
+    list.innerHTML='<div class="card"><div class="muted">Banen laden…</div></div>';
+    try{
+      const user=window.boundsSession?.user||null;
+      discoverUser=user;
+      const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
+        window.boundsClient.from('courses').select('id,name,location,country').eq('country','NL').order('name'),
+        user?window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',user.id):Promise.resolve({data:[],error:null})
+      ]);
+      if(ce)throw ce;if(re)throw re;
+      discoverCourses=courses||[];discoverRelations=rels||[];
+
+      try{courseGeoCache=JSON.parse(localStorage.getItem('bounds_course_geo')||'{}')||{}}catch(e){courseGeoCache={}}
+
+      const loc=await getUserLocation();
+      if(loc && Number.isFinite(Number(loc.latitude)) && Number.isFinite(Number(loc.longitude))){
+        discoverUser={...discoverUser,...loc};
+        if(hint)hint.textContent='Afstanden zijn berekend vanaf je huidige locatie. Je locatie wordt niet met andere golfers gedeeld.';
+        if(discoverFilter==='nearby') await Promise.all(discoverCourses.map(geocodeCourse));
+      }else if(hint){
+        hint.textContent='Locatie niet beschikbaar. Je kunt alle banen bekijken via “Alle banen”.';
+      }
+      renderDiscover();
+    }catch(e){
+      console.error('Courses laden:',e);
+      list.innerHTML='<div class="card"><div class="discover-empty">Banen konden niet worden geladen.</div></div>';
+    }
+  }
+
+  function renderDiscover(){
+    const list=document.getElementById('discoverList'),q=(document.getElementById('discoverSearch')?.value||'').trim().toLowerCase();
+    if(!list)return;
+    let rows=discoverCourses.filter(c=>{
+      const rel=discoverRelations.find(r=>String(r.course_id)===String(c.id));
+      if(discoverFilter==='favorites' && !rel?.is_favorite)return false;
+      if(q && !(String(c.name).toLowerCase().includes(q)||String(c.location||'').toLowerCase().includes(q)))return false;
+      return true;
+    }).map(c=>{
+      const geo=courseGeoCache[c.id],lat=Number(discoverUser?.latitude),lon=Number(discoverUser?.longitude);
+      const distance=(geo&&Number.isFinite(lat)&&Number.isFinite(lon))?haversine(lat,lon,geo.latitude,geo.longitude):null;
+      return {...c,distance};
+    });
+    if(discoverFilter==='nearby'){
+      rows.sort((a,b)=>(a.distance??99999)-(b.distance??99999));
+      rows=rows.filter(r=>r.distance!=null);
+    }else rows.sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+
+    if(!rows.length){
+      list.innerHTML='<div class="card"><div class="discover-empty">'+(discoverFilter==='nearby'?'Geen banen met beschikbare afstand gevonden. Kies “Alle banen”.':'Geen banen gevonden.')+'</div></div>';
+      return;
+    }
+
+    list.innerHTML=rows.map(c=>{
+      const rel=discoverRelations.find(r=>String(r.course_id)===String(c.id));
+      const cv=courseValueByName(c.name);
+      return `<article class="discover-course">
+        <div class="discover-course-main">
+          <div><h3>${esc(c.name)}</h3><div class="discover-course-location">${esc(c.location||'Nederland')}</div></div>
+          ${c.distance!=null?`<div class="discover-distance">${distanceLabel(c.distance)}</div>`:''}
+        </div>
+        <div class="discover-badges">
+          ${rel?.is_favorite?'<span class="discover-badge">Favoriet</span>':''}
+          ${rel?.is_home_course?'<span class="discover-badge">Thuisbaan</span>':''}
+          <span class="discover-badge">Nederland</span>
+        </div>
+        <div class="discover-actions">
+          <button class="secondary" type="button" onclick="boundsOpenCourseProfile('${c.id}')">Bekijk baan</button>
+          ${cv?`<button class="primary" type="button" onclick="boundsDiscoverStartRound('${cv}')">Start ronde</button>`:''}
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  async function boundsOpenCourseProfile(courseId){
+    const c=discoverCourses.find(x=>String(x.id)===String(courseId));if(!c)return;
+    const rel=discoverRelations.find(r=>String(r.course_id)===String(courseId));
+    const cv=courseValueByName(c.name);
+    const h=getHistory().filter(r=>r.course===c.name);
+    const geo=courseGeoCache[c.id],lat=Number(discoverUser?.latitude),lon=Number(discoverUser?.longitude);
+    const dist=geo&&Number.isFinite(lat)&&Number.isFinite(lon)?haversine(lat,lon,geo.latitude,geo.longitude):null;
+    const body=document.getElementById('courseProfileBody');
+    const name=document.getElementById('courseProfileName');
+    const loc=document.getElementById('courseProfileLocation');
+    const badges=document.getElementById('courseProfileBadges');
+    const actions=document.getElementById('courseProfileActions');
+    if(!body)return;
+    name.textContent=c.name;loc.textContent=c.location||'Nederland';
+    badges.innerHTML=(dist!=null?`<span class="discover-badge">${distanceLabel(dist)}</span>`:'')+
+      (rel?.is_favorite?'<span class="discover-badge">Favoriet</span>':'');
+    body.innerHTML=`<div class="course-profile-section"><h3>Jouw spel op deze baan</h3><div class="course-profile-stat"><b>${h.length}</b><span>opgeslagen rondes</span></div></div>`;
+    actions.innerHTML=
+      `<button class="secondary" type="button" onclick="boundsDiscoverToggleFavorite('${c.id}')">${rel?.is_favorite?'★ Favoriet verwijderen':'☆ Favoriet'}</button>`+
+      (cv?`<button class="primary" type="button" onclick="boundsCloseCourseProfile();boundsDiscoverStartRound('${cv}')">Start ronde</button>`:'');
+    document.getElementById('courseProfileBackdrop').classList.add('open');
+  }
+
+  async function boundsDiscoverToggleFavorite(courseId){
+    const user=window.boundsSession?.user;
+    if(!user){alert('Log in om favorieten te bewaren.');return;}
+    const existing=discoverRelations.find(r=>String(r.course_id)===String(courseId));
+    try{
+      if(existing?.is_favorite){
+        const {error}=await window.boundsClient.from('user_courses').update({is_favorite:false}).eq('id',existing.id);
+        if(error)throw error;
+      }else{
+        const {error}=await window.boundsClient.from('user_courses').upsert({
+          user_id:user.id,course_id:courseId,is_member:!!existing?.is_member,
+          is_home_course:!!existing?.is_home_course,is_favorite:true
+        },{onConflict:'user_id,course_id'});
+        if(error)throw error;
+      }
+      await boundsDiscoverLoad();
+      boundsCloseCourseProfile();
+    }catch(e){alert('Favoriet opslaan mislukt: '+(e?.message||'Onbekende fout'));}
+  }
+
+  function boundsDiscoverStartRound(cv){
+    const select=document.getElementById('course');
+    if(select){select.value=cv;localStorage.setItem('golf_course',cv);}
+    if(typeof window.updateUI==='function')window.updateUI();
+    if(typeof window.boundsLoadTeeOptions==='function')window.boundsLoadTeeOptions();
+    if(typeof window.showTab==='function')window.showTab('round');
+  }
+  function boundsDiscoverFilter(filter){
+    discoverFilter=filter;
+    document.querySelectorAll('.discover-filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));
+    renderDiscover();
+  }
+  function boundsCloseCourseProfile(){
+    document.getElementById('courseProfileBackdrop')?.classList.remove('open');
+  }
+
+  window.boundsDiscoverLoad=boundsDiscoverLoad;
+  window.boundsDiscoverFilter=boundsDiscoverFilter;
+  window.boundsOpenCourseProfile=boundsOpenCourseProfile;
+  window.boundsDiscoverToggleFavorite=boundsDiscoverToggleFavorite;
+  window.boundsDiscoverStartRound=boundsDiscoverStartRound;
+  window.boundsCloseCourseProfile=boundsCloseCourseProfile;
+
+  const oldShow=window.showTab;
+  if(typeof oldShow==='function'){
+    window.showTab=function(tab){
+      const result=oldShow.apply(this,arguments);
+      if(tab==='discover')setTimeout(boundsDiscoverLoad,0);
+      return result;
+    };
+  }
+  document.getElementById('discoverSearch')?.addEventListener('input',renderDiscover);
+  setTimeout(()=>{if(document.getElementById('page-discover')?.classList.contains('active'))boundsDiscoverLoad()},800);
+})();
+</script>
+
+<div id="courseProfileBackdrop" class="course-profile-backdrop" role="dialog" aria-modal="true">
+  <div class="course-profile-sheet">
+    <div class="course-profile-top">
+      <div><h2 id="courseProfileName">Course</h2><div id="courseProfileLocation" class="course-profile-meta"></div><div id="courseProfileBadges" class="discover-badges"></div></div>
+      <button class="course-profile-close" type="button" onclick="boundsCloseCourseProfile()">×</button>
+    </div>
+    <div id="courseProfileBody"></div>
+    <div id="courseProfileActions" class="course-profile-actions"></div>
+  </div>
+</div>
+
+
+<script>
+/* ===== BOUNDS v1.1 — Restore cloud history from Supabase ===== */
+(function(){
+  function boundsLoopLabel(loop){
+    const map={first:'1e 9',second:'2e 9',full:'Hele baan'};
+    return map[loop]||loop||'';
+  }
+  function boundsCloudToLocal(r){
+    const rp=(r.round_players||[])[0];
+    if(!rp)return null;
+    const holes=(rp.hole_scores||[]).map(h=>{
+      const ch=h.course_hole||{};
+      const note=(h.hole_score_notes||[])[0]?.note||'';
+      return {
+        hole:ch.hole_number,par:ch.par,si:ch.stroke_index,score:h.score||0,
+        strokes:0,sf:h.stableford,
+        extra:{
+          putts:h.putts==null?'':String(h.putts),
+          penalty:h.penalty==null?'':String(h.penalty),
+          fairway:h.fairway==='yes'?'hit':h.fairway==='no'?'miss':'',
+          gir:h.gir||'',note
+        },note
+      };
+    });
+    return {
+      cloudRoundId:r.id,
+      date:r.played_at?new Date(r.played_at).toLocaleDateString('nl-NL'):'',
+      time:r.played_at?new Date(r.played_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'',
+      course:r.course?.name||'Onbekende baan',
+      round:r.holes_played==='9'?'9 holes':'18 holes',
+      loop:boundsLoopLabel(r.loop),
+      handicap:rp.handicap_index_at_round,
+      courseHcp:rp.course_handicap,
+      total:rp.final_score||0,
+      sft:rp.stableford||0,
+      tee:r.tee?.tee_name||'',
+      teeName:r.tee?.tee_name||null,
+      teeId:r.tee_id||null,
+      holes
+    };
+  }
+
+  async function loadCloudRounds(){
+    if(!window.boundsClient||!window.boundsSession?.user)return;
+    try{
+      const {data,error}=await window.boundsClient.from('rounds')
+        .select('id,course_id,tee_id,holes_played,loop,played_at,status,course:courses(name),tee:course_tees(tee_name,loop,course_rating,slope_rating,par),round_players!inner(id,user_id,handicap_index_at_round,course_handicap,final_score,stableford,hole_scores(id,course_hole_id,score,stableford,putts,penalty,fairway,gir,course_hole:course_holes(hole_number,par,stroke_index),hole_score_notes(note)))')
+        .eq('owner_id',window.boundsSession.user.id)
+        .order('played_at',{ascending:false});
+      if(error)throw error;
+      const cloud=(data||[]).map(boundsCloudToLocal).filter(Boolean);
+      const local=getHistory();
+      const byId=new Map(local.map(x=>[x.cloudRoundId||('local-'+x.date+'-'+x.time+'-'+x.course),x]));
+      cloud.forEach(r=>byId.set(r.cloudRoundId,r));
+      const merged=[...byId.values()].sort((a,b)=>{
+        const da=new Date(a.cloudRoundId?0:(a.date||'')),db=new Date(b.cloudRoundId?0:(b.date||''));
+        return 0;
+      });
+      // Keep cloud rounds first, then local-only rounds. Never delete local history.
+      const localOnly=local.filter(x=>!x.cloudRoundId);
+      localStorage.setItem('golf_history',JSON.stringify([...cloud,...localOnly].slice(0,100)));
+      if(typeof renderHistory==='function')renderHistory();
+      if(typeof renderRecords==='function')renderRecords();
+      if(typeof renderDashboard==='function')renderDashboard();
+      if(typeof renderCourseHistory==='function')renderCourseHistory();
+      if(typeof renderMyGame==='function')renderMyGame();
+      if(typeof renderHome==='function')renderHome();
+    }catch(e){
+      console.warn('BOUNDS cloud history laden mislukt:',e);
+    }
+  }
+
+  window.boundsLoadCloudRounds=loadCloudRounds;
+
+  function hook(){
+    if(window.boundsSession?.user)loadCloudRounds();
+  }
+  if(window.boundsClient?.auth){
+    window.boundsClient.auth.onAuthStateChange(()=>setTimeout(hook,300));
+  }
+  setTimeout(hook,1400);
+})();
+</script>
+
 </html>

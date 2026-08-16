@@ -2068,7 +2068,7 @@ async function initBoundsCourses294(){
 }
 initBoundsCourses294();
 </script>\n<script>
-/* BOUNDS v2.9.6 — Nearby by driving route
+/* BOUNDS v2.9.7 — Nearby by driving route
    - Nearby is defined as <= 25 km driving distance.
    - Uses road routing, not straight-line/Haversine distance.
    - Shows driving distance and estimated driving time.
@@ -2272,5 +2272,71 @@ setTimeout(() => {
   }
 }, 500);
 </script>
+</script>
+
+<script>
+/* BOUNDS v2.9.7 — Nearby UI wiring + correct course hole labels */
+
+function courseSummary296(c){
+  const tees = DB_TEES.filter(t => t.course_id === c.id);
+  const variants = [...new Set(tees.map(t => t.course_variant))];
+
+  const physical = [];
+  for(const t of tees){
+    const n = Number(t.physical_holes || t.layout_holes || t.holes);
+    if(Number.isFinite(n) && !physical.includes(n)) physical.push(n);
+  }
+  physical.sort((a,b)=>a-b);
+
+  if(c.name === 'Crimpenerhout') return '9 holes';
+  if(c.name === 'De Kroonprins') return variants.includes('main') && variants.includes('par3')
+    ? '18 holes · Par 3: 9 holes' : (physical.length ? `${physical[physical.length-1]} holes` : '');
+  if(c.name === 'Golfpark Almkreek') return variants.includes('main') && variants.some(v => v==='par3' || v==='par3_4' || v==='par34')
+    ? '18 holes · Par 3/4: 14 holes' : (physical.length ? `${physical[physical.length-1]} holes` : '');
+
+  if(physical.length === 1) return `${physical[0]} holes`;
+  if(physical.length > 1) return `${Math.max(...physical)} holes`;
+  return '';
+}
+
+/* The old prototype showNearbyCourses() rendered hardcoded placeholder cards.
+   Override it so the Nearby button actually requests location and routes. */
+function showNearbyCourses(){
+  requestNearbyLocation296();
+}
+
+/* Replace the generic course directory rendering so physical hole counts are not
+   incorrectly read from a single tee record (e.g. Crimpenerhout as 18 holes). */
+function renderCourseDirectory(){
+  const q=(document.getElementById('courseSearch')?.value||'').trim().toLowerCase();
+  const el=document.getElementById('courseDirectory');
+  if(!el || typeof DB_COURSES==='undefined') return;
+
+  const p=getProfile();
+  const rows=DB_COURSES.filter(c=>{
+    const text=`${c.name} ${c.location||''}`.toLowerCase();
+    return !q || text.includes(q);
+  });
+
+  el.innerHTML = rows.map(c=>`
+    <button class="course-card-button" onclick="openDbCourseDetail('${c.id}')">
+      <div>
+        <strong>${c.name}</strong>
+        <small>${c.location||''}${courseSummary296(c) ? ' · '+courseSummary296(c) : ''}</small>
+      </div>
+      <small>${p.homeCourse===c.id?'HOME':''}${p.favoriteCourse===c.id?' ★ FAVORITE':''}</small>
+      <span class="course-chevron">›</span>
+    </button>
+  `).join('') || '<div class="empty">Geen banen gevonden.</div>';
+}
+
+/* Keep the detail view accurate as well. */
+function courseVariantLabel297(v){
+  if(v==='main') return 'Grote baan';
+  if(v==='par3') return 'Par 3';
+  if(v==='par3_4' || v==='par34') return 'Par 3/4';
+  return v || 'Baan';
+}
+
 </script>
 </html>

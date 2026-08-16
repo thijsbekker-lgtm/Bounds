@@ -583,10 +583,9 @@
 
   async function loadProfiles(ids){
     if(!ids.length)return [];
-    const {data,error}=await window.boundsClient
-      .from('profiles')
-      .select('id,display_name,region,avatar_url,handicap_index,is_discoverable')
-      .in('id',ids);
+    const {data,error}=await window.boundsClient.rpc('get_social_profiles_by_ids',{
+      user_ids:ids
+    });
     if(error) throw error;
     return data||[];
   }
@@ -3527,4 +3526,46 @@ async function boundsApplyIdentityState(session){
   setTimeout(()=>{ if(session())applyAuthFinal(window.boundsSession); },2200);
 })();
 </script>
+
+<script>
+/* ===== BOUNDS Friends v1.1 — final integration fix ===== */
+(function(){
+  function render(){
+    if(typeof window.boundsRenderFriends==='function'){
+      try{ window.boundsRenderFriends(); }catch(e){ console.warn('Friends render:',e); }
+    }
+  }
+
+  const currentShowTab=window.showTab;
+  if(typeof currentShowTab==='function' && !currentShowTab.__boundsFriendsFinal){
+    const wrapped=function(tab){
+      const result=currentShowTab.apply(this,arguments);
+      if(tab==='friends') setTimeout(render,0);
+      return result;
+    };
+    wrapped.__boundsFriendsFinal=true;
+    window.showTab=wrapped;
+  }
+
+  function bindAuth(){
+    if(window.boundsClient?.auth && !window.__boundsFriendsAuthBound){
+      window.__boundsFriendsAuthBound=true;
+      window.boundsClient.auth.onAuthStateChange(function(){
+        setTimeout(function(){
+          if(document.getElementById('page-friends')?.classList.contains('active')) render();
+        },150);
+      });
+    }
+  }
+
+  bindAuth();
+  setTimeout(bindAuth,100);
+  setTimeout(bindAuth,500);
+  setTimeout(function(){
+    bindAuth();
+    if(document.getElementById('page-friends')?.classList.contains('active')) render();
+  },1200);
+})();
+</script>
+
 </html>

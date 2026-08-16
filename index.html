@@ -678,7 +678,11 @@
       const relationByUser=new Map();
       relationships.forEach(r=>{
         const other=r.requester_id===user.id?r.addressee_id:r.requester_id;
-        relationByUser.set(other,r);
+        const existing=relationByUser.get(other);
+        const rank={accepted:3,pending:2,declined:1};
+        if(!existing || (rank[r.status]||0)>(rank[existing.status]||0)){
+          relationByUser.set(other,r);
+        }
       });
       const visible=rows.filter(p=>p.id!==user.id);
       if(!visible.length){empty('friendsSearchResults','Geen golfers gevonden.');return;}
@@ -721,11 +725,21 @@
     }
   }
 
+  async function refreshFriendSearchIfNeeded(){
+    const input=document.getElementById('friendsSearch');
+    if(input && input.value.trim() && typeof window.boundsSearchGolfers==='function'){
+      await window.boundsSearchGolfers();
+    }
+  }
+
   async function boundsAcceptFriend(id){
     try{
       const {error}=await window.boundsClient.from('friendships').update({status:'accepted'}).eq('id',id);
       if(error)throw error;
       await renderFriends();
+      // Refresh an already visible search result so "Verzoek verstuurd"
+      // immediately becomes "Al bevriend".
+      await refreshFriendSearchIfNeeded();
     }catch(e){alert('Vriendverzoek accepteren mislukt: '+(e?.message||'Onbekende fout'));}
   }
 
@@ -734,6 +748,7 @@
       const {error}=await window.boundsClient.from('friendships').update({status:'declined'}).eq('id',id);
       if(error)throw error;
       await renderFriends();
+      await refreshFriendSearchIfNeeded();
     }catch(e){alert('Vriendverzoek weigeren mislukt: '+(e?.message||'Onbekende fout'));}
   }
 

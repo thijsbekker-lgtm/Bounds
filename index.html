@@ -1533,7 +1533,8 @@ function renderMyGame(){
  const raw=(document.getElementById('goalHcp')?.value||'').trim();
  const current=Number(hi.value);
  const goalText=document.getElementById('goalText');
- if(!session() || raw==='' || !Number.isFinite(current)){
+ const isLoggedIn=!!(window.boundsSession && window.boundsSession.user);
+ if(!isLoggedIn || raw==='' || !Number.isFinite(current)){
    if(goalText)goalText.innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';
  }else{
    const goal=Number(raw);
@@ -1720,7 +1721,9 @@ async function boundsSaveSignedInProfile(){
     if(document.getElementById('authNameSignedIn'))document.getElementById('authNameSignedIn').value=p?.display_name||name||'';
     playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{name:'Ik'}),name:p?.display_name||name||playerProfiles[activePlayerIndex]?.name||'Ik',hcp:h};
     savePlayerProfiles();
-    renderPlayers();renderPlayerSwitcher();renderMyGame();render();
+    renderPlayers();renderPlayerSwitcher();
+    try{renderMyGame();}catch(e){console.warn('Mijn spel vernieuwen:',e);}
+    try{render();}catch(e){console.warn('Scorekaart vernieuwen:',e);}
     boundsMessage('Profiel opgeslagen.');
   }catch(e){boundsMessage('Profiel opslaan mislukt: '+(e?.message||String(e)),true);}
 }
@@ -2593,7 +2596,7 @@ async function boundsApplyIdentityState(session){
 </script>
 <script>
 /* ============================================================
-   BOUNDS v2.8.4 FINAL — PAR 3 OFFICIAL BAANHANDICAP TABLE + AUTH/GUEST ISOLATION
+   BOUNDS v2.8.8 FINAL — STATS + AUTH ERROR FIX + PAR 3 OFFICIAL BAANHANDICAP TABLE
    This is deliberately the LAST executable code in the document.
    Guest: no personal handicap, target handicap, history or profile.
    Authenticated: profile values are loaded from Supabase and editable.

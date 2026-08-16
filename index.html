@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.15.7</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.15.10</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -2387,8 +2387,13 @@
 
       const {data:course,error:ce}=await window.boundsClient.from('courses').select('name,location').eq('id',round.course_id).single();
       if(ce)throw ce;
-      const {data:ownerProfile,error:ope}=await window.boundsClient.from('profiles').select('display_name').eq('id',players.user_id).maybeSingle();
+      // Profiles are protected by RLS for direct table reads. Use the existing
+      // social-profile RPC, which is designed for friends/shared social data.
+      let ownerProfile=null;
+      const {data:ownerProfiles,error:ope}=await window.boundsClient
+        .rpc('get_social_profiles_by_ids_v2',{user_ids:[players.user_id]});
       if(ope)throw ope;
+      ownerProfile=(ownerProfiles||[]).find(p=>p.id===players.user_id)||null;
 
       const {data:holes,error:he}=await window.boundsClient
         .from('hole_scores')
@@ -2414,6 +2419,9 @@
       const totalPutts=allowed.has('putts') ? (holes||[]).reduce((a,h)=>a+(Number(h.putts)||0),0) : null;
       const totalPenalty=allowed.has('penalty') ? (holes||[]).reduce((a,h)=>a+(Number(h.penalty)||0),0) : null;
 
+      const sorted=(holes||[]).map(h=>({...h,meta:meta.get(h.course_hole_id)}))
+        .filter(h=>h.meta).sort((a,b)=>a.meta.hole_number-b.meta.hole_number);
+
       let summary='<div class="shared-round-summary">'
         +'<div><b>'+((allowed.has('score')&&totalScore!=null)?esc(totalScore):'—')+'</b><span>Slagen</span></div>'
         +'<div><b>'+((allowed.has('stableford')&&totalStable!=null)?esc(totalStable):'—')+'</b><span>Stableford</span></div>';
@@ -2421,9 +2429,6 @@
       else if(allowed.has('penalty'))summary+='<div><b>'+(totalPenalty??'—')+'</b><span>Strafslagen</span></div>';
       else summary+='<div><b>'+esc((holes||[]).length)+'</b><span>Holes</span></div>';
       summary+='</div>';
-
-      const sorted=(holes||[]).map(h=>({...h,meta:meta.get(h.course_hole_id)}))
-        .filter(h=>h.meta).sort((a,b)=>a.meta.hole_number-b.meta.hole_number);
 
       const cols=['score'];
       if(allowed.has('stableford'))cols.push('stableford');
@@ -2452,7 +2457,9 @@
       }).join('');
       table+='</tbody></table>';
 
-      body.innerHTML='<div class="shared-round-owner">Gedeeld door <b>'+esc(ownerProfile?.display_name||'Golfer')+'</b></div>'+summary+table+
+      const ownerName=ownerProfile?.display_name||'Deze golfer';
+      const tableContent=sorted.length ? table : '<div class="friends-empty">Geen hole-scores beschikbaar voor deze gedeelde ronde.</div>';
+      body.innerHTML='<div class="shared-round-owner">Gedeeld door <b>'+esc(ownerName)+'</b></div>'+summary+tableContent+
         '<div class="shared-hole-note">Je ziet alleen de score en statistieken die voor deze gedeelde ronde beschikbaar zijn.</div>';
     }catch(e){
       console.error('Gedeelde ronde detail:',e);

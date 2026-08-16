@@ -207,6 +207,28 @@
 .course-check span{font-size:12px;font-weight:700;line-height:1.2}
 .course-check small{display:block;color:var(--muted);font-size:9px;font-weight:500;margin-top:2px}
 </style>
+
+<style>
+.discover-search input{margin-top:0;text-align:left}
+.discover-filter-row{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px}
+.discover-filter{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;font-size:10px;font-weight:800;color:#66737a}
+.discover-filter.active{background:#111;color:#fff;border-color:#111}
+.discover-list{display:grid;gap:10px}
+.course-card{border:1px solid var(--line);border-radius:15px;padding:12px;background:#fff}
+.course-top{display:flex;gap:10px;align-items:flex-start}
+.course-icon{width:40px;height:40px;border-radius:12px;background:#eef3f5;display:grid;place-items:center;font-size:19px;flex:0 0 40px}
+.course-main{min-width:0;flex:1}
+.course-main b{display:block;font-size:14px}
+.course-main small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.course-distance{font-size:10px;font-weight:800;white-space:nowrap}
+.course-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.course-badge{font-size:9px;font-weight:800;padding:5px 7px;border-radius:999px;background:#f1f2f3;color:#5d686d}
+.course-actions{display:flex;gap:7px;margin-top:10px}
+.course-actions button{flex:1;border:0;border-radius:11px;padding:9px 8px;font-size:10px;font-weight:800}
+.course-actions .primary-course{background:#111;color:#fff}
+.course-actions .secondary-course{background:#eef0f1;color:#263238}
+.course-actions .favorite-on{background:#fff4d8;color:#765b00}
+</style>
 </head>
 <body>
 <div class="app">
@@ -221,6 +243,7 @@
  <button class="tab" data-tab="history" onclick="showTab('history')">◷<span>Rondes</span></button>
  <button class="tab" data-tab="game" onclick="showTab('game')">◌<span>Mijn spel</span></button>
  <button class="tab" data-tab="friends" onclick="showTab('friends')">♙<span>Friends</span></button>
+ <button class="tab" data-tab="discover" onclick="showTab('discover')">⌖<span>Discover</span></button>
 </nav>
 
 <main>
@@ -417,6 +440,30 @@
         <input id="friendsHcpVisible" type="checkbox" onchange="boundsSaveSocialPrivacy()">
       </label>
       <div id="friendsPrivacyMessage" class="save-status"></div>
+    </div>
+  </div>
+</section>
+
+
+<section id="page-discover" class="tabpage">
+  <div class="card">
+    <div class="eyebrow">COURSES</div>
+    <h2>Ontdek banen</h2>
+    <div class="discover-search">
+      <input id="discoverSearch" type="search" placeholder="Zoek op baan of plaats" autocomplete="off">
+    </div>
+    <div class="discover-filter-row">
+      <button class="discover-filter active" data-filter="nearby" onclick="boundsDiscoverFilter('nearby')">Bij mij in de buurt</button>
+      <button class="discover-filter" data-filter="favorites" onclick="boundsDiscoverFilter('favorites')">Favorieten</button>
+      <button class="discover-filter" data-filter="all" onclick="boundsDiscoverFilter('all')">Alle banen</button>
+    </div>
+    <div id="discoverLocationHint" class="location-meta"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" id="discoverTitle">Bij jou in de buurt</div>
+    <div id="discoverList" class="discover-list">
+      <div class="friends-empty">Banen laden…</div>
     </div>
   </div>
 </section>
@@ -1082,6 +1129,229 @@
 
   setTimeout(()=>{
     if(window.boundsSession?.user)loadProfileCourses();
+  },1200);
+})();
+</script>
+
+<script>
+/* ===== BOUNDS Discover / Courses v1 =====
+   Discover is deliberately built on the existing courses catalog and the
+   private user_courses relations. Course coordinates are resolved client-side
+   from the existing course name/location and cached locally. No exact user
+   location is exposed to other golfers.
+*/
+(function(){
+  let discoverCourses=[];
+  let discoverRelations=[];
+  let discoverFilter='nearby';
+  let discoverUser=null;
+  let courseGeoCache={};
+
+  const PDOK='https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
+
+  function esc(v){
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371;
+    const p=Math.PI/180;
+    const a=.5-Math.cos((lat2-lat1)*p)/2+
+      Math.cos(lat1*p)*Math.cos(lat2*p)*(1-Math.cos((lon2-lon1)*p))/2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  function distanceLabel(km){
+    if(km==null)return '';
+    if(km<1)return '< 1 km';
+    if(km<10)return Math.round(km)+' km';
+    return Math.round(km)+' km';
+  }
+  async function geocodeCourse(c){
+    if(courseGeoCache[c.id])return courseGeoCache[c.id];
+    const q=[c.name,c.location].filter(Boolean).join(', ');
+    try{
+      const res=await fetch(PDOK+'?'+new URLSearchParams({q,rows:'5'}).toString(),{headers:{Accept:'application/json'}});
+      if(!res.ok)return null;
+      const json=await res.json();
+      const docs=json?.response?.docs||[];
+      let d=docs.find(x=>String(x.type||'').toLowerCase().includes('adres'))||docs[0];
+      if(!d)return null;
+      const s=d.centroide_ll||d.centroide_ll_rd;
+      let lat=null,lon=null;
+      if(typeof s==='string'){
+        const m=s.match(/POINT\\s*\\(([-0-9.]+)\\s+([-0-9.]+)\\)/i);
+        if(m){lon=Number(m[1]);lat=Number(m[2]);}
+      }
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+      courseGeoCache[c.id]={lat,lon};
+      localStorage.setItem('bounds_course_geo',JSON.stringify(courseGeoCache));
+      return courseGeoCache[c.id];
+    }catch(e){return null;}
+  }
+
+  function courseValueByName(name){
+    const n=String(name||'').toLowerCase();
+    if(n.includes('crimpenerhout'))return 'crimpenerhout';
+    if(n.includes('kroonprins'))return 'kroonprins';
+    if(n.includes('almkreek'))return 'almkreek';
+    return '';
+  }
+
+  function discoverCard(c,rel,user){
+    const geo=courseGeoCache[c.id];
+    const hasUserLoc=Number.isFinite(Number(user?.latitude))&&Number.isFinite(Number(user?.longitude));
+    const km=hasUserLoc&&geo?haversine(Number(user.latitude),Number(user.longitude),geo.lat,geo.lon):null;
+    const isFav=!!rel?.is_favorite;
+    const isMember=!!rel?.is_member;
+    const isHome=!!rel?.is_home_course;
+    const badges=[];
+    if(isMember)badges.push('<span class="course-badge">Mijn club</span>');
+    if(isHome)badges.push('<span class="course-badge">Thuisbaan</span>');
+    if(isFav)badges.push('<span class="course-badge">★ Favoriet</span>');
+    const cv=courseValueByName(c.name);
+    const start=cv
+      ? '<button class="primary-course" onclick="boundsDiscoverStartRound(\''+cv+'\')">Start ronde</button>'
+      : '';
+    return '<div class="course-card">'
+      +'<div class="course-top">'
+      +'<div class="course-icon">⛳</div>'
+      +'<div class="course-main"><b>'+esc(c.name)+'</b><small>'+esc(c.location||'')+'</small></div>'
+      +(km!=null?'<div class="course-distance">'+distanceLabel(km)+'</div>':'')
+      +'</div>'
+      +(badges.length?'<div class="course-badges">'+badges.join('')+'</div>':'')
+      +'<div class="course-actions">'
+      +start
+      +'<button class="'+(isFav?'favorite-on':'secondary-course')+'" onclick="boundsDiscoverToggleFavorite(\''+c.id+'\')">'+(isFav?'★ Favoriet':'☆ Favoriet')+'</button>'
+      +'</div>'
+      +'</div>';
+  }
+
+  async function renderDiscover(){
+    const list=document.getElementById('discoverList');
+    const title=document.getElementById('discoverTitle');
+    const hint=document.getElementById('discoverLocationHint');
+    if(!list)return;
+
+    const q=(document.getElementById('discoverSearch')?.value||'').trim().toLowerCase();
+    const relMap=new Map(discoverRelations.map(r=>[r.course_id,r]));
+    let rows=discoverCourses.filter(c=>{
+      const text=(c.name+' '+(c.location||'')).toLowerCase();
+      return !q||text.includes(q);
+    });
+
+    const hasLoc=Number.isFinite(Number(discoverUser?.latitude))&&Number.isFinite(Number(discoverUser?.longitude));
+    if(discoverFilter==='favorites'){
+      rows=rows.filter(c=>relMap.get(c.id)?.is_favorite);
+      title.textContent='Mijn favorieten';
+    }else if(discoverFilter==='nearby'){
+      title.textContent='Bij jou in de buurt';
+      if(hasLoc){
+        rows.sort((a,b)=>{
+          const ga=courseGeoCache[a.id],gb=courseGeoCache[b.id];
+          const da=ga?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),ga.lat,ga.lon):99999;
+          const db=gb?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),gb.lat,gb.lon):99999;
+          return da-db;
+        });
+      }else{
+        title.textContent='Banen in de buurt';
+        hint.textContent='Vul je woonplaats in bij Account om banen op afstand te sorteren.';
+      }
+    }else{
+      title.textContent='Alle banen';
+    }
+
+    if(discoverFilter==='nearby' && hasLoc) hint.textContent='Afstanden zijn gebaseerd op je woonplaats en worden niet gedeeld met andere golfers.';
+    if(discoverFilter!=='nearby')hint.textContent='';
+
+    if(!rows.length){
+      list.innerHTML='<div class="friends-empty">'+(discoverFilter==='favorites'?'Je hebt nog geen favoriete banen.':'Geen banen gevonden.')+'</div>';
+      return;
+    }
+
+    list.innerHTML=rows.map(c=>discoverCard(c,relMap.get(c.id),discoverUser)).join('');
+  }
+
+  async function boundsDiscoverLoad(){
+    discoverUser=window.boundsSession?.user||null;
+    if(!window.boundsClient)return;
+    try{
+      const cache=JSON.parse(localStorage.getItem('bounds_course_geo')||'{}');
+      courseGeoCache=cache&&typeof cache==='object'?cache:{};
+    }catch(e){courseGeoCache={};}
+
+    const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
+      window.boundsClient.from('courses').select('id,name,location,country').order('name'),
+      discoverUser
+        ? window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',discoverUser.id)
+        : Promise.resolve({data:[],error:null})
+    ]);
+    if(ce)throw ce;
+    if(re)throw re;
+    discoverCourses=courses||[];
+    discoverRelations=rels||[];
+
+    // Resolve coordinates only when needed for nearby sorting.
+    if(discoverFilter==='nearby' && Number.isFinite(Number(discoverUser?.latitude))){
+      await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
+    }
+    await renderDiscover();
+  }
+
+  async function boundsDiscoverFilter(filter){
+    discoverFilter=filter;
+    document.querySelectorAll('.discover-filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));
+    await boundsDiscoverLoad();
+  }
+
+  async function boundsDiscoverToggleFavorite(courseId){
+    const user=window.boundsSession?.user;
+    if(!user){alert('Log in om favorieten te bewaren.');return;}
+    const existing=discoverRelations.find(r=>r.course_id===courseId);
+    try{
+      if(existing?.is_favorite){
+        const {error}=await window.boundsClient.from('user_courses').update({is_favorite:false}).eq('id',existing.id);
+        if(error)throw error;
+      }else{
+        const {error}=await window.boundsClient.from('user_courses').upsert({
+          user_id:user.id,course_id:courseId,
+          is_member:!!existing?.is_member,
+          is_home_course:!!existing?.is_home_course,
+          is_favorite:true
+        },{onConflict:'user_id,course_id'});
+        if(error)throw error;
+      }
+      await boundsDiscoverLoad();
+    }catch(e){alert('Favoriet opslaan mislukt: '+(e?.message||'Onbekende fout'));}
+  }
+
+  window.boundsDiscoverFilter=boundsDiscoverFilter;
+  window.boundsDiscoverToggleFavorite=boundsDiscoverToggleFavorite;
+  window.boundsDiscoverLoad=boundsDiscoverLoad;
+  window.boundsDiscoverStartRound=function(courseValue){
+    const select=document.getElementById('course');
+    if(select){
+      select.value=courseValue;
+      localStorage.setItem('golf_course',courseValue);
+      if(typeof window.updateUI==='function')window.updateUI();
+    }
+    if(typeof window.showTab==='function')window.showTab('round');
+  };
+
+  const oldShow=window.showTab;
+  if(typeof oldShow==='function' && !oldShow.__boundsDiscover){
+    const wrapped=function(tab){
+      const result=oldShow.apply(this,arguments);
+      if(tab==='discover')setTimeout(boundsDiscoverLoad,0);
+      return result;
+    };
+    wrapped.__boundsDiscover=true;
+    window.showTab=wrapped;
+  }
+
+  const search=document.getElementById('discoverSearch');
+  if(search)search.addEventListener('input',()=>renderDiscover());
+
+  setTimeout(()=>{
+    if(document.getElementById('page-discover')?.classList.contains('active'))boundsDiscoverLoad();
   },1200);
 })();
 </script>

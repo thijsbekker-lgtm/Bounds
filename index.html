@@ -457,7 +457,7 @@
       <button class="discover-filter" data-filter="favorites" onclick="boundsDiscoverFilter('favorites')">Favorieten</button>
       <button class="discover-filter" data-filter="all" onclick="boundsDiscoverFilter('all')">Alle banen</button>
     </div>
-    <div id="discoverLocationHint" class="location-meta"></div>
+    <div id="discoverLocationHint" class="location-meta">Bij mij in de buurt = maximaal 25 km vanaf je woonplaats.</div>
   </div>
 
   <div class="card">
@@ -1196,10 +1196,12 @@
     return '';
   }
 
-  function discoverCard(c,rel,user){
+  function discoverCard(c,rel,user,distanceOverride=null){
     const geo=courseGeoCache[c.id];
     const hasUserLoc=Number.isFinite(Number(user?.latitude))&&Number.isFinite(Number(user?.longitude));
-    const km=hasUserLoc&&geo?haversine(Number(user.latitude),Number(user.longitude),geo.lat,geo.lon):null;
+    const km=Number.isFinite(distanceOverride)
+      ? distanceOverride
+      : (hasUserLoc&&geo?haversine(Number(user.latitude),Number(user.longitude),geo.lat,geo.lon):null);
     const isFav=!!rel?.is_favorite;
     const isMember=!!rel?.is_member;
     const isHome=!!rel?.is_home_course;
@@ -1225,75 +1227,116 @@
       +'</div>';
   }
 
+  async function geocodeSearchPlace(query){
+    const q=(query||'').trim();
+    if(!q)return null;
+    try{
+      const url=PDOK+'?'+new URLSearchParams({
+        q, rows:'5', fq:'type:woonplaats'
+      }).toString();
+      const res=await fetch(url,{headers:{Accept:'application/json'}});
+      if(!res.ok)return null;
+      const json=await res.json();
+      const d=(json?.response?.docs||[])[0];
+      if(!d)return null;
+      const c=d.centroide_ll||d.centroide_ll_rd;
+      let lat=null,lon=null;
+      if(typeof c==='string'){
+        const m=c.match(/POINT\s*\(([-0-9.]+)\s+([-0-9.]+)\)/i);
+        if(m){lon=Number(m[1]);lat=Number(m[2]);}
+      }
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+      return {
+        name:d.woonplaatsnaam||q,
+        latitude:lat,
+        longitude:lon
+      };
+    }catch(e){
+      return null;
+    }
+  }
+
   async function renderDiscover(){
     const list=document.getElementById('discoverList');
     const title=document.getElementById('discoverTitle');
     const hint=document.getElementById('discoverLocationHint');
     if(!list)return;
 
-    const q=(document.getElementById('discoverSearch')?.value||'').trim().toLowerCase();
+    const q=(document.getElementById('discoverSearch')?.value||'').trim();
+    const qLower=q.toLowerCase();
     const relMap=new Map(discoverRelations.map(r=>[r.course_id,r]));
-    let rows=discoverCourses.filter(c=>{
-      const text=(c.name+' '+(c.location||'')).toLowerCase();
-      return !q||text.includes(q);
-    });
+    let rows=discoverCourses.slice();
 
-    const hasLoc=Number.isFinite(Number(discoverUser?.latitude))&&Number.isFinite(Number(discoverUser?.longitude));
     if(discoverFilter==='favorites'){
       rows=rows.filter(c=>relMap.get(c.id)?.is_favorite);
+      if(q)rows=rows.filter(c=>(c.name+' '+(c.location||'')).toLowerCase().includes(qLower));
       title.textContent='Mijn favorieten';
-    }else if(discoverFilter==='nearby'){
-      title.textContent='Bij jou in de buurt';
-      if(hasLoc){
-        rows.sort((a,b)=>{
-          const ga=courseGeoCache[a.id],gb=courseGeoCache[b.id];
-          const da=ga?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),ga.lat,ga.lon):99999;
-          const db=gb?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),gb.lat,gb.lon):99999;
-          return da-db;
-        });
-      }else{
-        title.textContent='Banen in de buurt';
-        hint.textContent='Vul je woonplaats in bij Account om banen op afstand te sorteren.';
-      }
-    }else{
+      hint.textContent='';
+    }else if(discoverFilter==='all'){
+      rows=rows.filter(c=>!q || (c.name+' '+(c.location||'')).toLowerCase().includes(qLower));
       title.textContent='Alle banen';
+      hint.textContent='';
+    }else{
+      // "Bij mij in de buurt" is a real radius filter, not merely a sort.
+      title.textContent='Banen in de buurt';
+
+      if(q){
+        // First support direct course/name searches.
+        const direct=rows.filter(c=>(c.name+' '+(c.location||'')).toLowerCase().includes(qLower));
+        if(direct.length){
+          rows=direct;
+          title.textContent='Zoekresultaten';
+          hint.textContent='';
+        }else{
+          // If the query is a place (e.g. Utrecht), resolve the place and
+          // show courses around that place. This makes Utrecht find De Kroonprins.
+          const place=await geocodeSearchPlace(q);
+          if(place){
+            await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
+            rows=discoverCourses.map(c=>{
+              const g=courseGeoCache[c.id];
+              const distance=g?haversine(place.latitude,place.longitude,g.lat,g.lon):99999;
+              return {...c,__distance:distance};
+            }).filter(c=>c.__distance<=35).sort((a,b)=>a.__distance-b.__distance);
+            title.textContent='Banen bij '+place.name;
+            hint.textContent='Getoond binnen 35 km van '+place.name+'.';
+          }else{
+            rows=[];
+            title.textContent='Zoekresultaten';
+            hint.textContent='Geen baan of plaats gevonden.';
+          }
+        }
+      }else{
+        const hasLoc=Number.isFinite(Number(discoverUser?.latitude))&&Number.isFinite(Number(discoverUser?.longitude));
+        if(hasLoc){
+          await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
+          rows=discoverCourses.map(c=>{
+            const g=courseGeoCache[c.id];
+            const distance=g?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),g.lat,g.lon):99999;
+            return {...c,__distance:distance};
+          }).filter(c=>c.__distance<=25).sort((a,b)=>a.__distance-b.__distance);
+          hint.textContent='Banen binnen 25 km van je woonplaats.';
+        }else{
+          rows=[];
+          hint.textContent='Vul je woonplaats in bij Account om banen in de buurt te zien.';
+        }
+      }
     }
 
-    if(discoverFilter==='nearby' && hasLoc) hint.textContent='Afstanden zijn gebaseerd op je woonplaats en worden niet gedeeld met andere golfers.';
-    if(discoverFilter!=='nearby')hint.textContent='';
-
     if(!rows.length){
-      list.innerHTML='<div class="friends-empty">'+(discoverFilter==='favorites'?'Je hebt nog geen favoriete banen.':'Geen banen gevonden.')+'</div>';
+      list.innerHTML='<div class="friends-empty">'+
+        (discoverFilter==='favorites'
+          ? 'Je hebt nog geen favoriete banen.'
+          : (q ? 'Geen banen gevonden.' : 'Geen banen binnen de ingestelde afstand.'))
+        +'</div>';
       return;
     }
 
-    list.innerHTML=rows.map(c=>discoverCard(c,relMap.get(c.id),discoverUser)).join('');
-  }
-
-  async function boundsDiscoverLoad(){
-    discoverUser=window.boundsSession?.user||null;
-    if(!window.boundsClient)return;
-    try{
-      const cache=JSON.parse(localStorage.getItem('bounds_course_geo')||'{}');
-      courseGeoCache=cache&&typeof cache==='object'?cache:{};
-    }catch(e){courseGeoCache={};}
-
-    const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
-      window.boundsClient.from('courses').select('id,name,location,country').order('name'),
-      discoverUser
-        ? window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',discoverUser.id)
-        : Promise.resolve({data:[],error:null})
-    ]);
-    if(ce)throw ce;
-    if(re)throw re;
-    discoverCourses=courses||[];
-    discoverRelations=rels||[];
-
-    // Resolve coordinates only when needed for nearby sorting.
-    if(discoverFilter==='nearby' && Number.isFinite(Number(discoverUser?.latitude))){
-      await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
-    }
-    await renderDiscover();
+    list.innerHTML=rows.map(c=>{
+      const rel=relMap.get(c.id);
+      const distanceOverride=Number.isFinite(c.__distance)?c.__distance:null;
+      return discoverCard(c,rel,discoverUser,distanceOverride);
+    }).join('');
   }
 
   async function boundsDiscoverFilter(filter){

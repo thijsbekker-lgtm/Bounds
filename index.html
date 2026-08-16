@@ -1402,6 +1402,22 @@
       // Merge them into the local Discover user model.
       if(discoverUser && profile){
         discoverUser={...discoverUser,...profile};
+
+        // Older profiles can have a woonplaats but no stored coordinates.
+        // Resolve the woonplaats on demand so nearby discovery still works.
+        const hasProfileLoc=Number.isFinite(Number(discoverUser.latitude)) &&
+                             Number.isFinite(Number(discoverUser.longitude));
+        if(!hasProfileLoc && discoverUser.woonplaats && typeof window.boundsResolveWoonplaats==='function'){
+          try{
+            const resolved=await window.boundsResolveWoonplaats(discoverUser.woonplaats);
+            if(resolved && Number.isFinite(Number(resolved.latitude)) &&
+               Number.isFinite(Number(resolved.longitude))){
+              discoverUser={...discoverUser,...resolved};
+            }
+          }catch(e){
+            console.warn('Woonplaats voor Discover kon niet worden opgelost:',e);
+          }
+        }
       }
 
       // Resolve coordinates only when needed for nearby mode without a search.

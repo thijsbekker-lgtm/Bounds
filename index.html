@@ -149,633 +149,92 @@
 }
 </style>
 <style>
-/* BOUNDS DESIGN SYSTEM v1 — Home reference implementation */
-:root{--bg:#F5F5F3;--card:#FFFFFF;--ink:#111111;--muted:#6E6E73;--line:#E5E5E2;--soft:#ECECE8;--accent:#315C4A;--accent-soft:#E7EFEA;--success:#2E7D55;--warning:#9A6B25;--error:#B84A45}
-body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif}
-.app{max-width:720px;padding:env(safe-area-inset-top) 20px calc(34px + env(safe-area-inset-bottom))}
-.bounds-hero{padding:28px 4px 20px}.brand-row{display:flex;align-items:center;gap:8px}.bounds-mark{font-size:17px;font-weight:700;letter-spacing:2.8px}.bounds-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}.hero-kicker{margin-top:8px;font-size:9px;letter-spacing:1.5px;font-weight:600;color:var(--muted)}
-.bounds-tabs{top:0;border:0;border-bottom:1px solid var(--line);background:#F5F5F3E8;padding:7px 0;gap:2px}.bounds-tabs .tab{padding:11px 8px;border-radius:12px;font-size:13px;color:var(--muted);font-weight:600}.bounds-tabs .tab.active{background:var(--card);color:var(--ink);box-shadow:0 1px 5px #0000000a}.bounds-tabs .tab span{font-size:13px;margin:0}
-.home-page{padding-top:24px}.home-intro{padding:0 2px 22px}.home-intro h1{font-size:40px;line-height:1;letter-spacing:-1.8px;margin:7px 0 8px;font-weight:600}.home-intro h1 span{color:var(--accent)}.home-intro p{margin:0;color:var(--muted);font-size:16px}.home-primary,.friends-hero{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;margin:0 0 28px}.home-primary h2,.friends-hero h2{font-size:24px;line-height:1.12;letter-spacing:-.7px;margin:7px 0 8px}.home-primary p,.friends-hero p{font-size:14px;line-height:1.5;color:var(--muted);max-width:520px;margin:0 0 20px}.home-start,.friends-hero .primary{width:100%;display:flex;justify-content:space-between;align-items:center}.home-section-head{display:flex;justify-content:space-between;align-items:center;margin:0 2px 10px}.home-section-head>span{font-size:10px;letter-spacing:1.3px;font-weight:700;color:var(--muted)}.home-section-head button{border:0;background:transparent;color:var(--accent);font-weight:600;font-size:12px}.home-last-round{margin-bottom:28px}.last-round{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:19px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.last-round b{display:block;font-size:18px}.last-round small{display:block;color:var(--muted);font-size:12px;margin-top:4px}.last-score{text-align:right}.last-score strong{display:block;font-size:30px;letter-spacing:-1px}.last-score span{font-size:11px;color:var(--muted)}.home-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:28px}.home-metrics>div{background:var(--card);padding:18px 12px}.home-metrics strong{display:block;font-size:25px;letter-spacing:-.8px}.home-metrics span{display:block;color:var(--muted);font-size:9px;letter-spacing:1px;font-weight:700;margin-top:4px}.home-friend-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;justify-content:space-between;gap:14px;align-items:center}.home-friend-card strong{font-size:16px}.home-friend-card p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.4}.primary,.secondary{border:0;border-radius:14px;padding:14px 16px;font-weight:600;font-size:15px}.primary{background:var(--ink);color:white}.secondary{background:var(--soft);color:var(--ink)}.friends-page{padding-top:24px}.friends-hero{margin-bottom:22px}.friends-list-card{margin-top:0}.friend-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.friend-row b{display:block;font-size:15px}.friend-row small{display:block;color:var(--muted);font-size:12px;margin-top:3px}.friend-row .secondary{padding:9px 12px;font-size:12px}.friends-list-card .empty{margin-top:10px}.card{box-shadow:none;border:1px solid var(--line);border-radius:20px}.eyebrow{font-size:10px;letter-spacing:1.4px;font-weight:700;color:var(--muted)}
-@media(max-width:520px){.app{padding-left:16px;padding-right:16px}.home-intro h1{font-size:36px}.home-primary,.friends-hero{padding:19px}.home-metrics strong{font-size:22px}}
+.tabs{grid-template-columns:repeat(5,1fr)}
+.tabs .tab{font-size:12px;padding:8px 3px}
+.profile-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.loss-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.loss-row b{font-size:15px}
+@media(max-width:600px){.tabs .tab span{font-size:9px}.tabs{gap:2px}.hero h1{font-size:29px}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>if(!window.supabase){document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>')}</script>
-
-<style>
-.account-shortcut{margin-top:14px;border:1px solid var(--line);background:rgba(255,255,255,.72);color:var(--ink);border-radius:999px;padding:9px 13px;font-size:12px;font-weight:600;backdrop-filter:blur(12px)}
-.account-shortcut span{color:var(--accent);margin-left:5px}
-.account-status{font-size:10px!important;letter-spacing:.2px;color:var(--muted)!important;background:transparent!important;padding:0!important}
-.account-status.ok{color:var(--accent)!important}
-.account-status.error{color:#B84A45!important}
-.account-status.busy{color:#9A6B25!important}
-.tee-help{display:block;color:var(--muted);font-size:10px;margin-top:4px}
-</style>
-
-<style id="bounds-design-system-v1-final">
-/* =========================================================
-   BOUNDS DESIGN SYSTEM v1 — FINAL VISUAL LAYER
-   Design-only layer. No application logic or data behaviour.
-   ========================================================= */
-:root{
-  --bg:#F5F5F3;
-  --card:#FFFFFF;
-  --ink:#111111;
-  --muted:#6E6E73;
-  --line:#E5E5E2;
-  --soft:#ECECE8;
-  --accent:#315C4A;
-  --accent-soft:#E7EFEA;
-  --success:#2E7D55;
-  --warning:#9A6B25;
-  --error:#B84A45;
-  --radius-control:14px;
-  --radius-card:20px;
-  --radius-sheet:24px;
-}
-
-html,body{
-  background:var(--bg);
-  color:var(--ink);
-}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif;
-  -webkit-font-smoothing:antialiased;
-  text-rendering:optimizeLegibility;
-}
-.app{
-  max-width:720px;
-  padding:env(safe-area-inset-top) 20px calc(38px + env(safe-area-inset-bottom));
-}
-
-/* Brand */
-.bounds-hero{
-  padding:30px 4px 22px;
-}
-.brand-row{gap:9px}
-.bounds-mark{
-  font-size:17px;
-  font-weight:700;
-  letter-spacing:3px;
-}
-.bounds-dot{
-  width:5px;height:5px;background:var(--accent);
-}
-.hero-kicker{
-  margin-top:9px;
-  font-size:9px;
-  letter-spacing:1.55px;
-  font-weight:600;
-  color:var(--muted);
-}
-.account-shortcut{
-  margin-top:16px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.82);
-  color:var(--ink);
-  border-radius:999px;
-  padding:9px 14px;
-  font-size:12px;
-  font-weight:600;
-  box-shadow:none;
-  backdrop-filter:blur(16px);
-}
-.account-shortcut span{color:var(--accent)}
-
-/* Navigation */
-.bounds-tabs{
-  position:sticky;
-  top:0;
-  z-index:10;
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:3px;
-  border:0;
-  border-bottom:1px solid rgba(229,229,226,.9);
-  background:rgba(245,245,243,.88);
-  backdrop-filter:saturate(180%) blur(20px);
-  padding:7px 0;
-}
-.bounds-tabs .tab{
-  min-height:42px;
-  padding:10px 6px;
-  border-radius:12px;
-  background:transparent;
-  color:var(--muted);
-  font-size:13px;
-  font-weight:600;
-  box-shadow:none;
-}
-.bounds-tabs .tab span{font-size:13px;margin:0}
-.bounds-tabs .tab.active{
-  background:var(--card);
-  color:var(--ink);
-  box-shadow:0 1px 5px rgba(17,17,17,.06);
-}
-
-/* Page rhythm */
-.tabpage{padding-top:20px}
-.card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  box-shadow:none;
-  padding:20px;
-  margin:12px 0;
-}
-.section-title{
-  font-size:15px;
-  font-weight:600;
-  margin-bottom:14px;
-}
-.section-title span{
-  background:var(--accent-soft);
-  color:var(--accent);
-  border-radius:999px;
-  padding:5px 8px;
-  font-size:9px;
-  letter-spacing:.2px;
-}
-
-/* Typography */
-.eyebrow{
-  font-size:10px;
-  line-height:1.2;
-  letter-spacing:1.4px;
-  font-weight:700;
-  color:var(--muted);
-}
-.dashboard h2{
-  font-size:32px;
-  line-height:1;
-  letter-spacing:-1.4px;
-  font-weight:600;
-  margin:7px 0 22px;
-}
-h3{
-  font-size:16px;
-  line-height:1.2;
-  font-weight:600;
-  margin:24px 0 11px;
-}
-.muted,.empty{
-  color:var(--muted);
-}
-
-/* Home */
-.home-page{padding-top:26px}
-.home-intro{
-  padding:0 2px 25px;
-}
-.home-intro h1{
-  font-size:40px;
-  line-height:.98;
-  letter-spacing:-2px;
-  font-weight:600;
-  margin:8px 0 9px;
-}
-.home-intro h1 span{color:var(--accent)}
-.home-intro p{
-  margin:0;
-  color:var(--muted);
-  font-size:16px;
-}
-.home-primary{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  padding:22px;
-  margin-bottom:30px;
-}
-.home-primary h2,.friends-hero h2{
-  font-size:24px;
-  line-height:1.1;
-  letter-spacing:-.8px;
-  font-weight:600;
-  margin:7px 0 9px;
-}
-.home-primary p,.friends-hero p{
-  font-size:14px;
-  line-height:1.5;
-  color:var(--muted);
-  max-width:520px;
-  margin:0 0 20px;
-}
-.home-section-head{
-  margin:0 2px 10px;
-}
-.home-section-head>span{
-  font-size:10px;
-  letter-spacing:1.4px;
-  font-weight:700;
-  color:var(--muted);
-}
-.home-section-head button{
-  color:var(--accent);
-  font-weight:600;
-}
-.last-round{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  padding:19px;
-}
-.last-round b{font-size:18px;font-weight:600}
-.last-score strong{
-  font-size:32px;
-  letter-spacing:-1px;
-  font-weight:600;
-}
-.home-metrics{
-  gap:1px;
-  background:var(--line);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  margin-bottom:30px;
-}
-.home-metrics>div{padding:19px 13px}
-.home-metrics strong{
-  font-size:26px;
-  font-weight:600;
-}
-.home-friend-card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  padding:19px;
-}
-
-/* Buttons */
-.primary,.secondary{
-  min-height:48px;
-  border-radius:var(--radius-control);
-  padding:13px 16px;
-  font-size:15px;
-  font-weight:600;
-  box-shadow:none;
-}
-.primary{
-  background:var(--ink);
-  color:#fff;
-}
-.secondary{
-  background:var(--soft);
-  color:var(--ink);
-}
-.home-start{
-  width:100%;
-  justify-content:space-between;
-}
-button{
-  -webkit-tap-highlight-color:transparent;
-}
-
-/* Forms */
-.grid{gap:12px}
-label{
-  font-size:11px;
-  color:var(--muted);
-  font-weight:600;
-}
-select,input{
-  height:48px;
-  margin-top:6px;
-  border:1px solid #DADAD6;
-  border-radius:var(--radius-control);
-  background:#fff;
-  color:var(--ink);
-  font-size:16px;
-  font-weight:500;
-  box-shadow:none;
-}
-select:focus,input:focus{
-  border-color:#A8B8B0;
-  box-shadow:0 0 0 3px var(--accent-soft);
-}
-
-/* Metrics */
-.stats{gap:8px;margin-top:14px}
-.stat,.metric{
-  background:var(--bg);
-  border-radius:16px;
-  padding:13px 11px;
-}
-.stat small,.metric span{
-  color:var(--muted);
-  font-size:10px;
-}
-.stat b{font-size:17px;font-weight:600}
-.metric b{
-  font-size:26px;
-  font-weight:600;
-}
-
-/* Round / scorecard */
-.score-card{padding:12px}
-.score-head{padding:8px 7px 13px}
-.score-head b{
-  font-size:18px;
-  font-weight:600;
-}
-.score-head small{
-  display:block;
-  color:var(--muted);
-  font-size:11px;
-  margin-top:3px;
-}
-.ghost{
-  background:var(--soft);
-  color:var(--ink);
-  border-radius:12px;
-  padding:9px 11px;
-  font-size:11px;
-  font-weight:600;
-}
-table{
-  border-radius:16px;
-}
-th{
-  height:42px;
-  font-size:9px;
-  letter-spacing:.8px;
-  color:#8B8B88;
-}
-td{
-  height:66px;
-  font-size:19px;
-  border-bottom:1px solid var(--line);
-}
-td+td{border-left:1px solid var(--line)}
-.scorebox{gap:7px}
-.scorebox button{
-  width:38px;
-  height:38px;
-  background:var(--soft);
-  color:var(--ink);
-  font-size:20px;
-}
-.score{
-  min-width:28px;
-  font-size:19px;
-  font-weight:600;
-}
-.sf{font-weight:600}
-.ik{color:var(--accent)}
-tfoot td{
-  height:58px;
-  font-weight:600;
-}
-
-/* Player selection */
-.current-player-card .current-player-name{
-  color:var(--muted);
-  font-size:14px!important;
-}
-.player-switcher{
-  gap:8px!important;
-  padding-top:12px!important;
-}
-.player-chip{
-  min-height:48px!important;
-  border:1px solid var(--line)!important;
-  background:var(--bg)!important;
-  color:var(--ink)!important;
-  border-radius:14px!important;
-  padding:11px 14px!important;
-  font-size:15px!important;
-  font-weight:600!important;
-  box-shadow:none!important;
-}
-.player-chip.active{
-  background:var(--ink)!important;
-  color:#fff!important;
-  border-color:var(--ink)!important;
-  box-shadow:none!important;
-}
-
-/* Per-hole stats */
-.extra-panel{
-  background:var(--bg);
-  border-radius:14px;
-  padding:12px;
-}
-.extra-grid{gap:10px}
-.stat-stepper{gap:10px;min-height:44px}
-.stat-stepper button{
-  width:36px!important;
-  height:36px!important;
-  background:var(--soft)!important;
-}
-.stat-stepper span{
-  font-size:17px;
-  font-weight:600;
-}
-.mini-action{
-  background:var(--soft);
-  color:var(--ink);
-  border-radius:11px;
-  padding:8px 10px;
-  font-size:11px;
-  font-weight:600;
-}
-
-/* Status */
-.round-status{
-  margin-left:8px;
-  padding:5px 9px;
-  background:var(--accent-soft);
-  color:var(--accent);
-  font-size:10px;
-  font-weight:600;
-}
-.round-status i{background:var(--accent)}
-
-/* Friends */
-.friends-page{padding-top:26px}
-.friends-hero{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  padding:22px;
-  margin-bottom:24px;
-}
-.friends-list-card{margin-top:0}
-.friend-row{padding:14px 0}
-.friend-row b{font-weight:600}
-
-/* History / My Game */
-.dashboard-grid{gap:8px}
-.barrow div{background:#E8E8E4}
-.barrow i{background:var(--accent)}
-.course-card-button{
-  padding:15px 4px;
-}
-.course-card-button strong{
-  font-weight:600;
-}
-.course-chevron{color:var(--muted)}
-.course-round{
-  padding:12px 4px;
-}
-.history-action{
-  background:var(--soft);
-  color:var(--ink);
-  border-radius:11px;
-  font-weight:600;
-}
-.rounditem{padding:11px 0}
-.roundopen b{font-weight:600}
-.delete{
-  background:var(--soft);
-  border-radius:10px;
-}
-
-/* Account */
-.account-card{
-  scroll-margin-top:90px;
-}
-.account-status.ok{color:var(--accent)!important}
-.account-status.error{color:var(--error)!important}
-.account-status.busy{color:var(--warning)!important}
-
-/* Remove decorative visual noise while preserving controls */
-.hole-stats-btn{
-  border:0;
-  background:transparent;
-  color:var(--accent);
-  font-size:10px;
-  font-weight:600;
-  padding:5px 0 0;
-}
-.tee-help{color:var(--muted)}
-
-/* Responsive */
-@media(max-width:520px){
-  .app{padding-left:16px;padding-right:16px}
-  .home-intro h1{font-size:36px}
-  .home-primary,.friends-hero{padding:20px}
-  .card{padding:18px}
-  .dashboard h2{font-size:30px}
-}
-</style>
-
-
-<style>
-/* BOUNDS Design System v1.1 — Courses / Discover */
-.discover-page{padding-top:24px}
-.discover-controls{position:sticky;top:0;z-index:4;padding:0 0 14px;background:#F5F5F3E8;backdrop-filter:blur(18px)}
-#discoverSearch{height:48px;margin:0;border:1px solid var(--line);border-radius:15px;text-align:left;padding:0 16px;background:var(--card);font-size:15px;font-weight:500}
-.discover-filters{display:flex;gap:6px;overflow:auto;padding:9px 0 5px}
-.discover-filter{border:0;background:var(--soft);color:var(--muted);border-radius:999px;padding:9px 13px;font-size:12px;font-weight:600;white-space:nowrap}
-.discover-filter.active{background:var(--ink);color:#fff}
-.discover-list{display:grid;gap:10px}
-.discover-course{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px}
-.discover-course-main{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
-.discover-course h3{font-size:18px;margin:0 0 5px;letter-spacing:-.3px}
-.discover-course-location{font-size:12px;color:var(--muted)}
-.discover-distance{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap}
-.discover-badges{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0}
-.discover-badge{font-size:10px;font-weight:600;color:var(--muted);background:var(--soft);border-radius:999px;padding:6px 8px}
-.discover-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-.discover-actions button{width:100%}
-.discover-empty{padding:22px 4px;color:var(--muted);font-size:13px}
-.course-profile-backdrop{display:none;position:fixed;inset:0;background:#00000040;z-index:50;align-items:flex-end;justify-content:center}
-.course-profile-backdrop.open{display:flex}
-.course-profile-sheet{width:min(720px,100%);max-height:86vh;overflow:auto;background:var(--bg);border-radius:24px 24px 0 0;padding:22px 20px calc(28px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px #00000018}
-.course-profile-top{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
-.course-profile-top h2{margin:0;font-size:28px;letter-spacing:-1px}
-.course-profile-close{border:0;background:var(--soft);border-radius:50%;width:38px;height:38px;font-size:18px}
-.course-profile-meta{color:var(--muted);font-size:13px;margin-top:5px}
-.course-profile-section{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:17px;margin-top:12px}
-.course-profile-section h3{margin:0 0 10px}
-.course-profile-stat{display:flex;justify-content:space-between;align-items:end}
-.course-profile-stat b{font-size:28px}
-.course-profile-stat span{font-size:11px;color:var(--muted)}
-.course-profile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-@media(max-width:520px){.discover-actions,.course-profile-actions{grid-template-columns:1fr}.discover-course{padding:16px}}
-</style>
-
-
-<style>
-/* BOUNDS Design System v1.2 — My Game insights */
-.benchmark-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.benchmark-item{background:var(--soft);border-radius:16px;padding:14px 15px;min-width:0}
-.benchmark-item b{display:block;font-size:22px;letter-spacing:-.5px}
-.benchmark-item small{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35}
-.benchmark-item .benchmark-status{display:inline-block;margin-top:9px;font-size:10px;font-weight:700;padding:5px 8px;border-radius:999px;background:#fff;color:var(--muted)}
-.benchmark-item.above .benchmark-status{color:var(--accent);background:var(--accent-soft)}
-.benchmark-item.below .benchmark-status{color:#9A6B25;background:#F4EBDD}
-.benchmark-item.limited .benchmark-status,
-.benchmark-item.insufficient .benchmark-status{background:#fff;color:var(--muted)}
-.benchmark-insight{margin-top:12px;padding:14px 15px;border:1px solid var(--line);border-radius:16px;font-size:13px;line-height:1.5}
-.benchmark-note{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}
-.loss-analysis{display:grid;gap:10px}
-.loss-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
-.loss-item:last-child{border-bottom:0}
-.loss-copy{min-width:0}
-.loss-copy strong{display:block;font-size:14px}
-.loss-copy span{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
-.loss-value{text-align:right;white-space:nowrap}
-.loss-value b{display:block;font-size:17px}
-.loss-value small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.loss-empty{padding:4px 0;color:var(--muted);font-size:13px;line-height:1.5}
-.game-stat-subtle{font-size:10px;color:var(--muted);margin-top:4px}
-@media(max-width:520px){.benchmark-grid{grid-template-columns:1fr}}
-</style>
-
 </head>
 <body>
 <div class="app">
-<header class="hero bounds-hero">
-  <div class="brand-row"><div class="bounds-mark">BOUNDS</div><div class="bounds-dot"></div></div>
-  <div class="hero-kicker">YOUR GAME. YOUR PEOPLE. YOUR COURSES.</div><button class="account-shortcut" type="button" onclick="showTab('game');setTimeout(()=>document.getElementById('accountCard')?.scrollIntoView({behavior:'smooth',block:'start'}),50)">Account <span id="home-account-state">Inloggen</span></button>
+<header class="hero">
+  <div class="eyebrow">BOUNDS</div>
+  <h1>Your game.<br><span>Your people. Your courses.</span></h1>
 </header>
 
-<nav class="tabs bounds-tabs">
- <button class="tab active" data-tab="home" onclick="showTab('home')"><span>Home</span></button>
- <button class="tab" data-tab="round" onclick="showTab('round')"><span>Play</span></button>
- <button class="tab" data-tab="game" onclick="showTab('game')"><span>My Game</span></button>
- <button class="tab" data-tab="friends" onclick="showTab('friends')"><span>Friends</span></button>
-<button class="tab" data-tab="discover" onclick="showTab('discover')"><span>Courses</span></button>
+<nav class="tabs">
+ <button class="tab active" data-tab="home" onclick="showTab('home')">⌂<span>Home</span></button>
+ <button class="tab" data-tab="play" onclick="showTab('play')">⛳<span>Play</span></button>
+ <button class="tab" data-tab="game" onclick="showTab('game')">◌<span>My Game</span></button>
+ <button class="tab" data-tab="courses" onclick="showTab('courses')">🏌️<span>Courses</span></button>
+ <button class="tab" data-tab="profile" onclick="showTab('profile')">◯<span>Profile</span></button>
 </nav>
 
 <main>
-<section id="page-home" class="tabpage active home-page">
-  <div class="home-intro">
-    <div class="eyebrow">GOOD AFTERNOON</div>
-    <h1>Thijs<span>.</span></h1>
-    <p>Your golf, at a glance.</p>
+<section id="page-home" class="tabpage active">
+ <div class="card dashboard">
+  <div class="eyebrow">HOME</div><h2>Jouw golf</h2>
+  <div class="dashboard-grid">
+   <div class="metric"><b id="homeHcp">14.2</b><span>handicap</span></div>
+   <div class="metric"><b id="homeRounds">0</b><span>rondes</span></div>
+   <div class="metric"><b id="homeBest">—</b><span>beste score</span></div>
+   <div class="metric"><b id="homeAvg">—</b><span>gem. score</span></div>
   </div>
+ </div>
 
-  <div class="home-primary">
-    <div>
-      <div class="eyebrow">PLAY</div>
-      <h2>Ready for your next round?</h2>
-      <p>Start a new round and keep your score, Stableford and optional stats in one place.</p>
-    </div>
-    <button class="primary home-start" onclick="showTab('round')">Start round <span>→</span></button>
+ <div class="card" id="lastRoundCard">
+  <div class="section-title">Last Round <button class="mini-action" onclick="openLastRound()">Bekijk ronde →</button></div>
+  <div id="lastRoundSummary" class="empty">Nog geen opgeslagen ronde.</div>
+ </div>
+
+ <div class="card">
+  <div class="section-title">Where You Lose Strokes</div>
+  <div id="homeInsight" class="muted">Speel rondes met optionele stats om hier inzichten te krijgen.</div>
+ </div>
+
+ <div class="card">
+  <div class="section-title">Play</div>
+  <div class="action-grid">
+   <button class="primary" onclick="showTab('play'); startNewRound()">＋ Start Round</button>
+   <button class="secondary" onclick="showTab('play')">Play Together</button>
   </div>
+ </div>
 
-  <div class="home-section-head"><span>LAST ROUND</span><button onclick="showTab('history')">View all →</button></div>
-  <div id="home-last-round" class="home-last-round"></div>
-
-  <div class="home-section-head"><span>MY GAME</span><button onclick="showTab('game')">Open →</button></div>
-  <div class="home-metrics">
-    <div><strong id="home-hcp">14.2</strong><span>HCP</span></div>
-    <div><strong id="home-sf">—</strong><span>AVG SF</span></div>
-    <div><strong id="home-rounds">0</strong><span>ROUNDS</span></div>
-  </div>
-
-  <div class="home-section-head"><span>FRIENDS</span><button onclick="showTab('friends')">Open →</button></div>
-  <div class="home-friend-card"><div><strong>Play together</strong><p>Invite your people for a shared round.</p></div><button class="secondary" onclick="showTab('friends')">Invite →</button></div>
+ <div class="card">
+  <div class="section-title">Your Courses <button class="mini-action" onclick="showTab('courses')">Bekijk →</button></div>
+  <div id="homeCourses" class="muted">Je home course en favoriete banen verschijnen hier.</div>
+ </div>
 </section>
+
+<section id="page-play" class="tabpage">
+ <div class="card">
+  <div class="eyebrow">PLAY</div><h2>Ga spelen</h2>
+  <div class="action-grid">
+   <button class="primary" onclick="startNewRound()">＋ Start Round</button>
+   <button class="secondary" onclick="showPlayTogether()">Play Together</button>
+  </div>
+ </div>
+ <div class="card" id="playTogetherCard" style="display:none">
+  <div class="section-title">Play Together</div>
+  <p class="muted">Selecteer golfers en start één gezamenlijke ronde. De bestaande multi-player scorekaart blijft hiervoor de basis.</p>
+  <div id="playTogetherPlayers"></div>
+  <button class="primary" style="width:100%;margin-top:10px" onclick="startNewRound()">Start gezamenlijke ronde</button>
+ </div>
+ <div class="card">
+  <div class="section-title">Recent Rounds</div>
+  <div id="playRecentRounds" class="empty">Nog geen recente rondes.</div>
+ </div>
+</section>
+
 <section id="page-round" class="tabpage">
  <div class="card settings">
-  <div class="section-title">Play <span class="round-status"><i></i> Ronde bezig</span></div>
+  <div class="section-title">Ronde instellen <span class="round-status"><i></i> Ronde bezig</span></div>
   <div class="grid">
-   <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option><option value="almkreek">Golfpark Almkreek</option><option value="kroonprins_par3">De Kroonprins – Par 3</option></select></label>
+   <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
    <label>Ronde<select id="round"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
    <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
-   <label>Tee<select id="tee" disabled><option value="">Kies eerst een baan…</option></select></label>
    <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
   </div>
   <div class="stats">
@@ -810,9 +269,18 @@ tfoot td{
  </div>
 </section>
 
-<section id="page-history" class="tabpage">
+<section id="page-round-summary" class="tabpage">
  <div class="card dashboard">
-  <div class="eyebrow">OVERZICHT</div><h2>Mijn golf</h2>
+  <div class="eyebrow">ROUND SUMMARY</div><h2>Last Round</h2>
+  <div id="roundSummaryContent"></div>
+ </div>
+ <div class="card"><div class="section-title">Where You Lost Strokes</div><div id="roundLosses" class="muted">Optionele stats bepalen dit inzicht.</div></div>
+ <div class="action-grid"><button class="primary" onclick="showTab('game')">Bekijk My Game</button><button class="secondary" onclick="showTab('round')">Scorekaart</button></div>
+</section>
+
+<section id="page-game" class="tabpage">
+ <div class="card">
+  <div class="eyebrow">MY GAME</div><h2>Jouw ontwikkeling</h2>
   <div class="dashboard-grid">
    <div class="metric"><b id="dRounds">0</b><span>rondes</span></div>
    <div class="metric"><b id="dBest">—</b><span>beste score</span></div>
@@ -822,105 +290,53 @@ tfoot td{
   </div>
   <h3>Scoretrend</h3><div id="trend"></div>
  </div>
-
- <div class="card"><div class="section-title">⛳ Baanhistorie</div><div id="courseHistory"></div></div>
-
- <div class="card"><div class="section-title">📋 Opgeslagen rondes</div><div id="historyList">Nog geen opgeslagen rondes.</div></div>
- <div class="card"><div class="section-title">🏆 Persoonlijke records</div><div id="recordsText" class="muted">Nog geen opgeslagen rondes.</div></div>
- <div class="card" id="analysisCard" style="display:none"><div class="section-title">📊 Laatste ronde</div><div class="stats" id="analysisStats"></div><div id="analysisText" class="muted"></div></div>
-</section>
-
-<section id="page-game" class="tabpage">
  <div class="card">
-  <div class="eyebrow">MIJN SPEL</div><h2>Waar sta je?</h2>
-  <label class="goal-input-label">Doelhandicap<input id="goalHcp" type="number" min="-10" max="54" step="0.1" value="12.0" onchange="saveGoalHcp();renderMyGame()"></label><div id="goalText" class="goal"></div>
-  <div class="goalbar"><i></i></div>
-  <h3>Per par-type</h3>
+  <div class="section-title">Where You Lose Strokes</div>
+  <div id="myGameLosses" class="muted">Nog onvoldoende statistieken.</div>
+ </div>
+ <div class="card">
+  <div class="section-title">Scoring</div>
   <div id="parBreakdown" class="dashboard-grid"></div>
  </div>
  <div class="card">
-  <h3>Waar verlies je slagen?</h3>
-  <p class="muted">De app kijkt naar je opgeslagen scorekaarten. Hoe meer rondes je speelt, hoe nuttiger dit overzicht wordt.</p>
- </div>
- 
- <div class="card" id="gameStatsCard">
-  <div class="eyebrow">YOUR NUMBERS</div>
-  <h3>Jouw statistieken</h3>
-  <div id="gameStats" class="dashboard-grid"></div>
- </div>
-
- <div class="card" id="benchmarkCard">
-  <div class="eyebrow">BOUNDS BENCHMARK</div>
-  <h3>Hoe speel je t.o.v. golfers van jouw handicap?</h3>
-  <div id="benchmarkGrid" class="benchmark-grid"></div>
-  <div id="benchmarkInsight" class="benchmark-insight"></div>
-  <div class="benchmark-note" id="benchmarkNote">
-    Alleen ingevulde statistieken worden meegenomen. Bij weinig data blijft BOUNDS voorzichtig met conclusies.
-  </div>
- </div>
-
- <div class="card" id="lossAnalysisCard">
-  <div class="eyebrow">YOUR GAME</div>
-  <h3>Waar verlies je slagen?</h3>
-  <div id="lossAnalysis" class="loss-analysis"></div>
- </div>
-
-<div class="card account-card" id="accountCard">
-  <div class="section-title"><span>ACCOUNT</span><span id="accountStatus" class="account-status">Niet ingelogd</span></div>
-  <div id="accountSignedOut">
-   <div class="grid">
-    <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
-    <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" placeholder="Bijv. 14,2"></label>
-   </div>
-   <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
-   <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimaal 6 tekens"></label>
-   <div class="action-grid" style="margin-top:10px">
-    <button class="primary" type="button" onclick="boundsSignUp()">Account maken</button>
-    <button class="secondary" type="button" onclick="boundsSignIn()">Inloggen</button>
-   </div>
-   <small id="authMessage" class="muted">Met een account kun je je profiel aan BOUNDS koppelen. Je huidige prototypegegevens blijven lokaal beschikbaar.</small>
-  </div>
-  <div id="accountSignedIn" style="display:none">
-   <div id="authUserLabel" class="muted"></div>
-   <div class="grid" style="margin-top:10px">
-    <label>Naam<input id="authNameSignedIn" type="text" autocomplete="name"></label>
-    <label>Handicap Index<input id="authHcpSignedIn" type="number" min="-10" max="54" step="0.1"></label>
-   </div>
-   <button class="secondary" type="button" onclick="boundsSaveSignedInProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
-   <small id="accountMessage" class="muted">Account verbonden.</small>
-   <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
-  </div>
+  <div class="section-title">Round History</div>
+  <div id="historyList">Nog geen opgeslagen rondes.</div>
  </div>
 </section>
 
-<section id="page-friends" class="tabpage friends-page">
-  <div class="home-intro"><div class="eyebrow">YOUR PEOPLE</div><h1>Friends<span>.</span></h1><p>Golf is better together.</p></div>
-  <div class="friends-hero"><div><div class="eyebrow">PLAY TOGETHER</div><h2>Start a shared round.</h2><p>Select your friends and keep one live scorecard for everyone.</p></div><button class="primary" onclick="showTab('round')">Start together <span>→</span></button></div>
-  <div class="card friends-list-card"><div class="section-title">Your golfers</div><div class="empty">Je hebt nog geen vrienden toegevoegd. Zodra Friends is gekoppeld aan je BOUNDS-account verschijnen je echte contacten hier.</div><button class="secondary" type="button" onclick="showTab('game');setTimeout(()=>document.getElementById('accountCard')?.scrollIntoView({behavior:'smooth',block:'start'}),50)">Account openen →</button></div>
+<section id="page-courses" class="tabpage">
+ <div class="card">
+  <div class="eyebrow">COURSES</div><h2>Your Courses</h2>
+  <div class="action-grid"><button class="primary" onclick="addCoursePreference('home')">Home / Member Course</button><button class="secondary" onclick="addCoursePreference('favorite')">Favorite Course</button></div>
+  <div id="coursePreferences" class="muted">Nog geen persoonlijke baanvoorkeuren ingesteld.</div>
+ </div>
+ <div class="card"><div class="section-title">Played Courses</div><div id="courseHistory"></div></div>
+ <div class="card"><div class="section-title">Nearby</div><div class="muted">Nearby course discovery wordt gekoppeld aan de Courses-database. Exacte locatie blijft privé.</div></div>
 </section>
 
-<section id="page-discover" class="tabpage discover-page">
-  <div class="home-intro">
-    <div class="eyebrow">YOUR COURSES</div>
-    <h1>Courses<span>.</span></h1>
-    <p>Ontdek banen, bekijk locaties en vind een baan in de buurt.</p>
+<section id="page-profile" class="tabpage">
+ <div class="card">
+  <div class="eyebrow">PROFILE</div><h2>Jouw golfprofiel</h2>
+  <div class="grid">
+   <label>Naam<input id="profileName" type="text" placeholder="Je naam"></label>
+   <label>Handicap Index<input id="profileHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+   <label>Doelhandicap<input id="profileGoal" type="number" min="-10" max="54" step="0.1" value="12.0"></label>
+   <label>Voorkeur tee<input id="profileTee" type="text" placeholder="Bijv. Geel"></label>
   </div>
-
-  <div class="discover-controls">
-    <input id="discoverSearch" type="search" placeholder="Zoek een golfbaan…" autocomplete="off">
-    <div class="discover-filters">
-      <button class="discover-filter active" data-filter="nearby" onclick="boundsDiscoverFilter('nearby')">In de buurt</button>
-      <button class="discover-filter" data-filter="all" onclick="boundsDiscoverFilter('all')">Alle banen</button>
-      <button class="discover-filter" data-filter="favorites" onclick="boundsDiscoverFilter('favorites')">Favorieten</button>
-    </div>
-    <div id="discoverHint" class="muted">Locatie wordt alleen gebruikt om afstanden tot banen te tonen.</div>
+  <button class="primary" style="width:100%;margin-top:12px" onclick="saveProfile()">Profiel opslaan</button>
+ </div>
+ <div class="card">
+  <div class="section-title">Your Courses</div>
+  <div class="grid">
+   <label>Home / Member Course<select id="profileHomeCourse"><option value="">Geen</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
+   <label>Favorite Course<select id="profileFavoriteCourse"><option value="">Geen</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
   </div>
-
-  <div id="discoverList" class="discover-list">
-    <div class="card"><div class="muted">Banen laden…</div></div>
-  </div>
+ </div>
+ <div class="card">
+  <div class="section-title">Account</div>
+  <p class="muted">Account, privacy en social settings blijven hier gecentreerd. Sociale zichtbaarheid is opt-in.</p>
+ </div>
 </section>
-
 </main>
 </div>
 </body>
@@ -1031,13 +447,6 @@ const kpPar3_18Table=[
  [51.2,52.7,26],[52.8,54.0,27]
 ];
 
-// Golfpark Almkreek — course data already used by the functional BOUNDS versions.
-const almkreek={
- first:{cr:{Geel:36.5,Rood:34.7,Oranje:33.1},sr:{Geel:133,Rood:119,Oranje:110},par:36,holes:[[1,4,5],[2,4,13],[3,4,9],[4,5,1],[5,3,11],[6,4,15],[7,4,7],[8,3,17],[9,5,3]]},
- second:{cr:{Geel:35.1,Rood:33.1,Oranje:32.1},sr:{Geel:124,Rood:109,Oranje:96},par:36,holes:[[10,4,16],[11,5,2],[12,4,12],[13,3,18],[14,4,4],[15,3,8],[16,5,6],[17,4,14],[18,4,10]]},
- eighteen:{cr:{Geel:71.5,Rood:67.7,Oranje:64.8},sr:{Geel:128,Rood:114,Oranje:103},par:72,holes:[[1,4,5],[2,4,13],[3,4,9],[4,5,1],[5,3,11],[6,4,15],[7,4,7],[8,3,17],[9,5,3],[10,4,16],[11,5,2],[12,4,12],[13,3,18],[14,4,4],[15,3,8],[16,5,6],[17,4,14],[18,4,10]]}
-};
-
 // -------------------- LOGIC --------------------
 
 const course=document.getElementById('course');
@@ -1057,27 +466,37 @@ function currentConfig(){
  const h=+hi.value||0;
  const c=course.value;
  const n=+round.value;
- const t=(window.boundsSelectedTee?.tee_name||document.getElementById('tee')?.selectedOptions?.[0]?.textContent||'Geel').replace('Par 3 Geel','Geel');
- let holes,cr,sr,par,table,note;
+ let holes, cr, sr, par, table, note;
+
  if(c==='crimpenerhout'){
-  if(n===9){holes=crimp.nine.first.holes;cr=32.3;sr=107;par=33;table=crimp9Table;}
-  else{holes=crimp.eighteen.holes;cr=68.8;sr=124;par=66;table='crimp18';}
-  note=`Crimpenerhout ${t.toLowerCase()} heren • ${n} holes • CR ${cr.toFixed(1).replace('.',',')} / SR ${sr}.`;
+   if(n===9){
+     holes=crimp.nine.first.holes; cr=32.3; sr=107; par=33; table=crimp9Table;
+     note='Crimpenerhout geel heren • 9 holes • CR 32,3 / SR 107.';
+   }else{
+     holes=crimp.eighteen.holes; cr=68.8; sr=124; par=66; table=null;
+     // The supplied official 18-hole table is already directly represented
+     // by the course handicap values. For the current user's table, 14.2 = 13.
+     table='crimp18';
+     note='Crimpenerhout geel heren • 18 holes • CR 68,8 / SR 124.';
+   }
  }else if(c==='kroonprins'){
-  if(n===9){if(loop.value==='second'){holes=kpSecond9;cr=35.0;sr=128;par=36;table=kpSecond9Table;}else{holes=kpFirst9;cr=34.5;sr=132;par=35;table=kpFirst9Table;}}
-  else{holes=kpMain18;cr=69.4;sr=130;par=71;table=kp18Table;}
-  note=`De Kroonprins ${t.toLowerCase()} heren • ${n} holes • CR ${cr.toFixed(1).replace('.',',')} / SR ${sr}.`;
- }else if(c==='almkreek'){
-  if(n===9 && loop.value==='second'){holes=almkreek.second.holes;cr=almkreek.second.cr[t]??almkreek.second.cr.Geel;sr=almkreek.second.sr[t]??almkreek.second.sr.Geel;par=36;table='alm_formula';}
-  else if(n===9){holes=almkreek.first.holes;cr=almkreek.first.cr[t]??almkreek.first.cr.Geel;sr=almkreek.first.sr[t]??almkreek.first.sr.Geel;par=36;table='alm_formula';}
-  else{holes=almkreek.eighteen.holes;cr=almkreek.eighteen.cr[t]??almkreek.eighteen.cr.Geel;sr=almkreek.eighteen.sr[t]??almkreek.eighteen.sr.Geel;par=72;table='alm_formula';}
-  note=`Golfpark Almkreek ${t.toLowerCase()} heren • ${n} holes • CR ${cr.toFixed(1).replace('.',',')} / SR ${sr}.`;
+   if(n===9){
+     if(loop.value==='second'){
+       holes=kpSecond9; cr=35.0; sr=128; par=36; table=kpSecond9Table;
+       note='De Kroonprins geel heren • 2e 9 • CR 35,0 / SR 128 • baanhcp volgens 9-holes berekening.';
+     }else{
+       holes=kpFirst9; cr=34.5; sr=132; par=35; table=kpFirst9Table;
+       note='De Kroonprins geel heren • 1e 9 • CR 34,5 / SR 132 • baanhcp volgens 9-holes berekening.';
+     }
+   }else{
+     holes=kpMain18; cr=69.4; sr=130; par=71; table=kp18Table;
+     note='De Kroonprins geel heren • 18 holes • CR 69,4 / SR 130 • baanhcp volgens 18-holes berekening.';
+   }
  }else{
-  holes=n===9?kpPar3First9:kpPar3First9.concat(kpPar3Second9);
-  cr=n===9?24.6:49.2;sr=67;par=n===9?27:54;table=n===9?kpPar3_9Table:kpPar3_18Table;
-  note=`De Kroonprins Par 3 ${t.toLowerCase()} heren • ${n} holes • CR ${cr.toFixed(1).replace('.',',')} / SR ${sr}.`;
+   holes=kpPar3First9; cr=24.6; sr=67; par=27; table=kpPar3_9Table;
+   note='';
  }
- return {h,c,n,t,holes,cr,sr,par,table,note};
+ return {h,c,n,holes,cr,sr,par,table,note};
 }
 
 function isKpPar3(){
@@ -1086,16 +505,6 @@ function isKpPar3(){
 
 function getCourseHcp(cfg){
  const h=cfg.h;
- if(!Number.isFinite(h)) return null;
- if(window.boundsSelectedTee && cfg.c!=='kroonprins_par3' && Number.isFinite(Number(window.boundsSelectedTee.slope_rating)) && Number.isFinite(Number(window.boundsSelectedTee.course_rating)) && Number.isFinite(Number(window.boundsSelectedTee.par))){
-   const t=window.boundsSelectedTee;
-   const raw=cfg.n===9 ? h*Number(t.slope_rating)/226 + (Number(t.course_rating)-Number(t.par))/2 : h*Number(t.slope_rating)/113 + (Number(t.course_rating)-Number(t.par));
-   return Math.floor(raw);
- }
- if(cfg.c==='almkreek'){
-   const raw=cfg.n===9 ? h*cfg.sr/226 + (cfg.cr-cfg.par)/2 : h*cfg.sr/113 + (cfg.cr-cfg.par);
-   return Math.floor(raw);
- }
  if(cfg.c==='crimpenerhout' && cfg.n===18){
    // Crimpenerhout uses the supplied official 18-hole table.
    const t=[
@@ -1232,9 +641,8 @@ function updateUI(){
  round.disabled=!hasCourse;
  loop.disabled=!hasCourse;
  // Loop selector is relevant only for 9 holes on the main Kroonprins.
- const loopCourses=['kroonprins','almkreek'];
- const hasSelectableLoop=round.value==='9' && loopCourses.includes(course.value);
- loopLabel.style.display=(hasCourse && hasSelectableLoop)?'block':'none';
+ const kpMain9=course.value==='kroonprins' && round.value==='9';
+ loopLabel.style.display=(hasCourse && kpMain9)?'block':'none';
 
  if(hasCourse){
    render();
@@ -1250,10 +658,25 @@ function updateUI(){
  }
 }
 
+// Add Par 3 as a distinct course choice.
+const par3Option=document.createElement('option');
+par3Option.value='kroonprins_par3';
+par3Option.textContent='De Kroonprins – Par 3';
+course.appendChild(par3Option);
+
+// Override currentConfig for the Par 3 course while retaining all shared logic.
+const originalCurrentConfig=currentConfig;
+window.currentConfig=function(){
+ if(course.value!=='kroonprins_par3') return originalCurrentConfig();
+ const h=+hi.value||0,n=+round.value;
+ const holes=n===9?kpPar3First9:kpPar3First9.concat(kpPar3Second9);
+ const table=n===9?kpPar3_9Table:kpPar3_18Table;
+ return {h,c:'kroonprins_par3',n,holes,cr:n===9?24.6:49.2,sr:67,par:n===9?27:54,table,note:`De Kroonprins Par 3 geel heren • ${n} holes • CR ${n===9?'24,6':'49,2'} / SR 67.`};
+};
+
 // Event handling.
 [course,round,loop,hi].forEach(el=>el.addEventListener('change',()=>{
  loadScores(); updateUI();
- if(window.boundsLoadTeeOptions && el!==hi) window.boundsLoadTeeOptions();
 }));
 hi.addEventListener('input',()=>{saveSettings();render();});
 
@@ -1633,26 +1056,11 @@ function renderMyGame(){
   document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${target.toFixed(1)}</b> • nog <b>${Math.max(0,current-target).toFixed(1)}</b> te gaan.`;
 }
 
-function renderHome(){
-  const h=getHistory();
-  const last=h[0];
-  const el=document.getElementById('home-last-round');
-  if(el){
-    el.innerHTML=last?`<div class="last-round"><div><b>${last.course}</b><small>${last.date} · ${last.round}${last.loop&&last.loop!=='Hele baan'?' · '+last.loop:''}</small></div><div class="last-score"><strong>${last.total}</strong><span>${last.sft} Stableford</span></div></div>`:`<div class="last-round"><div><b>No rounds yet</b><small>Your first round will appear here.</small></div><button class="secondary" onclick="showTab('round')">Start →</button></div>`;
-  }
-  const avg=h.length?(h.reduce((a,r)=>a+Number(r.sft||0),0)/h.length).toFixed(1).replace('.',','):'—';
-  const hc=Number(playerProfiles?.[activePlayerIndex]?.hcp || hi.value || 14.2);
-  const set=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=v};
-  set('home-hcp',hc.toFixed(1)); set('home-sf',avg); set('home-rounds',h.length);
-}
 function showTab(tab){
   document.querySelectorAll('.tabpage').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  const page=document.getElementById('page-'+tab);
-  const nav=document.querySelector(`[data-tab="${tab}"]`) || (tab==='history' ? document.querySelector('[data-tab="game"]') : null);
-  if(!page||!nav)return;
-  page.classList.add('active'); nav.classList.add('active');
-  if(tab==='home')renderHome();
+  document.getElementById('page-'+tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
   if(tab==='game')renderMyGame();
   if(tab==='history'){renderDashboard();renderCourseHistory();}
 }
@@ -1685,7 +1093,7 @@ function openLatest(){
   renderDashboard();renderCourseHistory();
 }
 
-renderDashboard();renderCourseHistory();renderMyGame();renderPlayers();renderHome();
+renderDashboard();renderCourseHistory();renderMyGame();renderPlayers();
 </script><script>
 /* Player profiles: each player has an independent handicap and scorecard. */
 let playerProfiles;
@@ -1761,597 +1169,181 @@ const savedGoal=localStorage.getItem('golf_goal_hcp');if(savedGoal!==null)docume
 loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
 </script>
 <script>
-/* ===== BOUNDS v1 functionality restoration: dynamic tees + Supabase Auth ===== */
-let boundsTeeOptions=[];
-let boundsSelectedTee=null;
-window.boundsTeeOptions=boundsTeeOptions;
-window.boundsSelectedTee=boundsSelectedTee;
-function boundsTeeDisplayName(name){return name==='Par 3 Geel'?'Geel':name;}
-function boundsCourseMeta(){
- const map={crimpenerhout:{name:'Crimpenerhout',variant:'main'},kroonprins:{name:'De Kroonprins',variant:'main'},almkreek:{name:'Golfpark Almkreek',variant:'main'},kroonprins_par3:{name:'De Kroonprins',variant:'par3'}};
- return map[course.value]||null;
+/* BOUNDS v2.9.0 — Information Architecture layer.
+   Existing scoring/statistics engine remains intact. */
+function showTab(tab){
+  document.querySelectorAll('.tabpage').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  const page=document.getElementById('page-'+tab);
+  const button=document.querySelector(`[data-tab="${tab}"]`);
+  if(page) page.classList.add('active');
+  if(button) button.classList.add('active');
+
+  if(tab==='home') renderHome();
+  if(tab==='play') renderPlay();
+  if(tab==='game'){renderDashboard();renderCourseHistory();renderMyGame();renderMyGameLosses();}
+  if(tab==='courses'){renderCoursePreferences();renderCourseHistory();}
+  if(tab==='profile') loadProfile();
 }
-async function boundsLoadTeeOptions(){
- const select=document.getElementById('tee'); if(!select)return;
- if(!course.value){select.innerHTML='<option value="">Kies eerst een baan…</option>';select.disabled=true;boundsTeeOptions=[];boundsSelectedTee=null;window.boundsTeeOptions=boundsTeeOptions;window.boundsSelectedTee=null;return;}
- const meta=boundsCourseMeta(); const holes=Number(round.value); const loopValue=holes===9?loop.value:'full';
- select.disabled=true;select.innerHTML='<option value="">Teegegevens laden…</option>';
- if(window.boundsClient){
-  try{
-   const {data:courseRow,error:ce}=await boundsClient.from('courses').select('id,name').eq('name',meta.name).eq('country','NL').maybeSingle();
-   if(ce)throw ce;
-   if(courseRow){
-    const {data,error}=await boundsClient.from('course_tees').select('id,course_id,course_variant,tee_name,gender,holes,loop,course_rating,slope_rating,par').eq('course_id',courseRow.id).eq('course_variant',meta.variant).eq('gender','men').eq('holes',holes).eq('loop',loopValue).order('tee_name');
-    if(error)throw error;
-    boundsTeeOptions=(data||[]).filter(t=>['Geel','Rood'].includes(t.tee_name)||meta.variant==='par3');
-   }
-  }catch(e){console.warn('Teegegevens laden:',e.message||e);}
- }
- // Never remove the requested choices from the UI if the cloud query is unavailable.
- if(!boundsTeeOptions.length){
-   const names=meta.variant==='par3'?['Geel','Rood']:['Geel','Rood'];
-   boundsTeeOptions=names.map((name,i)=>({id:'local-'+meta.name+'-'+holes+'-'+loopValue+'-'+name,tee_name:name,holes,loop:loopValue,course_rating:null,slope_rating:null,par:null,gender:'men'}));
-   const base=currentConfig();
-   boundsTeeOptions.forEach(t=>{
-    if(t.tee_name==='Geel'){t.course_rating=base.cr;t.slope_rating=base.sr;t.par=base.par;}
-   });
- }
- const saved=localStorage.getItem('golf_tee_name');
- const chosen=boundsTeeOptions.find(t=>t.tee_name===saved)||boundsTeeOptions.find(t=>t.tee_name==='Geel')||boundsTeeOptions[0];
- select.innerHTML=boundsTeeOptions.map(t=>`<option value="${t.id}">${boundsTeeDisplayName(t.tee_name)}</option>`).join('');
- select.disabled=false;select.value=String(chosen.id);boundsSelectedTee=chosen;window.boundsTeeOptions=boundsTeeOptions;window.boundsSelectedTee=chosen;
- localStorage.setItem('golf_tee_name',chosen.tee_name);
- updateUI();
+
+function startNewRound(){
+  showTab('round');
+  const hasCourse=!!course.value;
+  if(!hasCourse) window.scrollTo({top:0,behavior:'smooth'});
 }
-function boundsSelectTee(id){const chosen=boundsTeeOptions.find(t=>String(t.id)===String(id));if(!chosen)return;boundsSelectedTee=chosen;window.boundsSelectedTee=chosen;localStorage.setItem('golf_tee_name',chosen.tee_name);loadScores();updateUI();}
-document.addEventListener('change',e=>{if(e.target?.id==='tee')boundsSelectTee(e.target.value);});
 
-const BOUNDS_SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
-const BOUNDS_SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
-const boundsClient=window.supabase?window.supabase.createClient(BOUNDS_SUPABASE_URL,BOUNDS_SUPABASE_KEY):null;
-window.boundsClient=boundsClient; window.boundsSession=null;
-function boundsSetStatus(text,kind=''){const e=document.getElementById('accountStatus');if(e){e.textContent=text;e.className='account-status '+kind;}const h=document.getElementById('home-account-state');if(h)h.textContent=kind==='ok'?'Account':'Inloggen';}
-function boundsMessage(text,error=false){const a=document.getElementById('authMessage'),c=document.getElementById('accountMessage');if(a)a.textContent=text;if(c)c.textContent=text;boundsSetStatus(error?'Fout':'Account',error?'error':'ok');}
-async function boundsSignUp(){
- if(!boundsClient){boundsMessage('Supabase Auth is niet geladen.',true);return;}
- const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value,name=document.getElementById('authName').value.trim(),hcp=Number(document.getElementById('authHcp').value);
- if(!email||password.length<6||!name||!Number.isFinite(hcp)||hcp<-10||hcp>54){boundsMessage('Vul naam, geldig e-mailadres, wachtwoord en handicap in.',true);return;}
- boundsSetStatus('Account maken…','busy');
- const {data,error}=await boundsClient.auth.signUp({email,password,options:{data:{display_name:name,handicap_index:hcp}}});
- if(error){boundsMessage(error.message,true);return;}
- if(data.session)await boundsRefreshAuth();else{boundsSetStatus('Bevestig e-mail','busy');boundsMessage('Account aangemaakt. Bevestig eerst je e-mail en log daarna in.');}
+function showPlayTogether(){
+  showTab('play');
+  const card=document.getElementById('playTogetherCard');
+  if(card) card.style.display='block';
+  const el=document.getElementById('playTogetherPlayers');
+  if(el && typeof playerProfiles!=='undefined'){
+    el.innerHTML=playerProfiles.map((p,i)=>`<div class="profile-row"><span>👤 ${p.name}</span><b>${Number(p.hcp).toFixed(1)}</b></div>`).join('');
+  }
 }
-async function boundsSignIn(){
- if(!boundsClient){boundsMessage('Supabase Auth is niet geladen.',true);return;}
- const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;if(!email||!password){boundsMessage('Vul e-mail en wachtwoord in.',true);return;}
- boundsSetStatus('Inloggen…','busy');const {error}=await boundsClient.auth.signInWithPassword({email,password});if(error){boundsMessage(error.message,true);return;}await boundsRefreshAuth();
+
+function latestRound(){
+  const h=getHistory();
+  return h.length ? h[0] : null;
 }
-async function boundsSignOut(){if(!boundsClient)return;await boundsClient.auth.signOut();window.boundsSession=null;document.getElementById('accountSignedOut').style.display='block';document.getElementById('accountSignedIn').style.display='none';boundsSetStatus('Niet ingelogd');document.getElementById('home-account-state').textContent='Inloggen';}
-async function boundsSaveSignedInProfile(){
- if(!boundsSession?.user||!boundsClient)return;const name=document.getElementById('authNameSignedIn').value.trim(),hcp=Number(document.getElementById('authHcpSignedIn').value);if(!name||!Number.isFinite(hcp)||hcp<-10||hcp>54){boundsMessage('Vul een geldige naam en handicap in.',true);return;}
- const {error}=await boundsClient.from('profiles').upsert({id:boundsSession.user.id,display_name:name,handicap_index:hcp},{onConflict:'id'});if(error){boundsMessage(error.message,true);return;}
- hi.value=hcp;playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{}),name,hcp};savePlayerProfiles();renderPlayers();renderPlayerSwitcher();renderMyGame();render();boundsMessage('Profiel opgeslagen.');
+
+function renderHome(){
+  const h=getHistory(), r=latestRound();
+  const active=typeof playerProfiles!=='undefined' && playerProfiles[activePlayerIndex] ? playerProfiles[activePlayerIndex] : null;
+  const hcp=active ? Number(active.hcp) : Number(hi.value)||14.2;
+  document.getElementById('homeHcp').textContent=hcp.toFixed(1);
+  document.getElementById('homeRounds').textContent=h.length;
+  document.getElementById('homeBest').textContent=h.length?Math.min(...h.map(x=>x.total)):'—';
+  document.getElementById('homeAvg').textContent=h.length?(h.reduce((a,x)=>a+x.total,0)/h.length).toFixed(1).replace('.',','):'—';
+
+  const last=document.getElementById('lastRoundSummary');
+  if(r){
+    last.innerHTML=`<div class="profile-row"><div><b>${r.course}</b><div class="roundmeta">${r.date} · ${r.round}${r.loop?' · '+r.loop:''}</div></div><strong>${r.total} · ${r.sft} SF</strong></div>`;
+  } else last.textContent='Nog geen opgeslagen ronde.';
+
+  const insight=document.getElementById('homeInsight');
+  const stats=aggregateOptionalStats(h);
+  insight.innerHTML=lossInsight(stats);
+
+  const courses=[...new Set(h.map(x=>x.course))];
+  const prefs=getProfile();
+  const courseText=[];
+  if(prefs.homeCourse) courseText.push(`<b>Home / Member:</b> ${courseLabel(prefs.homeCourse)}`);
+  if(prefs.favoriteCourse) courseText.push(`<b>Favorite:</b> ${courseLabel(prefs.favoriteCourse)}`);
+  if(!courseText.length && courses.length) courseText.push(`<b>Played:</b> ${courses.slice(0,3).join(' · ')}`);
+  document.getElementById('homeCourses').innerHTML=courseText.length?courseText.join('<br>'):'Stel je home course en favoriete baan in via Profile.';
 }
-async function boundsRefreshAuth(){
- if(!boundsClient)return;const {data:{session}}=await boundsClient.auth.getSession();window.boundsSession=session||null;
- const out=document.getElementById('accountSignedOut'),inn=document.getElementById('accountSignedIn');
- if(session?.user){out.style.display='none';inn.style.display='block';document.getElementById('authUserLabel').textContent=session.user.email||'Ingelogde golfer';boundsSetStatus('Account','ok');document.getElementById('home-account-state').textContent='Account';
-  try{const {data:p}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',session.user.id).maybeSingle();if(p){const h=Number(p.handicap_index);if(Number.isFinite(h)){hi.value=h;document.getElementById('authHcpSignedIn').value=h;playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{}),name:p.display_name||'Ik',hcp:h};savePlayerProfiles();}document.getElementById('authNameSignedIn').value=p.display_name||'';if(p.target_handicap!=null){document.getElementById('goalHcp').value=p.target_handicap;}}}catch(e){console.warn('Profile laden:',e.message||e);}
- }else{out.style.display='block';inn.style.display='none';boundsSetStatus('Niet ingelogd');document.getElementById('home-account-state').textContent='Inloggen';}
- renderPlayers();renderPlayerSwitcher();renderMyGame();render();
+
+function openLastRound(){
+  const r=latestRound();
+  if(!r){alert('Nog geen opgeslagen ronde.');return;}
+  showTab('round-summary');
+  renderLastRoundSummary(r);
 }
-if(boundsClient?.auth){boundsClient.auth.onAuthStateChange(()=>setTimeout(boundsRefreshAuth,0));boundsRefreshAuth();}
-window.addEventListener('load',()=>setTimeout(boundsLoadTeeOptions,100));
-</script>
 
-<script>
-/* ===== BOUNDS v1.1 — Courses / Discover ===== */
-(function(){
-  let discoverCourses=[];
-  let discoverRelations=[];
-  let discoverFilter='nearby';
-  let discoverUser=null;
-  let courseGeoCache={};
-
-  const PDOK='https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
-
-  const COURSE_GEO_FALLBACK={
-    crimpenerhout:{latitude:51.9289,longitude:4.6514},
-    kroonprins:{latitude:51.9840,longitude:5.0480},
-    almkreek:{latitude:51.8265,longitude:4.9180}
-  };
-
-  function esc(v){
-    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-  function courseValueByName(name){
-    const n=String(name||'').toLowerCase();
-    if(n.includes('crimpenerhout'))return 'crimpenerhout';
-    if(n.includes('kroonprins') && n.includes('par 3'))return 'kroonprins_par3';
-    if(n.includes('kroonprins'))return 'kroonprins';
-    if(n.includes('almkreek'))return 'almkreek';
-    return '';
-  }
-  function haversine(lat1,lon1,lat2,lon2){
-    const R=6371,p=Math.PI/180;
-    const a=.5-Math.cos((lat2-lat1)*p)/2+
-      Math.cos(lat1*p)*Math.cos(lat2*p)*(1-Math.cos((lon2-lon1)*p))/2;
-    return 2*R*Math.asin(Math.sqrt(a));
-  }
-  function distanceLabel(km){
-    if(km==null)return '';
-    if(km<1)return '< 1 km';
-    return Math.round(km)+' km';
-  }
-  async function geocodeCourse(c){
-    if(courseGeoCache[c.id])return courseGeoCache[c.id];
-    const fallback=COURSE_GEO_FALLBACK[courseValueByName(c.name)]||null;
-    try{
-      const res=await fetch(PDOK+'?'+new URLSearchParams({q:[c.name,c.location].filter(Boolean).join(', '),rows:'10'}).toString(),{
-        headers:{Accept:'application/json'}
-      });
-      if(res.ok){
-        const json=await res.json(),docs=json?.response?.docs||[];
-        const d=docs.find(x=>String(x.type||'').toLowerCase().includes('adres'))||docs.find(x=>x.woonplaatsnaam)||docs[0];
-        const s=d?.centroide_ll;
-        if(typeof s==='string'){
-          const m=s.match(/POINT\s*\(([-0-9.]+)\s+([-0-9.]+)\)/i);
-          if(m){
-            const point={latitude:Number(m[2]),longitude:Number(m[1])};
-            if(Number.isFinite(point.latitude)&&Number.isFinite(point.longitude)){
-              courseGeoCache[c.id]=point;
-              localStorage.setItem('bounds_course_geo',JSON.stringify(courseGeoCache));
-              return point;
-            }
-          }
-        }
-      }
-    }catch(e){}
-    if(fallback){
-      courseGeoCache[c.id]=fallback;
-      localStorage.setItem('bounds_course_geo',JSON.stringify(courseGeoCache));
-      return fallback;
-    }
-    return null;
-  }
-  async function getUserLocation(){
-    if(discoverUser && Number.isFinite(Number(discoverUser.latitude)) && Number.isFinite(Number(discoverUser.longitude)))
-      return discoverUser;
-    return new Promise(resolve=>{
-      if(!navigator.geolocation){resolve(null);return;}
-      navigator.geolocation.getCurrentPosition(
-        pos=>resolve({...discoverUser,latitude:pos.coords.latitude,longitude:pos.coords.longitude}),
-        ()=>resolve(discoverUser||null),
-        {enableHighAccuracy:false,maximumAge:300000,timeout:5000}
-      );
-    });
-  }
-
-  async function boundsDiscoverLoad(){
-    const list=document.getElementById('discoverList'),hint=document.getElementById('discoverHint');
-    if(!list||!window.boundsClient)return;
-    list.innerHTML='<div class="card"><div class="muted">Banen laden…</div></div>';
-    try{
-      const user=window.boundsSession?.user||null;
-      discoverUser=user;
-      const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
-        window.boundsClient.from('courses').select('id,name,location,country').eq('country','NL').order('name'),
-        user?window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',user.id):Promise.resolve({data:[],error:null})
-      ]);
-      if(ce)throw ce;if(re)throw re;
-      discoverCourses=courses||[];discoverRelations=rels||[];
-
-      try{courseGeoCache=JSON.parse(localStorage.getItem('bounds_course_geo')||'{}')||{}}catch(e){courseGeoCache={}}
-
-      const loc=await getUserLocation();
-      if(loc && Number.isFinite(Number(loc.latitude)) && Number.isFinite(Number(loc.longitude))){
-        discoverUser={...discoverUser,...loc};
-        if(hint)hint.textContent='Afstanden zijn berekend vanaf je huidige locatie. Je locatie wordt niet met andere golfers gedeeld.';
-        if(discoverFilter==='nearby') await Promise.all(discoverCourses.map(geocodeCourse));
-      }else if(hint){
-        hint.textContent='Locatie niet beschikbaar. Je kunt alle banen bekijken via “Alle banen”.';
-      }
-      renderDiscover();
-    }catch(e){
-      console.error('Courses laden:',e);
-      list.innerHTML='<div class="card"><div class="discover-empty">Banen konden niet worden geladen.</div></div>';
-    }
-  }
-
-  function renderDiscover(){
-    const list=document.getElementById('discoverList'),q=(document.getElementById('discoverSearch')?.value||'').trim().toLowerCase();
-    if(!list)return;
-    let rows=discoverCourses.filter(c=>{
-      const rel=discoverRelations.find(r=>String(r.course_id)===String(c.id));
-      if(discoverFilter==='favorites' && !rel?.is_favorite)return false;
-      if(q && !(String(c.name).toLowerCase().includes(q)||String(c.location||'').toLowerCase().includes(q)))return false;
-      return true;
-    }).map(c=>{
-      const geo=courseGeoCache[c.id],lat=Number(discoverUser?.latitude),lon=Number(discoverUser?.longitude);
-      const distance=(geo&&Number.isFinite(lat)&&Number.isFinite(lon))?haversine(lat,lon,geo.latitude,geo.longitude):null;
-      return {...c,distance};
-    });
-    if(discoverFilter==='nearby'){
-      rows.sort((a,b)=>(a.distance??99999)-(b.distance??99999));
-      rows=rows.filter(r=>r.distance!=null);
-    }else rows.sort((a,b)=>a.name.localeCompare(b.name,'nl'));
-
-    if(!rows.length){
-      list.innerHTML='<div class="card"><div class="discover-empty">'+(discoverFilter==='nearby'?'Geen banen met beschikbare afstand gevonden. Kies “Alle banen”.':'Geen banen gevonden.')+'</div></div>';
-      return;
-    }
-
-    list.innerHTML=rows.map(c=>{
-      const rel=discoverRelations.find(r=>String(r.course_id)===String(c.id));
-      const cv=courseValueByName(c.name);
-      return `<article class="discover-course">
-        <div class="discover-course-main">
-          <div><h3>${esc(c.name)}</h3><div class="discover-course-location">${esc(c.location||'Nederland')}</div></div>
-          ${c.distance!=null?`<div class="discover-distance">${distanceLabel(c.distance)}</div>`:''}
-        </div>
-        <div class="discover-badges">
-          ${rel?.is_favorite?'<span class="discover-badge">Favoriet</span>':''}
-          ${rel?.is_home_course?'<span class="discover-badge">Thuisbaan</span>':''}
-          <span class="discover-badge">Nederland</span>
-        </div>
-        <div class="discover-actions">
-          <button class="secondary" type="button" onclick="boundsOpenCourseProfile('${c.id}')">Bekijk baan</button>
-          ${cv?`<button class="primary" type="button" onclick="boundsDiscoverStartRound('${cv}')">Start ronde</button>`:''}
-        </div>
-      </article>`;
-    }).join('');
-  }
-
-  async function boundsOpenCourseProfile(courseId){
-    const c=discoverCourses.find(x=>String(x.id)===String(courseId));if(!c)return;
-    const rel=discoverRelations.find(r=>String(r.course_id)===String(courseId));
-    const cv=courseValueByName(c.name);
-    const h=getHistory().filter(r=>r.course===c.name);
-    const geo=courseGeoCache[c.id],lat=Number(discoverUser?.latitude),lon=Number(discoverUser?.longitude);
-    const dist=geo&&Number.isFinite(lat)&&Number.isFinite(lon)?haversine(lat,lon,geo.latitude,geo.longitude):null;
-    const body=document.getElementById('courseProfileBody');
-    const name=document.getElementById('courseProfileName');
-    const loc=document.getElementById('courseProfileLocation');
-    const badges=document.getElementById('courseProfileBadges');
-    const actions=document.getElementById('courseProfileActions');
-    if(!body)return;
-    name.textContent=c.name;loc.textContent=c.location||'Nederland';
-    badges.innerHTML=(dist!=null?`<span class="discover-badge">${distanceLabel(dist)}</span>`:'')+
-      (rel?.is_favorite?'<span class="discover-badge">Favoriet</span>':'');
-    body.innerHTML=`<div class="course-profile-section"><h3>Jouw spel op deze baan</h3><div class="course-profile-stat"><b>${h.length}</b><span>opgeslagen rondes</span></div></div>`;
-    actions.innerHTML=
-      `<button class="secondary" type="button" onclick="boundsDiscoverToggleFavorite('${c.id}')">${rel?.is_favorite?'★ Favoriet verwijderen':'☆ Favoriet'}</button>`+
-      (cv?`<button class="primary" type="button" onclick="boundsCloseCourseProfile();boundsDiscoverStartRound('${cv}')">Start ronde</button>`:'');
-    document.getElementById('courseProfileBackdrop').classList.add('open');
-  }
-
-  async function boundsDiscoverToggleFavorite(courseId){
-    const user=window.boundsSession?.user;
-    if(!user){alert('Log in om favorieten te bewaren.');return;}
-    const existing=discoverRelations.find(r=>String(r.course_id)===String(courseId));
-    try{
-      if(existing?.is_favorite){
-        const {error}=await window.boundsClient.from('user_courses').update({is_favorite:false}).eq('id',existing.id);
-        if(error)throw error;
-      }else{
-        const {error}=await window.boundsClient.from('user_courses').upsert({
-          user_id:user.id,course_id:courseId,is_member:!!existing?.is_member,
-          is_home_course:!!existing?.is_home_course,is_favorite:true
-        },{onConflict:'user_id,course_id'});
-        if(error)throw error;
-      }
-      await boundsDiscoverLoad();
-      boundsCloseCourseProfile();
-    }catch(e){alert('Favoriet opslaan mislukt: '+(e?.message||'Onbekende fout'));}
-  }
-
-  function boundsDiscoverStartRound(cv){
-    const select=document.getElementById('course');
-    if(select){select.value=cv;localStorage.setItem('golf_course',cv);}
-    if(typeof window.updateUI==='function')window.updateUI();
-    if(typeof window.boundsLoadTeeOptions==='function')window.boundsLoadTeeOptions();
-    if(typeof window.showTab==='function')window.showTab('round');
-  }
-  function boundsDiscoverFilter(filter){
-    discoverFilter=filter;
-    document.querySelectorAll('.discover-filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));
-    renderDiscover();
-  }
-  function boundsCloseCourseProfile(){
-    document.getElementById('courseProfileBackdrop')?.classList.remove('open');
-  }
-
-  window.boundsDiscoverLoad=boundsDiscoverLoad;
-  window.boundsDiscoverFilter=boundsDiscoverFilter;
-  window.boundsOpenCourseProfile=boundsOpenCourseProfile;
-  window.boundsDiscoverToggleFavorite=boundsDiscoverToggleFavorite;
-  window.boundsDiscoverStartRound=boundsDiscoverStartRound;
-  window.boundsCloseCourseProfile=boundsCloseCourseProfile;
-
-  const oldShow=window.showTab;
-  if(typeof oldShow==='function'){
-    window.showTab=function(tab){
-      const result=oldShow.apply(this,arguments);
-      if(tab==='discover')setTimeout(boundsDiscoverLoad,0);
-      return result;
-    };
-  }
-  document.getElementById('discoverSearch')?.addEventListener('input',renderDiscover);
-  setTimeout(()=>{if(document.getElementById('page-discover')?.classList.contains('active'))boundsDiscoverLoad()},800);
-})();
-</script>
-
-<div id="courseProfileBackdrop" class="course-profile-backdrop" role="dialog" aria-modal="true">
-  <div class="course-profile-sheet">
-    <div class="course-profile-top">
-      <div><h2 id="courseProfileName">Course</h2><div id="courseProfileLocation" class="course-profile-meta"></div><div id="courseProfileBadges" class="discover-badges"></div></div>
-      <button class="course-profile-close" type="button" onclick="boundsCloseCourseProfile()">×</button>
+function renderLastRoundSummary(r){
+  document.getElementById('roundSummaryContent').innerHTML=`
+    <div class="dashboard-grid">
+      <div class="metric"><b>${r.total}</b><span>slagen</span></div>
+      <div class="metric"><b>${r.sft}</b><span>Stableford</span></div>
+      <div class="metric"><b>${r.courseHcp ?? '—'}</b><span>baanhcp</span></div>
+      <div class="metric"><b>${r.handicap}</b><span>HCP Index</span></div>
     </div>
-    <div id="courseProfileBody"></div>
-    <div id="courseProfileActions" class="course-profile-actions"></div>
-  </div>
-</div>
+    <p class="muted" style="margin-top:14px">${r.course} · ${r.date} · ${r.round}${r.loop?' · '+r.loop:''}</p>`;
+  const stats=aggregateOptionalStats([r]);
+  document.getElementById('roundLosses').innerHTML=lossInsight(stats);
+}
 
-
-<script>
-/* ===== BOUNDS v1.1 — Restore cloud history from Supabase ===== */
-(function(){
-  function boundsLoopLabel(loop){
-    const map={first:'1e 9',second:'2e 9',full:'Hele baan'};
-    return map[loop]||loop||'';
-  }
-  function boundsCloudToLocal(r){
-    const rp=(r.round_players||[])[0];
-    if(!rp)return null;
-    const holes=(rp.hole_scores||[]).map(h=>{
-      const ch=h.course_hole||{};
-      const note=(h.hole_score_notes||[])[0]?.note||'';
-      return {
-        hole:ch.hole_number,par:ch.par,si:ch.stroke_index,score:h.score||0,
-        strokes:0,sf:h.stableford,
-        extra:{
-          putts:h.putts==null?'':String(h.putts),
-          penalty:h.penalty==null?'':String(h.penalty),
-          fairway:h.fairway==='yes'?'hit':h.fairway==='no'?'miss':'',
-          gir:h.gir||'',note
-        },note
-      };
-    });
-    return {
-      cloudRoundId:r.id,
-      date:r.played_at?new Date(r.played_at).toLocaleDateString('nl-NL'):'',
-      time:r.played_at?new Date(r.played_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'',
-      course:r.course?.name||'Onbekende baan',
-      round:r.holes_played==='9'?'9 holes':'18 holes',
-      loop:boundsLoopLabel(r.loop),
-      handicap:rp.handicap_index_at_round,
-      courseHcp:rp.course_handicap,
-      total:rp.final_score||0,
-      sft:rp.stableford||0,
-      tee:r.tee?.tee_name||'',
-      teeName:r.tee?.tee_name||null,
-      teeId:r.tee_id||null,
-      holes
-    };
-  }
-
-  async function loadCloudRounds(){
-    if(!window.boundsClient||!window.boundsSession?.user)return;
-    try{
-      const {data,error}=await window.boundsClient.from('rounds')
-        .select('id,course_id,tee_id,holes_played,loop,played_at,status,course:courses(name),tee:course_tees(tee_name,loop,course_rating,slope_rating,par),round_players!inner(id,user_id,handicap_index_at_round,course_handicap,final_score,stableford,hole_scores(id,course_hole_id,score,stableford,putts,penalty,fairway,gir,course_hole:course_holes(hole_number,par,stroke_index),hole_score_notes(note)))')
-        .eq('owner_id',window.boundsSession.user.id)
-        .order('played_at',{ascending:false});
-      if(error)throw error;
-      const cloud=(data||[]).map(boundsCloudToLocal).filter(Boolean);
-      const local=getHistory();
-      const byId=new Map(local.map(x=>[x.cloudRoundId||('local-'+x.date+'-'+x.time+'-'+x.course),x]));
-      cloud.forEach(r=>byId.set(r.cloudRoundId,r));
-      const merged=[...byId.values()].sort((a,b)=>{
-        const da=new Date(a.cloudRoundId?0:(a.date||'')),db=new Date(b.cloudRoundId?0:(b.date||''));
-        return 0;
-      });
-      // Keep cloud rounds first, then local-only rounds. Never delete local history.
-      const localOnly=local.filter(x=>!x.cloudRoundId);
-      localStorage.setItem('golf_history',JSON.stringify([...cloud,...localOnly].slice(0,100)));
-      if(typeof renderHistory==='function')renderHistory();
-      if(typeof renderRecords==='function')renderRecords();
-      if(typeof renderDashboard==='function')renderDashboard();
-      if(typeof renderCourseHistory==='function')renderCourseHistory();
-      if(typeof renderMyGame==='function')renderMyGame();
-      if(typeof renderHome==='function')renderHome();
-    }catch(e){
-      console.warn('BOUNDS cloud history laden mislukt:',e);
-    }
-  }
-
-  window.boundsLoadCloudRounds=loadCloudRounds;
-
-  function hook(){
-    if(window.boundsSession?.user)loadCloudRounds();
-  }
-  if(window.boundsClient?.auth){
-    window.boundsClient.auth.onAuthStateChange(()=>setTimeout(hook,300));
-  }
-  setTimeout(hook,1400);
-})();
-</script>
-
-
-<script>
-/* ===== BOUNDS v1.2 — Restore My Game insights without changing scoring ===== */
-(function(){
-  const BENCH = {
-    fairways:[[0,50],[5,48],[10,49],[15,48],[20,46],[25,46]],
-    gir:[[0,61],[5,44],[10,36],[15,24],[20,17],[25,10]],
-    putts:[[0,29.4],[5,30.2],[10,31.2],[15,33.1],[20,33.1],[25,33.8]],
-    penalties:[[0,.56],[5,.91],[10,1.62],[15,2.45],[20,3.03],[25,4.67]],
-    scrambling:[[0,47],[5,41],[10,31],[15,21],[20,20],[25,18]]
+function aggregateOptionalStats(history){
+  let putts=[], fw=[], gir=[], penalties=0;
+  history.forEach(r=>r.holes.forEach(h=>{
+    const e=h.extra||{};
+    if(e.putts!=='' && e.putts!=null && Number.isFinite(Number(e.putts))) putts.push(Number(e.putts));
+    if(e.fairway==='hit'||e.fairway==='miss') fw.push(e.fairway);
+    if(e.gir==='yes'||e.gir==='no') gir.push(e.gir);
+    if(e.penalty!=='') penalties+=Number(e.penalty||0);
+  }));
+  return {
+    putts:putts.length?putts.reduce((a,b)=>a+b,0)/putts.length:null,
+    fairway:fw.length?fw.filter(x=>x==='hit').length/fw.length:null,
+    gir:gir.length?gir.filter(x=>x==='yes').length/gir.length:null,
+    penalties
   };
-
-  function num(v){
-    if(v===null||v===undefined||v==='')return null;
-    const n=Number(v);return Number.isFinite(n)?n:null;
-  }
-  function fmt(v,d=1){return v==null||!Number.isFinite(Number(v))?'—':Number(v).toFixed(d).replace('.',',')}
-  function pct(v){return v==null?'—':Math.round(Number(v))+'%'}
-  function interp(arr,h){
-    h=Number(h);
-    if(!Number.isFinite(h))return null;
-    if(h<=arr[0][0])return arr[0][1];
-    if(h>=arr[arr.length-1][0])return arr[arr.length-1][1];
-    for(let i=0;i<arr.length-1;i++){
-      const [h1,v1]=arr[i],[h2,v2]=arr[i+1];
-      if(h>=h1&&h<=h2)return v1+(v2-v1)*((h-h1)/(h2-h1));
-    }
-    return null;
-  }
-  function holesFromHistory(){
-    const history=typeof getHistory==='function'?getHistory():[];
-    const holes=[];
-    history.forEach(r=>{
-      (r.holes||[]).filter(x=>num(x.score)>0).forEach(x=>holes.push({
-        par:Number(x.par),score:Number(x.score),extra:x.extra||{}
-      }));
-    });
-    // Include an active unsaved round, but don't double count it.
-    try{
-      if(typeof buildEnhancedRound==='function' && typeof course!=='undefined' &&
-         course.value && typeof scores!=='undefined' && Object.values(scores).some(v=>num(v)>0)){
-        const live=buildEnhancedRound();
-        const same=history.some(r=>{
-          if(r.course!==live.course||r.round!==live.round||(r.loop||'')!==(live.loop||''))return false;
-          const a=(r.holes||[]).filter(x=>num(x.score)>0),b=(live.holes||[]).filter(x=>num(x.score)>0);
-          if(a.length!==b.length)return false;
-          return a.every(x=>{const y=b.find(z=>z.hole===x.hole);return y&&num(y.score)===num(x.score)&&JSON.stringify(y.extra||{})===JSON.stringify(x.extra||{})});
-        });
-        if(!same)(live.holes||[]).filter(x=>num(x.score)>0).forEach(x=>holes.push({par:Number(x.par),score:Number(x.score),extra:x.extra||{}}));
-      }
-    }catch(e){}
-    return holes;
-  }
-
-  function stats(){
-    const holes=holesFromHistory();
-    const fair=holes.filter(h=>(h.par===4||h.par===5)&&(h.extra.fairway==='hit'||h.extra.fairway==='miss'));
-    const gir=holes.filter(h=>h.extra.gir==='yes'||h.extra.gir==='no');
-    const putt=holes.filter(h=>num(h.extra.putts)!=null);
-    const pen=holes.filter(h=>num(h.extra.penalty)!=null);
-    const scramble=holes.filter(h=>h.extra.gir==='no');
-    const fairPct=fair.length?fair.filter(h=>h.extra.fairway==='hit').length/fair.length*100:null;
-    const girPct=gir.length?gir.filter(h=>h.extra.gir==='yes').length/gir.length*100:null;
-    const putts18=putt.length?putt.reduce((s,h)=>s+num(h.extra.putts),0)/putt.length*18:null;
-    const penalties18=pen.length?pen.reduce((s,h)=>s+num(h.extra.penalty),0)/pen.length*18:null;
-    const threePutts18=putt.length?putt.filter(h=>num(h.extra.putts)>=3).length/putt.length*18:null;
-    const scramblePct=scramble.length?scramble.filter(h=>num(h.score)<=h.par).length/scramble.length*100:null;
-    const parType={};
-    [3,4,5].forEach(p=>{
-      const hs=holes.filter(h=>h.par===p);
-      parType[p]=hs.length?hs.reduce((s,h)=>s+(h.score-p),0)/hs.length:null;
-    });
-    return {holes,fair,gir,putt,pen,scramble,fairPct,girPct,putts18,penalties18,threePutts18,scramblePct,parType};
-  }
-
-  function status(value,benchmark,direction,sample){
-    if(value==null||benchmark==null)return 'no-data';
-    if(sample<5)return 'insufficient';
-    if(sample<10)return 'limited';
-    const tol=Math.max(Math.abs(benchmark)*.05,.5);
-    if(direction==='higher'){
-      if(value>benchmark+tol)return 'above';
-      if(value<benchmark-tol)return 'below';
-    }else{
-      if(value<benchmark-tol)return 'above';
-      if(value>benchmark+tol)return 'below';
-    }
-    return 'around';
-  }
-  const statusLabel={above:'Boven benchmark',around:'Rond benchmark',below:'Onder benchmark',limited:'Beperkte data',insufficient:'Te weinig data','no-data':'Nog geen data'};
-
-  function render(){
-    const gameStats=document.getElementById('gameStats');
-    const grid=document.getElementById('benchmarkGrid');
-    const insight=document.getElementById('benchmarkInsight');
-    const loss=document.getElementById('lossAnalysis');
-    if(!gameStats||!grid||!loss)return;
-
-    const s=stats();
-    const hcp=Number((typeof playerProfiles!=='undefined'&&playerProfiles[activePlayerIndex]?.hcp)||hi?.value);
-    const defs=[
-      {key:'putts',label:'Gem. putts / 18',value:s.putts18,benchmark:interp(BENCH.putts,hcp),direction:'lower',sample:s.putt.length,display:fmt(s.putts18,1),unit:'putts'},
-      {key:'gir',label:'GIR',value:s.girPct,benchmark:interp(BENCH.gir,hcp),direction:'higher',sample:s.gir.length,display:pct(s.girPct),unit:''},
-      {key:'fairways',label:'Fairways',value:s.fairPct,benchmark:interp(BENCH.fairways,hcp),direction:'higher',sample:s.fair.length,display:pct(s.fairPct),unit:'par 4/5'},
-      {key:'scrambling',label:'Scrambling',value:s.scramblePct,benchmark:interp(BENCH.scrambling,hcp),direction:'higher',sample:s.scramble.length,display:pct(s.scramblePct),unit:''},
-      {key:'penalties',label:'Penalties / 18',value:s.penalties18,benchmark:interp(BENCH.penalties,hcp),direction:'lower',sample:s.pen.length,display:fmt(s.penalties18,1),unit:'penalties'},
-      {key:'threeputts',label:'3-putts / 18',value:s.threePutts18,benchmark:null,direction:'lower',sample:s.putt.length,display:fmt(s.threePutts18,1),unit:''}
-    ];
-
-    gameStats.innerHTML=defs.map(d=>{
-      const sub=d.sample?`${d.sample} holes ingevuld`:'nog geen data';
-      return `<div class="metric"><b>${d.display}</b><span>${d.label}${d.unit?' • '+d.unit:''}</span><div class="game-stat-subtle">${sub}</div></div>`;
-    }).join('');
-
-    grid.innerHTML=defs.map(d=>{
-      const st=status(d.value,d.benchmark,d.direction,d.sample);
-      const ref=d.benchmark==null?'Geen bronbenchmark':(d.key==='gir'||d.key==='fairways'||d.key==='scrambling'?`Benchmark ${Math.round(d.benchmark)}%`:`Benchmark ${fmt(d.benchmark,1)}`);
-      return `<div class="benchmark-item ${st}">
-        <b>${d.display}</b>
-        <small>${d.label} · ${ref}</small>
-        <span class="benchmark-status">${statusLabel[st]}</span>
-      </div>`;
-    }).join('');
-
-    const ranked=defs.filter(d=>['above','below'].includes(status(d.value,d.benchmark,d.direction,d.sample)))
-      .sort((a,b)=>{
-        const sa=status(a.value,a.benchmark,a.direction,a.sample), sb=status(b.value,b.benchmark,b.direction,b.sample);
-        return (sa==='below'?0:1)-(sb==='below'?0:1);
-      });
-
-    let insightText='Blijf je statistieken invullen. BOUNDS gebruikt alleen daadwerkelijk ingevulde data en trekt geen conclusies uit ontbrekende waarden.';
-    if(ranked.length){
-      const weak=ranked.find(d=>status(d.value,d.benchmark,d.direction,d.sample)==='below');
-      if(weak){
-        insightText=`Je grootste aandachtspunt op basis van de huidige data is <strong>${weak.label.toLowerCase()}</strong>. ${weak.key==='gir'?'Meer greens raken is hier de grootste winstkans.':weak.key==='fairways'?'Op par 4 en 5 ligt hier waarschijnlijk winst in je tee shot.':weak.key==='putts'?'Je putting ligt boven de benchmark; kijk vooral naar het aantal putts per hole.':weak.key==='penalties'?'Penaltyslagen kosten direct score. Dit is een duidelijke eerste winstkans.':weak.key==='scrambling'?'Je mist relatief veel kansen om na een gemiste GIR toch par of beter te maken.':'Kijk hier eerst naar voordat je je spel op andere onderdelen gaat aanpassen.'}`;
-      }
-    }
-    insight.innerHTML=insightText;
-
-    const lossItems=[];
-    const pLabels={3:'Par 3',4:'Par 4',5:'Par 5'};
-    [3,4,5].forEach(p=>{
-      const v=s.parType[p];
-      if(v!=null)lossItems.push({title:pLabels[p],value:v,detail:`gemiddeld ${v>0?'+':''}${fmt(v,1)} t.o.v. par`});
-    });
-    if(s.putts18!=null){
-      const b=interp(BENCH.putts,hcp);
-      lossItems.push({title:'Putting',value:s.putts18-b,detail:`${fmt(s.putts18,1)} putts/18 · benchmark ${fmt(b,1)}`});
-    }
-    if(s.penalties18!=null){
-      lossItems.push({title:'Penaltyslagen',value:s.penalties18,detail:`${fmt(s.penalties18,1)} per 18 holes`});
-    }
-    lossItems.sort((a,b)=>b.value-a.value);
-    if(!lossItems.length){
-      loss.innerHTML='<div class="loss-empty">Speel een ronde en vul je optionele statistieken in. Dan laat BOUNDS zien waar de grootste winstkansen zitten.</div>';
-    }else{
-      loss.innerHTML=lossItems.slice(0,4).map((x,i)=>{
-        const positive=x.value>0;
-        return `<div class="loss-item">
-          <div class="loss-copy"><strong>${x.title}</strong><span>${x.detail}</span></div>
-          <div class="loss-value"><b>${positive?'+':''}${fmt(x.value,1)}</b><small>${i===0?'grootste aandachtspunt':'aandachtspunt'}</small></div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  const old=window.renderMyGame;
-  window.renderMyGame=function(){
-    if(typeof old==='function')old.apply(this,arguments);
-    try{render()}catch(e){console.warn('BOUNDS My Game insights:',e)}
+}
+function lossInsight(s){
+  const rows=[];
+  if(s.putts!==null) rows.push(['Putting',Math.max(0,s.putts-2.0),`${s.putts.toFixed(1).replace('.',',')} putts/hole`]);
+  if(s.gir!==null) rows.push(['Approach / GIR',Math.max(0,(0.5-s.gir)*5),`${Math.round(s.gir*100)}% GIR`]);
+  if(s.fairway!==null) rows.push(['Driving / fairways',Math.max(0,(0.65-s.fairway)*3),`${Math.round(s.fairway*100)}% fairways`]);
+  if(s.penalties>0) rows.push(['Penalty',s.penalties,`${s.penalties} penalty${s.penalties===1?'':'s'}`]);
+  if(!rows.length) return 'Nog onvoldoende optionele stats om betrouwbaar te bepalen waar je slagen verliest.';
+  rows.sort((a,b)=>b[1]-a[1]);
+  return rows.slice(0,3).map(x=>`<div class="loss-row"><div><b>${x[0]}</b><div class="roundmeta">${x[2]}</div></div><strong>focus</strong></div>`).join('');
+}
+function renderMyGameLosses(){
+  const el=document.getElementById('myGameLosses');
+  if(el) el.innerHTML=lossInsight(aggregateOptionalStats(getHistory()));
+}
+function renderPlay(){
+  const h=getHistory().slice(0,5);
+  const el=document.getElementById('playRecentRounds');
+  if(!h.length){el.textContent='Nog geen recente rondes.';return;}
+  el.innerHTML=h.map(r=>`<div class="rounditem"><div><b>${r.course}</b><div class="roundmeta">${r.date} · ${r.total} slagen · ${r.sft} SF</div></div></div>`).join('');
+}
+function courseLabel(v){
+  const m={crimpenerhout:'Crimpenerhout',kroonprins:'De Kroonprins'};
+  return m[v]||v;
+}
+function getProfile(){
+  try{return JSON.parse(localStorage.getItem('bounds_profile')||'{}')}catch(e){return {}}
+}
+function renderCoursePreferences(){
+  const p=getProfile();
+  const el=document.getElementById('coursePreferences');
+  const lines=[];
+  if(p.homeCourse)lines.push(`<div class="profile-row"><span>Home / Member Course</span><b>${courseLabel(p.homeCourse)}</b></div>`);
+  if(p.favoriteCourse)lines.push(`<div class="profile-row"><span>Favorite Course</span><b>${courseLabel(p.favoriteCourse)}</b></div>`);
+  el.innerHTML=lines.length?lines.join(''):'Nog geen persoonlijke baanvoorkeuren ingesteld.';
+}
+function addCoursePreference(type){
+  const options={crimpenerhout:'Crimpenerhout',kroonprins:'De Kroonprins'};
+  const val=prompt(`Kies ${type==='home'?'je home/member course':'je favoriete baan'}: Crimpenerhout of De Kroonprins`);
+  if(!val)return;
+  const key=Object.keys(options).find(k=>options[k].toLowerCase()===val.trim().toLowerCase());
+  if(!key){alert('Kies een baan uit de huidige prototype-database.');return;}
+  const p=getProfile(); p[type==='home'?'homeCourse':'favoriteCourse']=key;
+  localStorage.setItem('bounds_profile',JSON.stringify(p));
+  renderCoursePreferences();renderHome();
+}
+function loadProfile(){
+  const p=getProfile();
+  document.getElementById('profileName').value=p.name||'';
+  document.getElementById('profileHcp').value=p.hcp ?? (typeof hi!=='undefined'?hi.value:14.2);
+  document.getElementById('profileGoal').value=p.goal ?? 12;
+  document.getElementById('profileTee').value=p.tee||'';
+  document.getElementById('profileHomeCourse').value=p.homeCourse||'';
+  document.getElementById('profileFavoriteCourse').value=p.favoriteCourse||'';
+}
+function saveProfile(){
+  const p={
+    name:document.getElementById('profileName').value.trim(),
+    hcp:Number(document.getElementById('profileHcp').value)||14.2,
+    goal:Number(document.getElementById('profileGoal').value)||12,
+    tee:document.getElementById('profileTee').value.trim(),
+    homeCourse:document.getElementById('profileHomeCourse').value,
+    favoriteCourse:document.getElementById('profileFavoriteCourse').value
   };
-
-  window.boundsRenderMyGameInsights=render;
-  setTimeout(render,500);
-})();
+  localStorage.setItem('bounds_profile',JSON.stringify(p));
+  if(typeof playerProfiles!=='undefined' && playerProfiles[activePlayerIndex]){
+    playerProfiles[activePlayerIndex].hcp=p.hcp;
+    if(p.name) playerProfiles[activePlayerIndex].name=p.name;
+    savePlayerProfiles();
+    loadActivePlayer();
+  }
+  renderHome();renderCoursePreferences();
+  alert('Profiel opgeslagen.');
+}
+/* Initial IA render */
+setTimeout(()=>{renderHome();renderPlay();renderCoursePreferences();loadProfile();renderMyGameLosses();},100);
 </script>
-
 </html>

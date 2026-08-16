@@ -41,7 +41,7 @@
 .course-profile-friend-main{min-width:0;flex:1}
 .course-profile-friend-main b{display:block;font-size:12px}
 .course-profile-friend-main small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.course-profile-friend-badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.course-profile-friend-badge{font-size:9px;background:#e9f5ec;color:#2b7a43;border-radius:9px;padding:4px 6px;font-weight:700}
+.course-profile-friend-badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.course-profile-friend-badge{font-size:9px;background:#e9f5ec;color:#2b7a43;border-radius:9px;padding:4px 6px;font-weight:700}.course-profile-friends-summary{background:#f5f5f7;border-radius:13px;padding:10px 11px;font-size:11px;color:var(--muted);margin-bottom:9px}.course-profile-friends-summary b{color:var(--ink);font-size:16px;margin-right:3px}
 
 .shared-round-detail-backdrop{position:fixed;inset:0;background:rgba(10,18,22,.28);z-index:1200;display:none;padding:12px;overflow:auto}
 .shared-round-detail-backdrop.open{display:flex;align-items:flex-end;justify-content:center}
@@ -1755,33 +1755,45 @@
           if(presenceError) throw presenceError;
 
           const matching=(friendPresence||[]);
-          if(matching.length){
-            friendCourseHtml =
-              '<div class="course-profile-section">' +
-              '<h3>Vrienden bij deze baan</h3>' +
-              '<div class="course-profile-friends-list">' +
-              matching.map(r=>{
-                const display=r.display_name||'Golfer';
-                const badges=[];
-                if(r.is_home_course)badges.push('Thuisbaan');
-                else if(r.is_member)badges.push('Lid');
-                if(r.played_recently)badges.push('Speelt hier vaak');
-                else if(Number(r.round_count)>0)badges.push(Number(r.round_count)+' ronde'+(Number(r.round_count)===1?'':'s'));
-                if(!badges.length && r.is_favorite)badges.push('Favoriet');
-                return '<div class="course-profile-friend">' +
-                  '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
-                  '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
-                  '<div class="course-profile-friend-badges">'+
-                  badges.map(x=>'<span class="course-profile-friend-badge">'+esc(x)+'</span>').join('')+
-                  '</div>' +
-                  '</div>';
-              }).join('') +
-              '</div>' +
-              '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden.</div>' +
-              '</div>';
-          }
+          friendCourseHtml =
+            '<div class="course-profile-section">' +
+            '<h3>Vrienden bij deze baan</h3>' +
+            (matching.length
+              ? '<div class="course-profile-friends-summary">'+
+                  '<b>'+matching.length+'</b> vriend'+(matching.length===1?'':'en')+' met een relatie met deze baan'+
+                '</div>'
+              : '<div class="location-meta" style="margin-bottom:10px">Geen van je vrienden heeft deze baan als club, thuisbaan of favoriet en niemand heeft hier recent gespeeld.</div>') +
+            (matching.length
+              ? '<div class="course-profile-friends-list">' +
+                matching.map(r=>{
+                  const display=r.display_name||'Golfer';
+                  const badges=[];
+                  // Show every applicable relationship; do not hide membership
+                  // just because the golfer also has this as a home course.
+                  if(r.is_home_course)badges.push('Thuisbaan');
+                  if(r.is_member)badges.push('Lid');
+                  if(r.is_favorite)badges.push('Favoriet');
+                  if(r.played_recently)badges.push('Speelt hier vaak');
+                  else if(Number(r.round_count)>0)badges.push(Number(r.round_count)+' ronde'+(Number(r.round_count)===1?'':'s'));
+                  return '<div class="course-profile-friend">' +
+                    '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
+                    '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
+                    '<div class="course-profile-friend-badges">'+
+                    badges.map(x=>'<span class="course-profile-friend-badge">'+esc(x)+'</span>').join('')+
+                    '</div>' +
+                    '</div>';
+                }).join('') +
+                '</div>'
+              : '') +
+            '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden.</div>' +
+            '</div>';
         }catch(friendSocialError){
           console.warn('Vrienden met deze baan laden:',friendSocialError);
+          friendCourseHtml =
+            '<div class="course-profile-section">' +
+            '<h3>Vrienden bij deze baan</h3>' +
+            '<div class="location-meta">Vriendinformatie kon niet worden geladen.</div>' +
+            '</div>';
         }
       }
 
@@ -5539,7 +5551,7 @@ async function boundsApplyIdentityState(session){
 
 
 <script>
-/* ===== BOUNDS v2.15.3 — NEW ROUND ID + RPC ROUND SYNC =====
+/* ===== BOUNDS v2.15.4 — NEW ROUND ID + RPC ROUND SYNC =====
    The previous sync wrote directly through RLS and the active-round reset
    reused the same localId. Both are corrected here as the final executable layer.
 */

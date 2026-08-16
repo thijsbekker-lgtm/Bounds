@@ -472,11 +472,10 @@
       <small class="muted" style="display:block;margin-top:8px">
         Dit wordt later gebruikt voor banen ontdekken en samen spelen. Je lidmaatschap en favorieten worden niet automatisch openbaar gedeeld.
       </small>
-      <button class="secondary" type="button" onclick="boundsSaveProfileCourses()" style="margin-top:10px;width:100%">Golfprofiel opslaan</button>
       <div id="profileCoursesMessage" class="save-status"></div>
     </div>
 
-    <button class="secondary" type="button" onclick="boundsSaveSignedInProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
+    <button class="secondary" type="button" onclick="boundsSaveCompleteProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
     <small id="accountMessage" class="muted">Synchronisatie actief.</small>
     <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
   </div>
@@ -4298,6 +4297,21 @@ async function boundsSaveSignedInProfile(){
     boundsMessage(location ? 'Profiel opgeslagen. Woonplaats en regio bijgewerkt.' : 'Profiel opgeslagen.');
   }catch(e){boundsMessage('Profiel opslaan mislukt: '+(e?.message||String(e)),true);}
 }
+async function boundsSaveCompleteProfile(){
+  const user=await boundsCurrentUser();
+  if(!user){
+    boundsMessage('Log eerst in.',true);
+    return;
+  }
+
+  // Save both the personal profile and the course relationships from one button.
+  await Promise.all([
+    boundsSaveSignedInProfile(),
+    boundsSaveProfileCourses()
+  ]);
+}
+window.boundsSaveCompleteProfile=boundsSaveCompleteProfile;
+
 async function boundsSignOut(){
   if(!boundsClient?.auth)return;
   await boundsClient.auth.signOut();

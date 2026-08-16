@@ -275,6 +275,11 @@
   </div>
   <div id="accountSignedIn" style="display:none">
     <div id="authUserLabel" class="muted"></div>
+    <div class="grid" style="margin-top:10px">
+      <label>Naam<input id="authNameSignedIn" type="text" autocomplete="name" placeholder="Je naam"></label>
+      <label>Handicap Index<input id="authHcpSignedIn" type="number" min="-10" max="54" step="0.1" placeholder="Handicap Index"></label>
+    </div>
+    <button class="secondary" type="button" onclick="boundsSaveSignedInProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
     <small id="accountMessage" class="muted">Synchronisatie actief.</small>
     <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
   </div>
@@ -1419,11 +1424,16 @@ function renderMyGame(){
  const h=getHistory(),parStats={3:[],4:[],5:[]};
  h.forEach(r=>r.holes.filter(x=>x.score>0).forEach(x=>{if(parStats[x.par])parStats[x.par].push(x.score-x.par)}));
  const el=document.getElementById('parBreakdown');
- el.innerHTML=[3,4,5].map(p=>{const a=parStats[p],v=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`}).join('');
- const raw=document.getElementById('goalHcp').value.trim();
- const current=Number(playerProfiles[activePlayerIndex]?.hcp);
- if(!raw || !Number.isFinite(current)){document.getElementById('goalText').innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';}
- else {const goal=Number(raw);document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${goal.toFixed(1)}</b> • nog <b>${Math.max(0,current-goal).toFixed(1)}</b> te gaan.`;}
+ if(el)el.innerHTML=[3,4,5].map(p=>{const a=parStats[p],v=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`}).join('');
+ const raw=(document.getElementById('goalHcp')?.value||'').trim();
+ const current=Number(hi.value);
+ const goalText=document.getElementById('goalText');
+ if(!session() || raw==='' || !Number.isFinite(current)){
+   if(goalText)goalText.innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';
+ }else{
+   const goal=Number(raw);
+   if(goalText)goalText.innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${goal.toFixed(1)}</b> • nog <b>${Math.max(0,current-goal).toFixed(1)}</b> te gaan.`;
+ }
 }
 const originalChgForPlayers=window.chg;
 window.chg=function(h,d){
@@ -1588,6 +1598,26 @@ async function boundsSignIn(){
     if(btn){btn.disabled=false;btn.textContent='Inloggen';}
   }
 }
+async function boundsSaveSignedInProfile(){
+  try{
+    const user=await boundsCurrentUser();
+    if(!user){boundsMessage('Log eerst in.',true);return;}
+    const h=Number(document.getElementById('authHcpSignedIn')?.value);
+    const name=(document.getElementById('authNameSignedIn')?.value||'').trim();
+    if(!Number.isFinite(h)||h<-10||h>54){boundsMessage('Vul een geldige Handicap Index in.',true);return;}
+    const payload={id:user.id,handicap_index:h};
+    if(name)payload.display_name=name;
+    const {data:p,error}=await boundsClient.from('profiles').upsert(payload).select('display_name,handicap_index,target_handicap').single();
+    if(error)throw error;
+    hi.value=h;
+    document.getElementById('authHcp').value=h;
+    if(document.getElementById('authNameSignedIn'))document.getElementById('authNameSignedIn').value=p?.display_name||name||'';
+    playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{name:'Ik'}),name:p?.display_name||name||playerProfiles[activePlayerIndex]?.name||'Ik',hcp:h};
+    savePlayerProfiles();
+    renderPlayers();renderPlayerSwitcher();renderMyGame();render();
+    boundsMessage('Profiel opgeslagen.');
+  }catch(e){boundsMessage('Profiel opslaan mislukt: '+(e?.message||String(e)),true);}
+}
 async function boundsSignOut(){
   if(!boundsClient?.auth)return;
   await boundsClient.auth.signOut();
@@ -1604,10 +1634,18 @@ async function boundsRefreshAuth(){
     try{
       const {data:p,error}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',session.user.id).single();
       if(!error&&p){
-        document.getElementById('authHcp').value=p.handicap_index;
-        hi.value=p.handicap_index;
+        const profileHcp=Number(p.handicap_index);
+        const profileName=p.display_name||session.user.user_metadata?.display_name||'Ik';
+        document.getElementById('authHcp').value=Number.isFinite(profileHcp)?profileHcp:'';
+        hi.value=Number.isFinite(profileHcp)?profileHcp:'';
+        const signedHcp=document.getElementById('authHcpSignedIn');
+        const signedName=document.getElementById('authNameSignedIn');
+        if(signedHcp)signedHcp.value=Number.isFinite(profileHcp)?profileHcp:'';
+        if(signedName)signedName.value=profileName;
         if(p.target_handicap!==null && document.getElementById('goalHcp'))document.getElementById('goalHcp').value=p.target_handicap;
-        render();
+        playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{}),name:profileName,hcp:Number.isFinite(profileHcp)?profileHcp:null};
+        savePlayerProfiles();
+        renderPlayers();renderPlayerSwitcher();renderMyGame();render();
       }
     }catch(e){}
     await loadCloudRounds(true);
@@ -2404,7 +2442,15 @@ async function boundsApplyIdentityState(session){
     window.loadCloudRounds.__boundsGuestGuard=true;
   }
 
-  window.applyBoundsAuthenticatedUI=()=>{ const s=window.boundsSession&&window.boundsSession.user?window.boundsSession:null; if(s) applyAuthFinal(s); };
+  window.applyBoundsAuthenticatedUI=()=>{
+    const s=window.boundsSession&&window.boundsSession.user?window.boundsSession:null;
+    if(!s)return;
+    const out=document.getElementById('accountSignedOut'), inn=document.getElementById('accountSignedIn');
+    if(out)out.style.display='none';
+    if(inn)inn.style.display='block';
+    const status=document.getElementById('accountStatus');
+    if(status){status.textContent='Gesynchroniseerd';status.className='account-status ok';}
+  };
 
   async function resolve(){
     try{
@@ -2508,17 +2554,38 @@ async function boundsApplyIdentityState(session){
     window.boundsGuestFinal=true;
   }
 
-  function applyAuthFinal(s){
+  async function applyAuthFinal(s){
+    if(!s || !s.user)return;
     window.boundsSession=s;
     const goal=document.getElementById('goalHcp');
     const h=document.getElementById('hi');
     if(goal)goal.disabled=false;
     if(h)h.disabled=false;
-
     const out=document.getElementById('accountSignedOut');
     const inn=document.getElementById('accountSignedIn');
     if(out)out.style.display='none';
     if(inn)inn.style.display='block';
+    const label=document.getElementById('authUserLabel');
+    if(label)label.textContent=s.user.email||'Ingelogde golfer';
+    try{
+      const {data:p,error}=await window.boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',s.user.id).maybeSingle();
+      if(!error && p){
+        const profileHcp=Number(p.handicap_index);
+        const profileName=p.display_name||s.user.user_metadata?.display_name||'Ik';
+        if(Number.isFinite(profileHcp)){
+          h.value=profileHcp;
+          const ah=document.getElementById('authHcp');if(ah)ah.value=profileHcp;
+          const ash=document.getElementById('authHcpSignedIn');if(ash)ash.value=profileHcp;
+        }
+        const asn=document.getElementById('authNameSignedIn');if(asn)asn.value=profileName;
+        if(p.target_handicap!==null && goal){goal.value=p.target_handicap;localStorage.setItem('golf_goal_hcp',String(p.target_handicap));}
+        playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{}),name:profileName,hcp:Number.isFinite(profileHcp)?profileHcp:null};
+        savePlayerProfiles();
+        renderPlayers();renderPlayerSwitcher();
+      }
+    }catch(e){ console.warn('Profiel laden:',e); }
+    renderMyGame();
+    if(typeof window.render==='function')window.render();
   }
 
   async function resolve(){
@@ -2543,7 +2610,7 @@ async function boundsApplyIdentityState(session){
         setTimeout(applyGuestFinal,50);
         setTimeout(applyGuestFinal,250);
       }else{
-        setTimeout(()=>applyAuthFinal(s),0);
+        setTimeout(()=>{ applyAuthFinal(s); },0);
       }
     });
   }
@@ -2607,6 +2674,7 @@ async function boundsApplyIdentityState(session){
   setTimeout(resolve,500);
   setTimeout(resolve,1200);
   setTimeout(()=>{ if(!session())applyGuestFinal(); },2000);
+  setTimeout(()=>{ if(session())applyAuthFinal(window.boundsSession); },2200);
 })();
 </script>
 </html>

@@ -1339,6 +1339,59 @@
     }).join('');
   }
 
+  async function boundsDiscoverLoad(){
+    const list=document.getElementById('discoverList');
+    const hint=document.getElementById('discoverLocationHint');
+    if(!list)return;
+
+    discoverUser=window.boundsSession?.user||null;
+
+    if(!window.boundsClient){
+      list.innerHTML='<div class="friends-empty">Databaseverbinding is nog niet klaar. Probeer Discover opnieuw.</div>';
+      return;
+    }
+
+    try{
+      try{
+        const cache=JSON.parse(localStorage.getItem('bounds_course_geo')||'{}');
+        courseGeoCache=cache&&typeof cache==='object'?cache:{};
+      }catch(e){courseGeoCache={};}
+
+      const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
+        window.boundsClient.from('courses').select('id,name,location,country').order('name'),
+        discoverUser
+          ? window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',discoverUser.id)
+          : Promise.resolve({data:[],error:null})
+      ]);
+
+      if(ce)throw ce;
+      if(re)throw re;
+
+      discoverCourses=courses||[];
+      discoverRelations=rels||[];
+
+      // Resolve coordinates only when needed for nearby mode without a search.
+      if(discoverFilter==='nearby' &&
+         !((document.getElementById('discoverSearch')?.value||'').trim())){
+        const hasLoc=Number.isFinite(Number(discoverUser?.latitude)) &&
+                     Number.isFinite(Number(discoverUser?.longitude));
+        if(hasLoc){
+          await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
+        }
+      }
+
+      await renderDiscover();
+
+      if(!discoverCourses.length){
+        list.innerHTML='<div class="friends-empty">Er zijn nog geen banen beschikbaar in BOUNDS.</div>';
+      }
+    }catch(e){
+      console.error('Discover laden:',e);
+      list.innerHTML='<div class="friends-empty">Banen konden niet worden geladen. Probeer Discover opnieuw.</div>';
+      if(hint)hint.textContent='Er ging iets mis bij het laden van de banen.';
+    }
+  }
+
   async function boundsDiscoverFilter(filter){
     discoverFilter=filter;
     document.querySelectorAll('.discover-filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));
@@ -1396,6 +1449,12 @@
   setTimeout(()=>{
     if(document.getElementById('page-discover')?.classList.contains('active'))boundsDiscoverLoad();
   },1200);
+  setTimeout(()=>{
+    if(document.getElementById('page-discover')?.classList.contains('active') &&
+       document.getElementById('discoverList')?.textContent.includes('Banen laden')){
+      boundsDiscoverLoad();
+    }
+  },2500);
 })();
 </script>
 </body>

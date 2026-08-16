@@ -1326,13 +1326,42 @@ function renderMyGameStats(){
   const h=getHistory();
   const parStats={3:[],4:[],5:[]};
   const statRows=[];
+
+  // Analyse opgeslagen rondes.
   h.forEach(r=>{
     r.holes.filter(x=>x.score>0).forEach(x=>{
       if(parStats[x.par])parStats[x.par].push(x.score-x.par);
       const e=x.extra||{};
-      statRows.push({par:Number(x.par),score:Number(x.score),putts:e.putts,penalty:e.penalty,fairway:e.fairway,gir:e.gir});
+      statRows.push({par:Number(x.par),score:Number(x.score),putts:e.putts,penalty:e.penalty,fairway:e.fairway,gir:e.gir,source:'saved'});
     });
   });
+
+  // Neem ook de actieve ronde mee als deze nog niet is opgeslagen.
+  // Zo zie je ingevulde stats direct terug in Mijn spel, zonder eerst Opslaan te
+  // hoeven drukken. Zodra dezelfde ronde is opgeslagen, wordt hij niet dubbel
+  // geteld.
+  try{
+    if(course.value && scores && Object.values(scores).some(v=>Number(v)>0)){
+      const live=buildEnhancedRound();
+      const sameAsSaved=h.some(r=>{
+        if(r.course!==live.course || r.round!==live.round || (r.loop||'')!==(live.loop||''))return false;
+        const a=(r.holes||[]).filter(x=>x.score>0);
+        const b=(live.holes||[]).filter(x=>x.score>0);
+        if(a.length!==b.length)return false;
+        return a.every(x=>{
+          const y=b.find(z=>z.hole===x.hole);
+          return y && Number(y.score)===Number(x.score) && JSON.stringify(y.extra||{})===JSON.stringify(x.extra||{});
+        });
+      });
+      if(!sameAsSaved){
+        live.holes.filter(x=>x.score>0).forEach(x=>{
+          if(parStats[x.par])parStats[x.par].push(x.score-x.par);
+          const e=x.extra||{};
+          statRows.push({par:Number(x.par),score:Number(x.score),putts:e.putts,penalty:e.penalty,fairway:e.fairway,gir:e.gir,source:'live'});
+        });
+      }
+    }
+  }catch(e){ console.warn('Live stats:',e); }
   const el=document.getElementById('parBreakdown');
   el.innerHTML=[3,4,5].map(p=>{
     const a=parStats[p]; const v=a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
@@ -1402,7 +1431,8 @@ function renderMyGameStats(){
     insights.push(`<div class="insight"><b>${totalPenalties} penaltyslagen geregistreerd</b><span>Dit is direct zichtbaar als onderdeel van je scoreverlies. Vul penalties consequent in voor een betrouwbaarder beeld.</span></div>`);
   }
 
-  const coverage=`Gebaseerd op ${statRows.length} gespeelde holes • ${puttRows.length} met putts • ${girRows.length} met GIR • ${fairwayRows.length} met fairway • ${penaltyRows.length} met penalty.`;
+  const liveCount=statRows.filter(x=>x.source==='live').length;
+  const coverage=`Gebaseerd op ${statRows.length} gespeelde holes • ${puttRows.length} met putts • ${girRows.length} met GIR • ${fairwayRows.length} met fairway • ${penaltyRows.length} met penalty.${liveCount?` Inclusief ${liveCount} holes uit je huidige, nog niet opgeslagen ronde.`:''}`;
   lossAnalysis.innerHTML=(insights.length?insights.join(''):'<div class="empty">Vul per hole wat extra stats in om gerichter te kunnen zien waar je winst ligt.</div>')+
     `<div class="stat-coverage">${coverage}</div>`;
 }
@@ -1789,7 +1819,7 @@ async function loadCloudRounds(silent=false){
     const localNoCloud=local.filter(x=>!x.cloudRoundId);
     const mergedFinal=[...cloud,...localNoCloud];
     localStorage.setItem('golf_history',JSON.stringify(mergedFinal.slice(0,50)));
-    renderHistory();renderRecords();renderCourseHistory();renderDashboard();
+    renderHistory();renderRecords();renderCourseHistory();renderDashboard();renderMyGame();
     if(!silent)boundsSaveMessage(`✓ ${cloud.length} opgeslagen ${cloud.length===1?'ronde':'rondes'} gesynchroniseerd.`,'ok');
     else boundsSetStatus('Verbonden','ok');
   }catch(e){
@@ -1855,6 +1885,7 @@ async function boundsSaveRoundFinal(){
   renderRecords();
   renderDashboard();
   renderCourseHistory();
+  renderMyGame();
   renderAnalysis(data);
   boundsSaveMessage('Lokaal opgeslagen — synchroniseren…','pending');
 
@@ -1987,6 +2018,7 @@ window.loadCloudRounds=async function(silent=false){
   renderRecords();
   renderDashboard();
   renderCourseHistory();
+  renderMyGame();
 };
 
 /* Small, understandable status styling in history. */

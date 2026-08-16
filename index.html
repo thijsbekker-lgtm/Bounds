@@ -1323,8 +1323,13 @@ function renderPlay(){
   el.innerHTML=h.map(r=>`<div class="rounditem"><div><b>${r.course}</b><div class="roundmeta">${r.date} · ${r.total} slagen · ${r.sft} SF</div></div></div>`).join('');
 }
 function courseLabel(v){
-  const m={crimpenerhout:'Crimpenerhout',kroonprins:'De Kroonprins'};
-  return m[v]||v;
+  const id=String(v||'');
+  if(typeof DB_COURSES!=='undefined' && DB_COURSES.length){
+    const byId=DB_COURSES.find(c=>c.id===id);
+    if(byId)return byId.name;
+  }
+  const m={crimpenerhout:'Crimpenerhout',kroonprins:'De Kroonprins',almkreek:'Golfpark Almkreek'};
+  return m[id]||id;
 }
 function getProfile(){
   try{return JSON.parse(localStorage.getItem('bounds_profile')||'{}')}catch(e){return {}}
@@ -1632,7 +1637,7 @@ let DB_READY = false;
 
 async function loadCoursesFromSupabase(){
   const [cRes,tRes,hRes] = await Promise.all([
-    boundsSupabase.from('courses').select('id,name,location,country,source'),
+    boundsSupabase.from('courses').select('id,name,location,country,source,latitude,longitude'),
     boundsSupabase.from('course_tees').select('id,course_id,tee_name,gender,holes,course_rating,slope_rating,par,loop,course_variant,verification_status,source_url,physical_holes,physical_par,rating_holes,rating_par,qualifying_holes,qualifying_par,qualifying_hole_sequence,layout_holes,layout_par'),
     boundsSupabase.from('course_holes').select('id,tee_id,hole_number,par,stroke_index')
   ]);
@@ -1882,8 +1887,7 @@ async function initBoundsCourses(){
     updateVariantOptions();updateLoopOptionsDb();updateTeeOptionsDb();
     render();
     renderDbCourseDirectory();
-    document.getElementById('nearbyCourses').innerHTML=
-      '<div class="muted">Course database connected. Nearby filtering will use course location data once coordinates are added.</div>';
+    renderNearbyCourses294();
   }catch(err){
     console.error(err);
     const n=document.getElementById('note');
@@ -2063,4 +2067,210 @@ async function initBoundsCourses294(){
   updateVariantOptions294();updateRoundSelectors294();updateCourseConfigNote294();
 }
 initBoundsCourses294();
-</script>\n</html>
+</script>\n<script>
+/* BOUNDS v2.9.6 — Nearby by driving route
+   - Nearby is defined as <= 25 km driving distance.
+   - Uses road routing, not straight-line/Haversine distance.
+   - Shows driving distance and estimated driving time.
+   - Current GPS position is used locally and is not persisted.
+   - Courses without a routable destination are not treated as Nearby.
+*/
+
+const NEARBY_MAX_DRIVING_KM_296 = 25;
+const ROUTER_BASE_296 = 'https://router.project-osrm.org/route/v1/driving';
+
+function distanceLabel296(km){
+  if(!Number.isFinite(km)) return '';
+  return km < 10 ? `${km.toFixed(1).replace('.',',')} km` : `${Math.round(km)} km`;
+}
+
+function durationLabel296(seconds){
+  if(!Number.isFinite(seconds)) return '';
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if(minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h}u ${m} min` : `${h}u`;
+}
+
+function courseDisplayHoles296(c){
+  const tees = DB_TEES.filter(t => t.course_id === c.id);
+  const physical = [...new Set(
+    tees.map(t => Number(t.physical_holes || t.layout_holes || t.holes))
+      .filter(Number.isFinite)
+  )];
+  if(physical.length === 1) return `${physical[0]} holes`;
+  if(physical.length > 1) return `${Math.min(...physical)}–${Math.max(...physical)} holes`;
+  return '';
+}
+
+async function routeToCourse296(userLat, userLon, course){
+  const lat = Number(course.latitude), lon = Number(course.longitude);
+  if(!Number.isFinite(userLat) || !Number.isFinite(userLon) ||
+     !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const url = `${ROUTER_BASE_296}/${userLon},${userLat};${lon},${lat}?overview=false&alternatives=false&steps=false`;
+  const res = await fetch(url, {headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error(`Routing HTTP ${res.status}`);
+  const data = await res.json();
+  const route = data?.routes?.[0];
+  if(!route || !Number.isFinite(Number(route.distance))) return null;
+
+  return {
+    km: Number(route.distance) / 1000,
+    seconds: Number(route.duration)
+  };
+}
+
+async function renderNearbyCourses296(userLat=null, userLon=null){
+  const el = document.getElementById('nearbyCourses');
+  if(!el || !DB_READY) return;
+
+  if(!Number.isFinite(userLat) || !Number.isFinite(userLon)){
+    el.innerHTML = `
+      <div class="muted">Nearby gebruikt rijafstand over de weg. Maximaal ${NEARBY_MAX_DRIVING_KM_296} km.</div>
+      <div style="margin-top:10px">
+        <button class="secondary" type="button" onclick="requestNearbyLocation296()">Gebruik mijn locatie</button>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="muted">Rijafstanden berekenen…</div>
+    <div class="muted" style="margin-top:4px">Nearby = maximaal ${NEARBY_MAX_DRIVING_KM_296} km over de weg.</div>`;
+
+  const results = await Promise.allSettled(
+    DB_COURSES.map(async c => ({...c, route: await routeToCourse296(userLat, userLon, c)}))
+  );
+
+  const rows = results
+    .filter(r => r.status === 'fulfilled' && r.value?.route)
+    .map(r => r.value)
+    .filter(c => c.route.km <= NEARBY_MAX_DRIVING_KM_296)
+    .sort((a,b) => a.route.km - b.route.km);
+
+  const failed = results.filter(r => r.status === 'rejected').length;
+
+  if(!rows.length){
+    el.innerHTML = `
+      <div class="muted">Geen golfbanen gevonden binnen ${NEARBY_MAX_DRIVING_KM_296} km rijafstand.</div>
+      ${failed ? '<div class="muted" style="margin-top:6px">Een route kon niet worden berekend. Probeer het opnieuw.</div>' : ''}
+      <div style="margin-top:10px">
+        <button class="secondary" type="button" onclick="requestNearbyLocation296()">Vernieuw locatie</button>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="muted" style="margin-bottom:8px">Rijafstand vanaf je huidige locatie · maximaal ${NEARBY_MAX_DRIVING_KM_296} km</div>
+    ${rows.map(c => `
+      <button class="course-card-button" onclick="openDbCourseDetail('${c.id}')">
+        <div>
+          <strong>${c.name}</strong>
+          <small>${c.location || ''}${courseDisplayHoles296(c) ? ' · ' + courseDisplayHoles296(c) : ''}</small>
+        </div>
+        <span class="course-distance">${distanceLabel296(c.route.km)} · ${durationLabel296(c.route.seconds)}</span>
+      </button>
+    `).join('')}
+    <div style="margin-top:10px">
+      <button class="secondary" type="button" onclick="requestNearbyLocation296()">Vernieuw locatie</button>
+    </div>`;
+}
+
+function requestNearbyLocation296(){
+  const el = document.getElementById('nearbyCourses');
+  if(!navigator.geolocation){
+    if(el) el.innerHTML = '<div class="muted">Locatie wordt niet ondersteund door deze browser.</div>';
+    return;
+  }
+
+  if(el) el.innerHTML = '<div class="muted">Locatie ophalen…</div>';
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      await renderNearbyCourses296(lat, lon);
+    },
+    err => {
+      const message = err.code === 1
+        ? 'Locatietoegang geweigerd. Geef BOUNDS toegang tot je locatie.'
+        : 'Locatie kon niet worden bepaald.';
+      if(el) el.innerHTML = `<div class="muted">${message}</div><div style="margin-top:10px"><button class="secondary" type="button" onclick="requestNearbyLocation296()">Opnieuw proberen</button></div>`;
+    },
+    {enableHighAccuracy:true, timeout:10000, maximumAge:300000}
+  );
+}
+
+function loadNearbyLocationFromProfile296(){
+  /* Do not persist or reuse precise GPS coordinates from the profile.
+     Nearby is refreshed explicitly from the device location. */
+  renderNearbyCourses296();
+}
+
+/* Human-readable course preference labels on Home. */
+function renderHome296(){
+  if(typeof renderHome !== 'function') return;
+  const original = window.renderHome;
+  if(original.__bounds296) return;
+
+  window.renderHome = function(){
+    original.apply(this, arguments);
+    const p = getProfile();
+    const el = document.getElementById('homeCourses');
+    if(!el) return;
+
+    const lines = [];
+    if(p.homeCourse) lines.push(`<b>Home / Member:</b> ${courseLabel(p.homeCourse)}`);
+    if(p.favoriteCourse) lines.push(`<b>Favorite:</b> ${courseLabel(p.favoriteCourse)}`);
+
+    if(!lines.length){
+      const h = getHistory();
+      const played = [...new Set(h.map(x => x.course).filter(Boolean))].slice(0,3);
+      if(played.length) lines.push(`<b>Played:</b> ${played.join(' · ')}`);
+    }
+
+    el.innerHTML = lines.length
+      ? lines.join('<br>')
+      : 'Stel je home course en favoriete baan in via Profile.';
+  };
+  window.renderHome.__bounds296 = true;
+}
+renderHome296();
+
+/* Persist course preferences to Supabase. */
+const saveProfile296Original = window.saveProfile294;
+if(typeof saveProfile296Original === 'function'){
+  window.saveProfile294 = async function(){
+    const result = saveProfile296Original.apply(this, arguments);
+    try{
+      const session = window.boundsSession;
+      if(session?.user && window.boundsSupabase){
+        const p = getProfile();
+        const payload = {
+          id: session.user.id,
+          home_course_id: p.homeCourse || null,
+          favorite_course_id: p.favoriteCourse || null,
+          handicap_table: p.handicapTable || 'men',
+          updated_at: new Date().toISOString()
+        };
+        const {error} = await window.boundsSupabase.from('profiles').upsert(payload,{onConflict:'id'});
+        if(error) console.warn('Course preferences sync:', error.message);
+      }
+    }catch(e){
+      console.warn('Course preferences sync failed:', e);
+    }
+    return result;
+  };
+}
+
+/* Final initialization. */
+setTimeout(() => {
+  if(typeof DB_READY !== 'undefined' && DB_READY){
+    loadNearbyLocationFromProfile296();
+    if(typeof renderHome === 'function') renderHome();
+  }
+}, 500);
+</script>
+</script>
+</html>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.2</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.3</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -282,6 +282,164 @@
 </section>
 </main>
 </div>
+
+
+<script>
+/* ===== BOUNDS v2.3 — complete guest isolation fix ===== */
+(function(){
+  function isGuest(){
+    return !(window.boundsSession && window.boundsSession.user);
+  }
+
+  function clearLegacyPersonalStorage(){
+    [
+      'golf_history','golf_course','golf_round','golf_loop','golf_tee',
+      'golf_tee_id','golf_tee_name','golf_hi','golf_players',
+      'bounds_active_round_id','bounds_last_course','bounds_goal_hcp'
+    ].forEach(k=>localStorage.removeItem(k));
+    Object.keys(localStorage).filter(k=>/^bounds_user_/i.test(k))
+      .forEach(k=>localStorage.removeItem(k));
+  }
+
+  function clearGuestForm(){
+    const c=document.getElementById('course');
+    const t=document.getElementById('tee');
+    const r=document.getElementById('round');
+    const l=document.getElementById('loop');
+    const h=document.getElementById('hi');
+    const goal=document.getElementById('goalHcp');
+    if(c){ c.value=''; }
+    if(t){
+      t.innerHTML='<option value="">Kies eerst een baan…</option>';
+      t.value='';
+      t.disabled=true;
+    }
+    if(r)r.value='9';
+    if(l)l.value='first';
+    if(h)h.value='';
+    if(goal)goal.value='';
+    if(window.boundsSelectedTee!==undefined)window.boundsSelectedTee=null;
+
+    const players=document.getElementById('playersList');
+    if(players)players.innerHTML='<div class="muted">Log in om spelers en persoonlijke handicaps te gebruiken.</div>';
+
+    const authHcp=document.getElementById('authHcp');
+    if(authHcp)authHcp.value='';
+
+    const save=document.getElementById('saveStatus');
+    if(save)save.textContent='Log in om deze ronde op te slaan in BOUNDS.';
+  }
+
+  function guestHistory(){
+    const el=document.getElementById('historyList');
+    if(el)el.innerHTML='<div class="empty">Log in om je opgeslagen rondes te bekijken.</div>';
+    const ids=['dRounds','dBest','dAvg','dSf','dBestSf','trend','courseHistory','recordsText','analysisCard'];
+    ids.forEach(id=>{
+      const x=document.getElementById(id);
+      if(!x)return;
+      if(id==='analysisCard')x.style.display='none';
+      else if(id==='trend')x.innerHTML='<div class="muted">Log in om je persoonlijke scoretrend te bekijken.</div>';
+      else if(id==='courseHistory')x.innerHTML='<div class="muted">Log in om je baanhistorie te bekijken.</div>';
+      else if(id==='recordsText')x.textContent='Log in om je persoonlijke records te bekijken.';
+      else if(id==='dBest'||id==='dAvg'||id==='dSf'||id==='dBestSf')x.textContent='—';
+      else x.textContent='0';
+    });
+  }
+
+  function guestGame(){
+    const goal=document.getElementById('goalHcp');
+    if(goal){goal.value='';goal.disabled=true;}
+    const gt=document.getElementById('goalText');
+    if(gt)gt.textContent='Log in om je persoonlijke golfdoelen te bekijken.';
+    const bar=document.querySelector('#page-game .goalbar');
+    if(bar)bar.style.display='none';
+    const pb=document.getElementById('parBreakdown');
+    if(pb)pb.innerHTML='<div class="muted">Log in om je persoonlijke statistieken te bekijken.</div>';
+  }
+
+  function applyGuest(){
+    if(!isGuest())return;
+    clearLegacyPersonalStorage();
+    clearGuestForm();
+    guestHistory();
+    guestGame();
+
+    const signedOut=document.getElementById('accountSignedOut');
+    const signedIn=document.getElementById('accountSignedIn');
+    if(signedOut)signedOut.style.display='block';
+    if(signedIn)signedIn.style.display='none';
+    const status=document.getElementById('accountStatus');
+    if(status)status.textContent='Niet ingelogd';
+  }
+
+  // Wrap render functions so every redraw cannot reintroduce old local data.
+  ['renderHistory','renderDashboard','renderRecords','renderCourseHistory','renderMyGame'].forEach(name=>{
+    const original=window[name];
+    if(typeof original!=='function')return;
+    window[name]=function(){
+      if(isGuest()){
+        if(name==='renderHistory'||name==='renderDashboard'||name==='renderRecords'||name==='renderCourseHistory'){
+          guestHistory();
+        }
+        if(name==='renderMyGame')guestGame();
+        return;
+      }
+      return original.apply(this,arguments);
+    };
+  });
+
+  // Block permanent saving while signed out. Logged-in behavior remains unchanged.
+  const originalSave=window.saveRound;
+  if(typeof originalSave==='function'){
+    window.saveRound=function(){
+      if(isGuest()){
+        const s=document.getElementById('saveStatus');
+        if(s)s.textContent='Log in om deze ronde op te slaan in BOUNDS.';
+        alert('Log eerst in om deze ronde op te slaan in BOUNDS.');
+        return;
+      }
+      return originalSave.apply(this,arguments);
+    };
+  }
+
+  // The existing auth function can still restore legacy values. Re-apply the
+  // guest state after every auth refresh.
+  const originalRefresh=window.boundsRefreshAuth;
+  if(typeof originalRefresh==='function'){
+    window.boundsRefreshAuth=async function(){
+      const result=await originalRefresh.apply(this,arguments);
+      try{
+        const {data}=await window.boundsClient.auth.getSession();
+        window.boundsSession=data.session||null;
+      }catch(e){window.boundsSession=null;}
+      if(isGuest())applyGuest();
+      return result;
+    };
+  }
+
+  // Own auth-state listener: sign-out immediately clears personal state.
+  if(window.boundsClient && window.boundsClient.auth){
+    window.boundsClient.auth.onAuthStateChange((event,session)=>{
+      window.boundsSession=session||null;
+      if(!session)applyGuest();
+    });
+  }
+
+  // On first load, resolve the real auth state before exposing personal data.
+  if(window.boundsClient && window.boundsClient.auth){
+    window.boundsClient.auth.getSession().then(({data})=>{
+      window.boundsSession=data.session||null;
+      if(isGuest())applyGuest();
+    }).catch(()=>{window.boundsSession=null;applyGuest();});
+  }else{
+    applyGuest();
+  }
+
+  // Ensure the page starts clean even if an earlier render ran before auth resolved.
+  setTimeout(()=>{ if(isGuest())applyGuest(); }, 50);
+  setTimeout(()=>{ if(isGuest())applyGuest(); }, 500);
+})();
+</script>
 
 </body>
 <script>

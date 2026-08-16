@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.15.5</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.15.7</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -1759,7 +1759,18 @@
             await window.boundsClient.rpc('get_friend_course_presence',{p_course_id:courseId});
           if(presenceError) throw presenceError;
 
-          const matching=(friendPresence||[]);
+          // Sort by relevance: home/member/favorite/frequent first, then by
+          // number of rounds played on this course. This keeps the most useful
+          // social context at the top without exposing private round history.
+          const matching=(friendPresence||[]).slice().sort((a,b)=>{
+            const score=r=>
+              (r.is_home_course?16:0)+
+              (r.is_member?8:0)+
+              (r.is_favorite?4:0)+
+              (r.played_recently?2:0)+
+              Math.min(Number(r.round_count)||0,10)/10;
+            return score(b)-score(a) || String(a.display_name||'').localeCompare(String(b.display_name||''),'nl');
+          });
           friendCourseHtml =
             '<div class="course-profile-section">' +
             '<h3>Vrienden bij deze baan</h3>' +
@@ -1779,7 +1790,7 @@
                   if(r.is_member)badges.push('Lid');
                   if(r.is_favorite)badges.push('Favoriet');
                   if(r.played_recently)badges.push('Speelt hier vaak');
-                  else if(Number(r.round_count)>0)badges.push(Number(r.round_count)+' ronde'+(Number(r.round_count)===1?'':'s'));
+                  if(Number(r.round_count)>0)badges.push(Number(r.round_count)+' ronde'+(Number(r.round_count)===1?'':'s'));
                   return '<div class="course-profile-friend">' +
                     '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
                     '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
@@ -1790,7 +1801,7 @@
                 }).join('') +
                 '</div>'
               : '') +
-            '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden.</div>' +
+            '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden. Het exacte aantal rondes is alleen zichtbaar als deze informatie voor vrienden beschikbaar is.</div>' +
             '</div>';
         }catch(friendSocialError){
           console.warn('Vrienden met deze baan laden:',friendSocialError);

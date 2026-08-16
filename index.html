@@ -592,7 +592,8 @@ const almkreek={
 };
 
 function currentConfig(){
- const h=+hi.value||0;
+ const rawH=(hi.value||'').trim();
+ const h=rawH===''?null:Number(rawH);
  const c=course.value;
  const n=+round.value;
  const t=tee.value || 'Geel';
@@ -643,6 +644,10 @@ function isKpPar3(){
 
 function getCourseHcp(cfg){
  const h=cfg.h;
+ if(h===null || !Number.isFinite(h)) return null;
+ if(cfg.c==='kroonprins_par3'){
+   return tableHcp(cfg.table,h);
+ }
  if(cfg.c==='crimpenerhout' && cfg.n===18){
    // Crimpenerhout uses the supplied official 18-hole table.
    const t=[
@@ -816,7 +821,8 @@ course.appendChild(par3Option);
 const originalCurrentConfig=currentConfig;
 window.currentConfig=function(){
  if(course.value!=='kroonprins_par3') return originalCurrentConfig();
- const h=+hi.value||0,n=+round.value;
+ const rawH=(hi.value||'').trim();
+ const h=rawH===''?null:Number(rawH),n=+round.value;
  const holes=n===9?kpPar3First9:kpPar3First9.concat(kpPar3Second9);
  const table=n===9?kpPar3_9Table:kpPar3_18Table;
  return {h,c:'kroonprins_par3',n,holes,cr:n===9?24.6:49.2,sr:67,par:n===9?27:54,table,note:`De Kroonprins Par 3 geel heren • ${n} holes • CR ${n===9?'24,6':'49,2'} / SR 67.`};
@@ -1364,14 +1370,14 @@ renderDashboard();renderCourseHistory();renderMyGame();renderPlayers();
 /* Player profiles: each player has an independent handicap and scorecard. */
 let playerProfiles;
 try{playerProfiles=JSON.parse(localStorage.getItem('golf_player_profiles')||'null')}catch(e){playerProfiles=null}
-if(!Array.isArray(playerProfiles)||!playerProfiles.length) playerProfiles=[{name:'Ik',hcp:Number(hi.value)||14.2}];
+if(!Array.isArray(playerProfiles)||!playerProfiles.length) playerProfiles=[{name:'Ik',hcp:null}];
 let activePlayerIndex=Number(localStorage.getItem('golf_active_player_index')||0);
 if(!playerProfiles[activePlayerIndex]) activePlayerIndex=0;
 
 function pKey(pi,h){return `golf_player_${pi}_${course.value}_${round.value}_${loop.value}_hole_${h}`;}
 function savePlayerProfiles(){localStorage.setItem('golf_player_profiles',JSON.stringify(playerProfiles));localStorage.setItem('golf_active_player_index',String(activePlayerIndex));}
 function loadActivePlayer(){
- const p=playerProfiles[activePlayerIndex]; hi.value=p.hcp;
+ const p=playerProfiles[activePlayerIndex]; hi.value=(p && Number.isFinite(Number(p.hcp))) ? Number(p.hcp) : '';
  for(let h=1;h<=18;h++){const v=localStorage.getItem(pKey(activePlayerIndex,h));scores[h]=v?Number(v):0;}
 }
 function switchPlayer(i){
@@ -1415,7 +1421,7 @@ function renderMyGame(){
  const el=document.getElementById('parBreakdown');
  el.innerHTML=[3,4,5].map(p=>{const a=parStats[p],v=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;return `<div class="metric"><b>${v===null?'—':(v>0?'+':'')+v.toFixed(1).replace('.',',')}</b><span>gem. t.o.v. par ${p}</span></div>`}).join('');
  const raw=document.getElementById('goalHcp').value.trim();
- const current=Number(playerProfiles[activePlayerIndex].hcp)||14.2;
+ const current=Number(playerProfiles[activePlayerIndex]?.hcp);
  if(!raw || !Number.isFinite(current)){document.getElementById('goalText').innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';}
  else {const goal=Number(raw);document.getElementById('goalText').innerHTML=`Huidige HCP <b>${current.toFixed(1)}</b> • doel <b>${goal.toFixed(1)}</b> • nog <b>${Math.max(0,current-goal).toFixed(1)}</b> te gaan.`;}
 }
@@ -2376,11 +2382,10 @@ async function boundsApplyIdentityState(session){
   setTimeout(resolve,500);
   setTimeout(resolve,1200);
 })();
-
-
+</script>
 <script>
 /* ============================================================
-   BOUNDS v2.7 — FINAL AUTH / GUEST ISOLATION CONTROLLER
+   BOUNDS v2.8 — FINAL AUTH / GUEST ISOLATION + OFFICIAL COURSE HANDICAP CONTROLLER
    This is deliberately the LAST executable code in the document.
    Guest: no personal handicap, target handicap, history or profile.
    Authenticated: profile values are loaded from Supabase and editable.
@@ -2492,12 +2497,12 @@ async function boundsApplyIdentityState(session){
   // Final render guards: earlier prototype functions contain legacy 14.2/12 fallbacks.
   ['renderMyGame','renderPlayers','renderPlayerSwitcher','loadActivePlayer'].forEach(name=>{
     const fn=window[name];
-    if(typeof fn!=='function' || fn.__boundsV27Guard)return;
+    if(typeof fn!=='function' || fn.__boundsV28Guard)return;
     const wrapped=function(){
       if(!session()){ applyGuestFinal(); return; }
       return fn.apply(this,arguments);
     };
-    wrapped.__boundsV27Guard=true;
+    wrapped.__boundsV28Guard=true;
     window[name]=wrapped;
   });
 
@@ -2508,8 +2513,38 @@ async function boundsApplyIdentityState(session){
       if(!session())setTimeout(applyGuestFinal,0);
       return r;
     };
-    wrapped.__boundsV27FinalGuard=true;
+    wrapped.__boundsV28FinalGuard=true;
     window.updateUI=wrapped;
+  }
+
+  // v2.8: guest HCP is optional user input, never a hidden profile value.
+  // Also force the official 9-hole Par-3 table for De Kroonprins.
+  const oldRender=window.render;
+  if(typeof oldRender==='function' && !oldRender.__boundsV28RenderGuard){
+    const wrappedRender=function(){
+      if(!session()){
+        const h=document.getElementById('hi');
+        // Do not allow legacy player/profile code to reinsert 14.2 for guests.
+        if(h && !h.matches(':focus')) h.value='';
+      }
+      const result=oldRender.apply(this,arguments);
+      if(!session()){
+        const h=document.getElementById('hi');
+        if(h && !h.matches(':focus')) h.value='';
+      }
+      return result;
+    };
+    wrappedRender.__boundsV28RenderGuard=true;
+    window.render=wrappedRender;
+  }
+
+  // Never save a guest HCP as personal state. A guest may type an HCP for the
+  // current round; it is intentionally not persisted.
+  const hiEl=document.getElementById('hi');
+  if(hiEl){
+    hiEl.addEventListener('input',()=>{
+      if(!session()) localStorage.removeItem('golf_hi');
+    });
   }
 
   // Final passes are intentional: earlier prototype code has several initializers.

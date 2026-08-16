@@ -694,6 +694,34 @@ tfoot td{
 @media(max-width:520px){.discover-actions,.course-profile-actions{grid-template-columns:1fr}.discover-course{padding:16px}}
 </style>
 
+
+<style>
+/* BOUNDS Design System v1.2 — My Game insights */
+.benchmark-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.benchmark-item{background:var(--soft);border-radius:16px;padding:14px 15px;min-width:0}
+.benchmark-item b{display:block;font-size:22px;letter-spacing:-.5px}
+.benchmark-item small{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35}
+.benchmark-item .benchmark-status{display:inline-block;margin-top:9px;font-size:10px;font-weight:700;padding:5px 8px;border-radius:999px;background:#fff;color:var(--muted)}
+.benchmark-item.above .benchmark-status{color:var(--accent);background:var(--accent-soft)}
+.benchmark-item.below .benchmark-status{color:#9A6B25;background:#F4EBDD}
+.benchmark-item.limited .benchmark-status,
+.benchmark-item.insufficient .benchmark-status{background:#fff;color:var(--muted)}
+.benchmark-insight{margin-top:12px;padding:14px 15px;border:1px solid var(--line);border-radius:16px;font-size:13px;line-height:1.5}
+.benchmark-note{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}
+.loss-analysis{display:grid;gap:10px}
+.loss-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.loss-item:last-child{border-bottom:0}
+.loss-copy{min-width:0}
+.loss-copy strong{display:block;font-size:14px}
+.loss-copy span{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
+.loss-value{text-align:right;white-space:nowrap}
+.loss-value b{display:block;font-size:17px}
+.loss-value small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.loss-empty{padding:4px 0;color:var(--muted);font-size:13px;line-height:1.5}
+.game-stat-subtle{font-size:10px;color:var(--muted);margin-top:4px}
+@media(max-width:520px){.benchmark-grid{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -814,7 +842,30 @@ tfoot td{
   <h3>Waar verlies je slagen?</h3>
   <p class="muted">De app kijkt naar je opgeslagen scorekaarten. Hoe meer rondes je speelt, hoe nuttiger dit overzicht wordt.</p>
  </div>
- <div class="card account-card" id="accountCard">
+ 
+ <div class="card" id="gameStatsCard">
+  <div class="eyebrow">YOUR NUMBERS</div>
+  <h3>Jouw statistieken</h3>
+  <div id="gameStats" class="dashboard-grid"></div>
+ </div>
+
+ <div class="card" id="benchmarkCard">
+  <div class="eyebrow">BOUNDS BENCHMARK</div>
+  <h3>Hoe speel je t.o.v. golfers van jouw handicap?</h3>
+  <div id="benchmarkGrid" class="benchmark-grid"></div>
+  <div id="benchmarkInsight" class="benchmark-insight"></div>
+  <div class="benchmark-note" id="benchmarkNote">
+    Alleen ingevulde statistieken worden meegenomen. Bij weinig data blijft BOUNDS voorzichtig met conclusies.
+  </div>
+ </div>
+
+ <div class="card" id="lossAnalysisCard">
+  <div class="eyebrow">YOUR GAME</div>
+  <h3>Waar verlies je slagen?</h3>
+  <div id="lossAnalysis" class="loss-analysis"></div>
+ </div>
+
+<div class="card account-card" id="accountCard">
   <div class="section-title"><span>ACCOUNT</span><span id="accountStatus" class="account-status">Niet ingelogd</span></div>
   <div id="accountSignedOut">
    <div class="grid">
@@ -2123,6 +2174,183 @@ window.addEventListener('load',()=>setTimeout(boundsLoadTeeOptions,100));
     window.boundsClient.auth.onAuthStateChange(()=>setTimeout(hook,300));
   }
   setTimeout(hook,1400);
+})();
+</script>
+
+
+<script>
+/* ===== BOUNDS v1.2 — Restore My Game insights without changing scoring ===== */
+(function(){
+  const BENCH = {
+    fairways:[[0,50],[5,48],[10,49],[15,48],[20,46],[25,46]],
+    gir:[[0,61],[5,44],[10,36],[15,24],[20,17],[25,10]],
+    putts:[[0,29.4],[5,30.2],[10,31.2],[15,33.1],[20,33.1],[25,33.8]],
+    penalties:[[0,.56],[5,.91],[10,1.62],[15,2.45],[20,3.03],[25,4.67]],
+    scrambling:[[0,47],[5,41],[10,31],[15,21],[20,20],[25,18]]
+  };
+
+  function num(v){
+    if(v===null||v===undefined||v==='')return null;
+    const n=Number(v);return Number.isFinite(n)?n:null;
+  }
+  function fmt(v,d=1){return v==null||!Number.isFinite(Number(v))?'—':Number(v).toFixed(d).replace('.',',')}
+  function pct(v){return v==null?'—':Math.round(Number(v))+'%'}
+  function interp(arr,h){
+    h=Number(h);
+    if(!Number.isFinite(h))return null;
+    if(h<=arr[0][0])return arr[0][1];
+    if(h>=arr[arr.length-1][0])return arr[arr.length-1][1];
+    for(let i=0;i<arr.length-1;i++){
+      const [h1,v1]=arr[i],[h2,v2]=arr[i+1];
+      if(h>=h1&&h<=h2)return v1+(v2-v1)*((h-h1)/(h2-h1));
+    }
+    return null;
+  }
+  function holesFromHistory(){
+    const history=typeof getHistory==='function'?getHistory():[];
+    const holes=[];
+    history.forEach(r=>{
+      (r.holes||[]).filter(x=>num(x.score)>0).forEach(x=>holes.push({
+        par:Number(x.par),score:Number(x.score),extra:x.extra||{}
+      }));
+    });
+    // Include an active unsaved round, but don't double count it.
+    try{
+      if(typeof buildEnhancedRound==='function' && typeof course!=='undefined' &&
+         course.value && typeof scores!=='undefined' && Object.values(scores).some(v=>num(v)>0)){
+        const live=buildEnhancedRound();
+        const same=history.some(r=>{
+          if(r.course!==live.course||r.round!==live.round||(r.loop||'')!==(live.loop||''))return false;
+          const a=(r.holes||[]).filter(x=>num(x.score)>0),b=(live.holes||[]).filter(x=>num(x.score)>0);
+          if(a.length!==b.length)return false;
+          return a.every(x=>{const y=b.find(z=>z.hole===x.hole);return y&&num(y.score)===num(x.score)&&JSON.stringify(y.extra||{})===JSON.stringify(x.extra||{})});
+        });
+        if(!same)(live.holes||[]).filter(x=>num(x.score)>0).forEach(x=>holes.push({par:Number(x.par),score:Number(x.score),extra:x.extra||{}}));
+      }
+    }catch(e){}
+    return holes;
+  }
+
+  function stats(){
+    const holes=holesFromHistory();
+    const fair=holes.filter(h=>(h.par===4||h.par===5)&&(h.extra.fairway==='hit'||h.extra.fairway==='miss'));
+    const gir=holes.filter(h=>h.extra.gir==='yes'||h.extra.gir==='no');
+    const putt=holes.filter(h=>num(h.extra.putts)!=null);
+    const pen=holes.filter(h=>num(h.extra.penalty)!=null);
+    const scramble=holes.filter(h=>h.extra.gir==='no');
+    const fairPct=fair.length?fair.filter(h=>h.extra.fairway==='hit').length/fair.length*100:null;
+    const girPct=gir.length?gir.filter(h=>h.extra.gir==='yes').length/gir.length*100:null;
+    const putts18=putt.length?putt.reduce((s,h)=>s+num(h.extra.putts),0)/putt.length*18:null;
+    const penalties18=pen.length?pen.reduce((s,h)=>s+num(h.extra.penalty),0)/pen.length*18:null;
+    const threePutts18=putt.length?putt.filter(h=>num(h.extra.putts)>=3).length/putt.length*18:null;
+    const scramblePct=scramble.length?scramble.filter(h=>num(h.score)<=h.par).length/scramble.length*100:null;
+    const parType={};
+    [3,4,5].forEach(p=>{
+      const hs=holes.filter(h=>h.par===p);
+      parType[p]=hs.length?hs.reduce((s,h)=>s+(h.score-p),0)/hs.length:null;
+    });
+    return {holes,fair,gir,putt,pen,scramble,fairPct,girPct,putts18,penalties18,threePutts18,scramblePct,parType};
+  }
+
+  function status(value,benchmark,direction,sample){
+    if(value==null||benchmark==null)return 'no-data';
+    if(sample<5)return 'insufficient';
+    if(sample<10)return 'limited';
+    const tol=Math.max(Math.abs(benchmark)*.05,.5);
+    if(direction==='higher'){
+      if(value>benchmark+tol)return 'above';
+      if(value<benchmark-tol)return 'below';
+    }else{
+      if(value<benchmark-tol)return 'above';
+      if(value>benchmark+tol)return 'below';
+    }
+    return 'around';
+  }
+  const statusLabel={above:'Boven benchmark',around:'Rond benchmark',below:'Onder benchmark',limited:'Beperkte data',insufficient:'Te weinig data','no-data':'Nog geen data'};
+
+  function render(){
+    const gameStats=document.getElementById('gameStats');
+    const grid=document.getElementById('benchmarkGrid');
+    const insight=document.getElementById('benchmarkInsight');
+    const loss=document.getElementById('lossAnalysis');
+    if(!gameStats||!grid||!loss)return;
+
+    const s=stats();
+    const hcp=Number((typeof playerProfiles!=='undefined'&&playerProfiles[activePlayerIndex]?.hcp)||hi?.value);
+    const defs=[
+      {key:'putts',label:'Gem. putts / 18',value:s.putts18,benchmark:interp(BENCH.putts,hcp),direction:'lower',sample:s.putt.length,display:fmt(s.putts18,1),unit:'putts'},
+      {key:'gir',label:'GIR',value:s.girPct,benchmark:interp(BENCH.gir,hcp),direction:'higher',sample:s.gir.length,display:pct(s.girPct),unit:''},
+      {key:'fairways',label:'Fairways',value:s.fairPct,benchmark:interp(BENCH.fairways,hcp),direction:'higher',sample:s.fair.length,display:pct(s.fairPct),unit:'par 4/5'},
+      {key:'scrambling',label:'Scrambling',value:s.scramblePct,benchmark:interp(BENCH.scrambling,hcp),direction:'higher',sample:s.scramble.length,display:pct(s.scramblePct),unit:''},
+      {key:'penalties',label:'Penalties / 18',value:s.penalties18,benchmark:interp(BENCH.penalties,hcp),direction:'lower',sample:s.pen.length,display:fmt(s.penalties18,1),unit:'penalties'},
+      {key:'threeputts',label:'3-putts / 18',value:s.threePutts18,benchmark:null,direction:'lower',sample:s.putt.length,display:fmt(s.threePutts18,1),unit:''}
+    ];
+
+    gameStats.innerHTML=defs.map(d=>{
+      const sub=d.sample?`${d.sample} holes ingevuld`:'nog geen data';
+      return `<div class="metric"><b>${d.display}</b><span>${d.label}${d.unit?' • '+d.unit:''}</span><div class="game-stat-subtle">${sub}</div></div>`;
+    }).join('');
+
+    grid.innerHTML=defs.map(d=>{
+      const st=status(d.value,d.benchmark,d.direction,d.sample);
+      const ref=d.benchmark==null?'Geen bronbenchmark':(d.key==='gir'||d.key==='fairways'||d.key==='scrambling'?`Benchmark ${Math.round(d.benchmark)}%`:`Benchmark ${fmt(d.benchmark,1)}`);
+      return `<div class="benchmark-item ${st}">
+        <b>${d.display}</b>
+        <small>${d.label} · ${ref}</small>
+        <span class="benchmark-status">${statusLabel[st]}</span>
+      </div>`;
+    }).join('');
+
+    const ranked=defs.filter(d=>['above','below'].includes(status(d.value,d.benchmark,d.direction,d.sample)))
+      .sort((a,b)=>{
+        const sa=status(a.value,a.benchmark,a.direction,a.sample), sb=status(b.value,b.benchmark,b.direction,b.sample);
+        return (sa==='below'?0:1)-(sb==='below'?0:1);
+      });
+
+    let insightText='Blijf je statistieken invullen. BOUNDS gebruikt alleen daadwerkelijk ingevulde data en trekt geen conclusies uit ontbrekende waarden.';
+    if(ranked.length){
+      const weak=ranked.find(d=>status(d.value,d.benchmark,d.direction,d.sample)==='below');
+      if(weak){
+        insightText=`Je grootste aandachtspunt op basis van de huidige data is <strong>${weak.label.toLowerCase()}</strong>. ${weak.key==='gir'?'Meer greens raken is hier de grootste winstkans.':weak.key==='fairways'?'Op par 4 en 5 ligt hier waarschijnlijk winst in je tee shot.':weak.key==='putts'?'Je putting ligt boven de benchmark; kijk vooral naar het aantal putts per hole.':weak.key==='penalties'?'Penaltyslagen kosten direct score. Dit is een duidelijke eerste winstkans.':weak.key==='scrambling'?'Je mist relatief veel kansen om na een gemiste GIR toch par of beter te maken.':'Kijk hier eerst naar voordat je je spel op andere onderdelen gaat aanpassen.'}`;
+      }
+    }
+    insight.innerHTML=insightText;
+
+    const lossItems=[];
+    const pLabels={3:'Par 3',4:'Par 4',5:'Par 5'};
+    [3,4,5].forEach(p=>{
+      const v=s.parType[p];
+      if(v!=null)lossItems.push({title:pLabels[p],value:v,detail:`gemiddeld ${v>0?'+':''}${fmt(v,1)} t.o.v. par`});
+    });
+    if(s.putts18!=null){
+      const b=interp(BENCH.putts,hcp);
+      lossItems.push({title:'Putting',value:s.putts18-b,detail:`${fmt(s.putts18,1)} putts/18 · benchmark ${fmt(b,1)}`});
+    }
+    if(s.penalties18!=null){
+      lossItems.push({title:'Penaltyslagen',value:s.penalties18,detail:`${fmt(s.penalties18,1)} per 18 holes`});
+    }
+    lossItems.sort((a,b)=>b.value-a.value);
+    if(!lossItems.length){
+      loss.innerHTML='<div class="loss-empty">Speel een ronde en vul je optionele statistieken in. Dan laat BOUNDS zien waar de grootste winstkansen zitten.</div>';
+    }else{
+      loss.innerHTML=lossItems.slice(0,4).map((x,i)=>{
+        const positive=x.value>0;
+        return `<div class="loss-item">
+          <div class="loss-copy"><strong>${x.title}</strong><span>${x.detail}</span></div>
+          <div class="loss-value"><b>${positive?'+':''}${fmt(x.value,1)}</b><small>${i===0?'grootste aandachtspunt':'aandachtspunt'}</small></div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  const old=window.renderMyGame;
+  window.renderMyGame=function(){
+    if(typeof old==='function')old.apply(this,arguments);
+    try{render()}catch(e){console.warn('BOUNDS My Game insights:',e)}
+  };
+
+  window.boundsRenderMyGameInsights=render;
+  setTimeout(render,500);
 })();
 </script>
 

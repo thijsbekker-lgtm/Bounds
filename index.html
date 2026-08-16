@@ -229,6 +229,35 @@
 </style>
 
 
+
+<style>
+.friend-profile-backdrop{position:fixed;inset:0;background:rgba(18,31,38,.28);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
+.friend-profile-backdrop.open{display:flex}
+.friend-profile-modal{width:min(560px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:24px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.friend-profile-head{display:flex;align-items:center;gap:12px}
+.friend-profile-avatar{width:52px;height:52px;border-radius:50%;background:#eef3f5;display:grid;place-items:center;font-weight:800;color:#5f6d74;flex:0 0 52px;font-size:18px}
+.friend-profile-title{min-width:0;flex:1}
+.friend-profile-title h2{margin:0;font-size:23px}
+.friend-profile-title p{margin:3px 0 0;color:var(--muted);font-size:12px}
+.friend-profile-close{width:40px;height:40px;border:0;border-radius:13px;background:#eef3f5;color:#1685e5;font-size:24px;line-height:1;cursor:pointer}
+.friend-profile-section{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.friend-profile-section:first-of-type{border-top:0;padding-top:0;margin-top:16px}
+.friend-profile-section h3{margin:0 0 10px;font-size:15px}
+.friend-profile-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.friend-profile-stat{background:#f7f7f8;border-radius:15px;padding:13px;text-align:center}
+.friend-profile-stat b{display:block;font-size:20px}
+.friend-profile-stat span{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+.friend-course-list{display:grid;gap:8px}
+.friend-course-item{display:flex;align-items:center;gap:10px;padding:11px;background:#f7f7f8;border-radius:13px}
+.friend-course-item .course-dot{width:32px;height:32px;border-radius:10px;background:#eef3f5;display:grid;place-items:center;flex:0 0 32px}
+.friend-course-item b{display:block;font-size:12px}
+.friend-course-item small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.friend-profile-empty{padding:12px 0;color:var(--muted);font-size:11px;text-align:center}
+.friend-row.clickable{cursor:pointer}
+.friend-row.clickable:hover{background:#fafafa}
+@media(max-width:420px){.friend-profile-modal{border-radius:20px;padding:16px}.friend-profile-stats{grid-template-columns:1fr}}
+</style>
+
 <style>
 .location-meta{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.35}
 .location-meta.ok{color:#2b7a43}
@@ -784,7 +813,11 @@
         +'<button class="remove" onclick="boundsRemoveFriend(\''+rowId+'\')">Verwijderen</button>'
         +'</div>';
     }
-    return '<div class="friend-row">'
+    const clickable=type==='friend';
+    const rowClick=clickable ? ' onclick="boundsOpenFriendProfile(\''+esc(p.id)+'\')"' : '';
+    const rowClass=clickable?'friend-row clickable':'friend-row';
+    if(clickable) actions=actions.replace('onclick="','onclick="event.stopPropagation();');
+    return '<div class="'+rowClass+'"'+rowClick+'>'
       +'<div class="friend-avatar">'+esc(initials(name))+'</div>'
       +'<div class="friend-main"><b>'+esc(name)+'</b><small>'+esc([hcp,city,region].filter(Boolean).join(' • '))+'</small></div>'
       +actions+'</div>';
@@ -1834,6 +1867,22 @@
   </div>
 </div>
 
+<div id="friendProfileBackdrop" class="friend-profile-backdrop" role="dialog" aria-modal="true" aria-labelledby="friendProfileName">
+  <div class="friend-profile-modal" onclick="event.stopPropagation()">
+    <div class="friend-profile-head">
+      <div id="friendProfileAvatar" class="friend-profile-avatar">T</div>
+      <div class="friend-profile-title">
+        <h2 id="friendProfileName">Profiel</h2>
+        <p id="friendProfileLocation"></p>
+      </div>
+      <button class="friend-profile-close" type="button" onclick="boundsCloseFriendProfile()" aria-label="Sluiten">×</button>
+    </div>
+    <div id="friendProfileBody">
+      <div class="friend-profile-empty">Profiel laden…</div>
+    </div>
+  </div>
+</div>
+
 
 <script>
 (function(){
@@ -1844,6 +1893,78 @@
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape')boundsCloseCourseProfile();
   });
+})();
+</script>
+
+
+<script>
+(function(){
+  function socialEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function socialInitials(name){
+    const parts=String(name||'?').trim().split(/\s+/).filter(Boolean);
+    return (parts.slice(0,2).map(x=>x[0]).join('')||'?').toUpperCase();
+  }
+  window.boundsOpenFriendProfile=async function(friendId){
+    const user=window.boundsSession&&window.boundsSession.user;
+    const backdrop=document.getElementById('friendProfileBackdrop');
+    const body=document.getElementById('friendProfileBody');
+    if(!user||!friendId||!window.boundsClient||!backdrop||!body)return;
+    backdrop.classList.add('open');
+    document.body.style.overflow='hidden';
+    body.innerHTML='<div class="friend-profile-empty">Profiel laden…</div>';
+    try{
+      const {data,error}=await window.boundsClient.rpc('get_friend_profile_v1',{friend_id:friendId});
+      if(error)throw error;
+      const p=(data||[])[0];
+      if(!p){body.innerHTML='<div class="friend-profile-empty">Dit profiel is niet beschikbaar.</div>';return;}
+      const name=p.display_name||'Golfer';
+      const avatar=document.getElementById('friendProfileAvatar');
+      const title=document.getElementById('friendProfileName');
+      const loc=document.getElementById('friendProfileLocation');
+      if(avatar)avatar.textContent=socialInitials(name);
+      if(title)title.textContent=name;
+      if(loc)loc.textContent=[p.woonplaats||'',p.region||''].filter(Boolean).join(' • ');
+
+      const hcp=p.handicap_index!=null ? Number(p.handicap_index).toFixed(1).replace('.',',') : null;
+      const homeName=p.home_course_name||'';
+      const homeLocation=p.home_course_location||'';
+      let favorites=[];
+      try{favorites=Array.isArray(p.favorite_courses)?p.favorite_courses:(typeof p.favorite_courses==='string'?JSON.parse(p.favorite_courses||'[]'):[]);}catch(e){favorites=[];}
+      favorites=favorites.filter(c=>!p.home_course_id || c.id!==p.home_course_id);
+
+      let html='';
+      html+='<div class="friend-profile-section">';
+      html+='<div class="friend-profile-stats">';
+      html+='<div class="friend-profile-stat"><b>'+(hcp!==null?hcp:'—')+'</b><span>'+(hcp!==null?'Handicap Index':'Handicap niet gedeeld')+'</span></div>';
+      html+='<div class="friend-profile-stat"><b>'+(p.region?socialEsc(p.region):'—')+'</b><span>Regio</span></div>';
+      html+='</div></div>';
+
+      if(homeName){
+        html+='<div class="friend-profile-section"><h3>Thuisbaan</h3><div class="friend-course-list"><div class="friend-course-item"><div class="course-dot">⛳</div><div><b>'+socialEsc(homeName)+'</b><small>'+socialEsc(homeLocation)+'</small></div></div></div></div>';
+      }
+
+      html+='<div class="friend-profile-section"><h3>Favoriete banen</h3>';
+      if(favorites.length){
+        html+='<div class="friend-course-list">'+favorites.map(c=>'<div class="friend-course-item"><div class="course-dot">★</div><div><b>'+socialEsc(c.name||'Baan')+'</b><small>'+socialEsc(c.location||'')+'</small></div></div>').join('')+'</div>';
+      }else{
+        html+='<div class="friend-profile-empty">Geen andere favoriete banen gedeeld.</div>';
+      }
+      html+='</div>';
+      html+='<div class="location-meta" style="margin-top:16px">Je ziet alleen informatie die binnen de sociale privacy-instellingen beschikbaar is.</div>';
+      body.innerHTML=html;
+    }catch(e){
+      console.error('Vriendprofiel laden:',e);
+      body.innerHTML='<div class="friend-profile-empty">Profiel kon niet worden geladen.</div>';
+    }
+  };
+  window.boundsCloseFriendProfile=function(){
+    const backdrop=document.getElementById('friendProfileBackdrop');
+    if(backdrop)backdrop.classList.remove('open');
+    document.body.style.overflow='';
+  };
+  const b=document.getElementById('friendProfileBackdrop');
+  if(b)b.addEventListener('click',function(e){if(e.target===b)window.boundsCloseFriendProfile();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')window.boundsCloseFriendProfile();});
 })();
 </script>
 

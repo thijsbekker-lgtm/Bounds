@@ -1438,8 +1438,20 @@
 
         // Older profiles can have a woonplaats but no stored coordinates.
         // Resolve the woonplaats on demand so nearby discovery still works.
-        const hasProfileLoc=Number.isFinite(Number(discoverUser.latitude)) &&
-                             Number.isFinite(Number(discoverUser.longitude));
+        let hasProfileLoc=Number.isFinite(Number(discoverUser.latitude)) &&
+                           Number.isFinite(Number(discoverUser.longitude));
+
+        // Repair legacy malformed Dutch profile coordinates in-memory.
+        // Old versions could save latitude=null and longitude=<latitude>.
+        if(!hasProfileLoc || (
+          Number(discoverUser.latitude)>=0 &&
+          Number(discoverUser.latitude)<10 &&
+          Number(discoverUser.longitude)>50 &&
+          Number(discoverUser.longitude)<54
+        )){
+          hasProfileLoc=false;
+        }
+
         if(!hasProfileLoc && discoverUser.woonplaats){
           try{
             let resolved=null;
@@ -1454,6 +1466,14 @@
             if(resolved && Number.isFinite(Number(resolved.latitude)) &&
                Number.isFinite(Number(resolved.longitude))){
               discoverUser={...discoverUser,...resolved};
+            } else {
+              const localPlaces={
+                'schoonhoven':{latitude:51.9469,longitude:4.8480,region:'Krimpenerwaard'},
+                'utrecht':{latitude:52.0907,longitude:5.1214,region:'Utrecht'},
+                'rotterdam':{latitude:51.9244,longitude:4.4777,region:'Rotterdam'}
+              };
+              const local=localPlaces[String(discoverUser.woonplaats||'').trim().toLowerCase()];
+              if(local) discoverUser={...discoverUser,...local};
             }
           }catch(e){
             console.warn('Woonplaats voor Discover kon niet worden opgelost:',e);

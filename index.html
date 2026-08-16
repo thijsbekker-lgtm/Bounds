@@ -197,6 +197,16 @@
 .location-meta.ok{color:#2b7a43}
 .location-meta.error{color:#a63b35}
 </style>
+
+<style>
+.profile-golf-section{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.course-label{font-size:12px;font-weight:800;margin-bottom:7px}
+.course-check-list{display:grid;gap:7px}
+.course-check{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.course-check input{width:18px;height:18px;margin:0;flex:0 0 18px}
+.course-check span{font-size:12px;font-weight:700;line-height:1.2}
+.course-check small{display:block;color:var(--muted);font-size:9px;font-weight:500;margin-top:2px}
+</style>
 </head>
 <body>
 <div class="app">
@@ -326,6 +336,32 @@
     </div>
     <label style="display:block;margin-top:10px">Woonplaats<input id="authWoonplaatsSignedIn" type="text" autocomplete="address-level2" placeholder="Bijv. Krimpen aan de Lek"></label>
     <div id="authLocationMeta" class="location-meta">Regio wordt automatisch bepaald op basis van je woonplaats.</div>
+
+    <div class="profile-golf-section">
+      <div class="section-title">GOLF</div>
+      <label>Mijn club / ledenbaan
+        <select id="profileMemberCourse">
+          <option value="">Geen club / nog niet gekozen</option>
+        </select>
+      </label>
+      <label style="display:block;margin-top:10px">Mijn thuisbaan
+        <select id="profileHomeCourse">
+          <option value="">Geen thuisbaan / nog niet gekozen</option>
+        </select>
+      </label>
+      <div style="margin-top:12px">
+        <div class="course-label">Favoriete banen</div>
+        <div id="profileFavoriteCourses" class="course-check-list">
+          <div class="muted">Banen laden…</div>
+        </div>
+      </div>
+      <small class="muted" style="display:block;margin-top:8px">
+        Dit wordt later gebruikt voor banen ontdekken en samen spelen. Je lidmaatschap en favorieten worden niet automatisch openbaar gedeeld.
+      </small>
+      <button class="secondary" type="button" onclick="boundsSaveProfileCourses()" style="margin-top:10px;width:100%">Golfprofiel opslaan</button>
+      <div id="profileCoursesMessage" class="save-status"></div>
+    </div>
+
     <button class="secondary" type="button" onclick="boundsSaveSignedInProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
     <small id="accountMessage" class="muted">Synchronisatie actief.</small>
     <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
@@ -898,6 +934,155 @@
     else if(city) el.textContent='Woonplaats opgeslagen. Regio kon nog niet automatisch worden bepaald.';
     else el.textContent='Regio wordt automatisch bepaald op basis van je woonplaats.';
   };
+})();
+</script>
+
+<script>
+/* ===== BOUNDS Profile Courses v1 =====
+   Uses the existing public courses catalog. User-course relations are private
+   under RLS and are stored separately from profiles.
+*/
+(function(){
+  let courseCatalog=[];
+  let courseRelations=[];
+
+  function courseMessage(text,kind=''){
+    const el=document.getElementById('profileCoursesMessage');
+    if(el){el.textContent=text;el.className='save-status '+kind;}
+  }
+
+  function escCourse(v){
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function courseLabel(c){
+    return [c.name,c.location].filter(Boolean).join(' • ');
+  }
+
+  function fillCourseSelect(id,placeholder,selected){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML='<option value="">'+placeholder+'</option>'+
+      courseCatalog.map(c=>'<option value="'+escCourse(c.id)+'">'+escCourse(courseLabel(c))+'</option>').join('');
+    el.value=selected||'';
+  }
+
+  function renderFavoriteCourses(){
+    const el=document.getElementById('profileFavoriteCourses');
+    if(!el)return;
+    if(!courseCatalog.length){
+      el.innerHTML='<div class="muted">Nog geen banen beschikbaar in BOUNDS.</div>';
+      return;
+    }
+    const fav=new Set(courseRelations.filter(r=>r.is_favorite).map(r=>r.course_id));
+    el.innerHTML=courseCatalog.map(c=>{
+      const checked=fav.has(c.id)?' checked':'';
+      return '<label class="course-check">'
+        +'<input type="checkbox" class="profile-favorite-course" value="'+escCourse(c.id)+'"'+checked+'>'
+        +'<span>'+escCourse(c.name)+'<small>'+escCourse(c.location||'')+'</small></span>'
+        +'</label>';
+    }).join('');
+  }
+
+  async function loadProfileCourses(){
+    const user=window.boundsSession?.user;
+    if(!user||!window.boundsClient)return;
+    try{
+      const [{data:courses,error:ce},{data:rels,error:re}]=await Promise.all([
+        window.boundsClient.from('courses').select('id,name,location,country').order('name'),
+        window.boundsClient.from('user_courses').select('id,course_id,is_member,is_home_course,is_favorite').eq('user_id',user.id)
+      ]);
+      if(ce)throw ce;
+      if(re)throw re;
+      courseCatalog=courses||[];
+      courseRelations=rels||[];
+      const member=courseRelations.find(r=>r.is_member);
+      const home=courseRelations.find(r=>r.is_home_course);
+      fillCourseSelect('profileMemberCourse','Geen club / nog niet gekozen',member?.course_id||'');
+      fillCourseSelect('profileHomeCourse','Geen thuisbaan / nog niet gekozen',home?.course_id||'');
+      renderFavoriteCourses();
+    }catch(e){
+      console.warn('Golfprofiel banen laden:',e);
+      courseCatalog=[];
+      courseRelations=[];
+      const el=document.getElementById('profileFavoriteCourses');
+      if(el)el.innerHTML='<div class="muted">Banen konden niet worden geladen.</div>';
+    }
+  }
+
+  async function boundsSaveProfileCourses(){
+    const user=window.boundsSession?.user;
+    if(!user||!window.boundsClient){courseMessage('Log eerst in.','error');return;}
+
+    const memberId=document.getElementById('profileMemberCourse')?.value||null;
+    const homeId=document.getElementById('profileHomeCourse')?.value||null;
+    const favoriteIds=[...document.querySelectorAll('.profile-favorite-course:checked')].map(x=>x.value);
+
+    // One row per selected/previously configured course. Any relation with no
+    // remaining role is removed, which keeps the table clean.
+    const ids=new Set([
+      ...courseRelations.map(r=>r.course_id),
+      ...(memberId?[memberId]:[]),
+      ...(homeId?[homeId]:[]),
+      ...favoriteIds
+    ]);
+
+    try{
+      const rows=[...ids].map(course_id=>({
+        user_id:user.id,
+        course_id,
+        is_member:course_id===memberId,
+        is_home_course:course_id===homeId,
+        is_favorite:favoriteIds.includes(course_id)
+      }));
+
+      const selected=rows.filter(r=>r.is_member||r.is_home_course||r.is_favorite);
+      const selectedIds=new Set(selected.map(r=>r.course_id));
+
+      const removeIds=courseRelations.map(r=>r.id).filter((id,i)=>{
+        const courseId=courseRelations[i].course_id;
+        return !selectedIds.has(courseId);
+      });
+
+      if(removeIds.length){
+        const {error}=await window.boundsClient.from('user_courses').delete().in('id',removeIds);
+        if(error)throw error;
+      }
+      if(selected.length){
+        const {error}=await window.boundsClient.from('user_courses')
+          .upsert(selected,{onConflict:'user_id,course_id'});
+        if(error)throw error;
+      }
+
+      courseRelations=selected.map(r=>({
+        id:null,course_id:r.course_id,is_member:r.is_member,
+        is_home_course:r.is_home_course,is_favorite:r.is_favorite
+      }));
+      courseMessage('Golfprofiel opgeslagen.','ok');
+    }catch(e){
+      console.error('Golfprofiel banen opslaan:',e);
+      courseMessage('Golfprofiel opslaan mislukt: '+(e?.message||'Onbekende fout'),'error');
+    }
+  }
+
+  window.boundsLoadProfileCourses=loadProfileCourses;
+  window.boundsSaveProfileCourses=boundsSaveProfileCourses;
+
+  // Hook into auth refresh after the existing profile data is loaded.
+  const originalRefresh=window.boundsRefreshAuth;
+  if(typeof originalRefresh==='function' && !originalRefresh.__boundsCourses){
+    const wrapped=async function(){
+      const result=await originalRefresh.apply(this,arguments);
+      setTimeout(()=>{if(window.boundsSession?.user)loadProfileCourses();},100);
+      return result;
+    };
+    wrapped.__boundsCourses=true;
+    window.boundsRefreshAuth=wrapped;
+  }
+
+  setTimeout(()=>{
+    if(window.boundsSession?.user)loadProfileCourses();
+  },1200);
 })();
 </script>
 </body>

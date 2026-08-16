@@ -1445,10 +1445,20 @@ loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* CDN fallback: some browsers/content filters block jsDelivr. Load the same UMD build from unpkg before the auth code runs. */
+if (!window.supabase) {
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+}
+</script>
+<script>
 /* ===== BOUNDS SUPABASE FOUNDATION v0.1 ===== */
+if (!window.supabase) {
+  console.error('Supabase client could not be loaded from either CDN.');
+}
 const BOUNDS_SUPABASE_URL = 'https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const BOUNDS_SUPABASE_KEY = 'sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
-const boundsClient = window.supabase.createClient(BOUNDS_SUPABASE_URL, BOUNDS_SUPABASE_KEY);
+const boundsClient = window.supabase ? window.supabase.createClient(BOUNDS_SUPABASE_URL, BOUNDS_SUPABASE_KEY) : null;
+window.boundsClient = boundsClient;
 
 function boundsSetStatus(text, kind=''){
   const el=document.getElementById('accountStatus');
@@ -1512,11 +1522,13 @@ async function boundsGetTee(){
   return {courseRow,tee};
 }
 async function boundsCurrentUser(){
+  if(!boundsClient?.auth) throw new Error('Supabase Auth is niet geladen.');
   const {data:{user},error}=await boundsClient.auth.getUser();
   if(error)throw error;
   return user;
 }
 async function boundsSignUp(){
+  if(!boundsClient?.auth){boundsMessage('Account maken kan niet worden gestart: Supabase Auth is niet geladen.',true);return;}
   const email=(document.getElementById('authEmail').value||'').trim();
   const password=document.getElementById('authPassword').value||'';
   const name=(document.getElementById('authName').value||'').trim();
@@ -1577,10 +1589,12 @@ async function boundsSignIn(){
   }
 }
 async function boundsSignOut(){
+  if(!boundsClient?.auth)return;
   await boundsClient.auth.signOut();
   await boundsRefreshAuth();
 }
 async function boundsRefreshAuth(){
+  if(!boundsClient?.auth){boundsSetStatus('Fout','error'); boundsMessage('Supabase Auth is niet geladen. Controleer of de site CDN-scripts mag laden.',true); return;}
   const {data:{session}}=await boundsClient.auth.getSession();
   const out=document.getElementById('accountSignedOut'), inn=document.getElementById('accountSignedIn');
   if(session?.user){
@@ -1669,8 +1683,13 @@ async function loadCloudRounds(silent=false){
     if(!silent)boundsMessage(e.message||'Cloud laden mislukt.',true);
   }
 }
-boundsClient.auth.onAuthStateChange(()=>setTimeout(boundsRefreshAuth,0));
-boundsRefreshAuth();
+if(boundsClient?.auth){
+  boundsClient.auth.onAuthStateChange(()=>setTimeout(boundsRefreshAuth,0));
+  boundsRefreshAuth();
+}else{
+  boundsSetStatus('Fout','error');
+  boundsMessage('Supabase Auth is niet geladen. Controleer of de site CDN-scripts mag laden.',true);
+}
 
 /* Keep target handicap in the cloud when the existing prototype saves it. */
 const boundsOriginalSaveGoalHcp=window.saveGoalHcp;

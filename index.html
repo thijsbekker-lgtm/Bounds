@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.3</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.5</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -2126,5 +2126,235 @@ async function boundsApplyIdentityState(session){
 }
 
 </script>
+
+
+<script>
+/* ============================================================
+   BOUNDS v2.5 — single source of truth for guest/account state
+   Guest users may start a round, but never see personal history/profile data.
+   This controller runs LAST.
+   ============================================================ */
+(function(){
+  const PERSONAL_PREFIXES = ['golf_','bounds_user_','bounds_active_round_id','bounds_last_course','bounds_goal_hcp'];
+
+  function hasSession(){
+    return !!(window.boundsSession && window.boundsSession.user);
+  }
+
+  function clearGuestStorage(){
+    const remove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(!k)continue;
+      if(PERSONAL_PREFIXES.some(prefix=>k===prefix || k.startsWith(prefix)) || /^note_/i.test(k)) remove.push(k);
+    }
+    [...new Set(remove)].forEach(k=>localStorage.removeItem(k));
+  }
+
+  function guestPersonalUI(){
+    const h=document.getElementById('hi');
+    if(h){h.value='';h.disabled=false;}
+
+    const goal=document.getElementById('goalHcp');
+    if(goal){goal.value='';goal.disabled=true;}
+
+    const authHcp=document.getElementById('authHcp');
+    if(authHcp)authHcp.value='';
+
+    const authName=document.getElementById('authName');
+    if(authName)authName.value='';
+
+    const player=document.getElementById('currentPlayerName');
+    if(player)player.textContent='Gast';
+
+    const switcher=document.getElementById('playerSwitcher');
+    if(switcher)switcher.innerHTML='';
+
+    const players=document.getElementById('playersList');
+    if(players)players.innerHTML='<div class="muted">Log in om spelers en persoonlijke handicaps te gebruiken.</div>';
+
+    const goalText=document.getElementById('goalText');
+    if(goalText)goalText.innerHTML='Log in om je persoonlijke golfdoelen te bekijken.';
+
+    const pb=document.getElementById('parBreakdown');
+    if(pb)pb.innerHTML='<div class="muted">Log in om je persoonlijke statistieken te bekijken.</div>';
+  }
+
+  function resetGuestRound(){
+    const c=document.getElementById('course');
+    const t=document.getElementById('tee');
+    const r=document.getElementById('round');
+    const l=document.getElementById('loop');
+    if(c)c.value='';
+    if(t){
+      t.innerHTML='<option value="">Kies eerst een baan…</option>';
+      t.value='';
+      t.disabled=true;
+    }
+    if(r){r.value='9';r.disabled=false;}
+    if(l){l.value='first';l.disabled=true;}
+
+    const rows=document.getElementById('rows');
+    if(rows)rows.innerHTML='';
+    ['courseHcp','crsr','coursePar'].forEach(id=>{
+      const e=document.getElementById(id);if(e)e.textContent='—';
+    });
+    ['total','sfTotal'].forEach(id=>{
+      const e=document.getElementById(id);if(e)e.textContent='0';
+    });
+    const note=document.getElementById('note');
+    if(note)note.textContent='Kies eerst een baan om je ronde te starten.';
+
+    const save=document.getElementById('saveStatus');
+    if(save)save.textContent='Log in om deze ronde op te slaan in BOUNDS.';
+  }
+
+  function guestHistoryUI(){
+    const h=document.getElementById('historyList');
+    if(h)h.innerHTML='<div class="empty">Log in om je opgeslagen rondes te bekijken.</div>';
+
+    [['dRounds','0'],['dBest','—'],['dAvg','—'],['dSf','—'],['dBestSf','—']].forEach(([id,v])=>{
+      const e=document.getElementById(id);if(e)e.textContent=v;
+    });
+
+    const trend=document.getElementById('trend');
+    if(trend)trend.innerHTML='<div class="empty">Log in om je scoretrend te bekijken.</div>';
+
+    const courses=document.getElementById('courseHistory');
+    if(courses)courses.innerHTML='<div class="empty">Log in om je baanhistorie te bekijken.</div>';
+
+    const records=document.getElementById('recordsText');
+    if(records)records.textContent='Log in om je persoonlijke records te bekijken.';
+
+    const analysis=document.getElementById('analysisCard');
+    if(analysis)analysis.style.display='none';
+  }
+
+  function guestAccountUI(){
+    const out=document.getElementById('accountSignedOut');
+    const inn=document.getElementById('accountSignedIn');
+    if(out)out.style.display='block';
+    if(inn)inn.style.display='none';
+    const status=document.getElementById('accountStatus');
+    if(status)status.textContent='Niet ingelogd';
+    const msg=document.getElementById('accountMessage');
+    if(msg)msg.textContent='Log in om je persoonlijke BOUNDS-data te gebruiken.';
+  }
+
+  function applyGuest(options={}){
+    if(hasSession())return;
+    if(options.resetRound){
+      clearGuestStorage();
+      resetGuestRound();
+    }
+    guestPersonalUI();
+    guestHistoryUI();
+    guestAccountUI();
+  }
+
+  function guardRender(name){
+    const original=window[name];
+    if(typeof original!=='function' || original.__boundsGuestGuard)return;
+    window[name]=function(){
+      if(!hasSession()){
+        applyGuest();
+        return;
+      }
+      return original.apply(this,arguments);
+    };
+    window[name].__boundsGuestGuard=true;
+  }
+
+  ['renderDashboard','renderCourseHistory','renderRecords','renderHistory',
+   'renderMyGame','renderPlayers','renderPlayerSwitcher','loadActivePlayer'].forEach(guardRender);
+
+  // Guest must still be able to choose a course/tee and enter scores.
+  const originalUpdateUI=window.updateUI;
+  if(typeof originalUpdateUI==='function' && !originalUpdateUI.__boundsGuestGuard){
+    window.updateUI=function(){
+      const result=originalUpdateUI.apply(this,arguments);
+      if(!hasSession())applyGuest({resetRound:false});
+      return result;
+    };
+    window.updateUI.__boundsGuestGuard=true;
+  }
+
+  const originalShowTab=window.showTab;
+  if(typeof originalShowTab==='function' && !originalShowTab.__boundsGuestGuard){
+    window.showTab=function(tab){
+      const result=originalShowTab.apply(this,arguments);
+      if(!hasSession())applyGuest();
+      return result;
+    };
+    window.showTab.__boundsGuestGuard=true;
+  }
+
+  const originalSave=window.saveRound;
+  if(typeof originalSave==='function' && !originalSave.__boundsGuestGuard){
+    window.saveRound=async function(){
+      if(!hasSession()){
+        alert('Log eerst in om een ronde op te slaan in BOUNDS.');
+        applyGuest();
+        return;
+      }
+      return originalSave.apply(this,arguments);
+    };
+    window.saveRound.__boundsGuestGuard=true;
+  }
+
+  const originalOpen=window.openRound;
+  if(typeof originalOpen==='function' && !originalOpen.__boundsGuestGuard){
+    window.openRound=function(i){
+      if(!hasSession()){
+        alert('Log in om een opgeslagen ronde te openen.');
+        applyGuest();
+        return;
+      }
+      return originalOpen.apply(this,arguments);
+    };
+    window.openRound.__boundsGuestGuard=true;
+  }
+
+  const originalLoadCloud=window.loadCloudRounds;
+  if(typeof originalLoadCloud==='function' && !originalLoadCloud.__boundsGuestGuard){
+    window.loadCloudRounds=async function(){
+      if(!hasSession()){
+        applyGuest();
+        return [];
+      }
+      return originalLoadCloud.apply(this,arguments);
+    };
+    window.loadCloudRounds.__boundsGuestGuard=true;
+  }
+
+  async function resolve(){
+    try{
+      if(window.boundsClient?.auth){
+        const {data}=await window.boundsClient.auth.getSession();
+        window.boundsSession=data?.session||null;
+      }else{
+        window.boundsSession=null;
+      }
+    }catch(e){window.boundsSession=null;}
+
+    if(!hasSession())applyGuest({resetRound:true});
+  }
+
+  if(window.boundsClient?.auth){
+    window.boundsClient.auth.onAuthStateChange((event,session)=>{
+      window.boundsSession=session||null;
+      if(!session){
+        clearGuestStorage();
+        applyGuest({resetRound:true});
+      }
+    });
+  }
+
+  resolve();
+  setTimeout(resolve,100);
+  setTimeout(resolve,500);
+  setTimeout(resolve,1200);
+})();
+
 
 </html>

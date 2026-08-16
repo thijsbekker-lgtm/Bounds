@@ -5596,4 +5596,68 @@ async function boundsApplyIdentityState(session){
   },1200);
 })();
 </script>
+
+<script>
+/* ===== BOUNDS v2.15.6 — NEW ROUND MUST START EMPTY =====
+   A new round is a fresh scorecard. Selecting a course after "Nieuwe ronde"
+   must never restore scores from the previous player/course combination.
+   Saved rounds may still restore their scores explicitly via openRound().
+*/
+(function(){
+  // True from the moment a new round is started until the first score is entered
+  // or a saved round is explicitly opened.
+  window.boundsFreshRound = false;
+
+  const originalLoadScores = window.loadScores;
+  window.loadScores = function(){
+    if(window.boundsFreshRound){
+      for(let i=1;i<=18;i++) scores[i]=0;
+      return;
+    }
+    if(typeof originalLoadScores==='function') return originalLoadScores.apply(this,arguments);
+  };
+
+  const originalLoadActivePlayer = window.loadActivePlayer;
+  window.loadActivePlayer = function(){
+    if(window.boundsFreshRound){
+      const p=Array.isArray(playerProfiles)?playerProfiles[activePlayerIndex]:null;
+      if(p && Number.isFinite(Number(p.hcp))) hi.value=Number(p.hcp);
+      else if(window.boundsSession?.user && typeof hi!=='undefined' && hi.value===''){
+        // Keep the authenticated profile handicap if it is already present;
+        // never restore score data for a fresh round.
+      }
+      for(let i=1;i<=18;i++) scores[i]=0;
+      return;
+    }
+    if(typeof originalLoadActivePlayer==='function') return originalLoadActivePlayer.apply(this,arguments);
+  };
+
+  const originalChg = window.chg;
+  window.chg = function(h,d){
+    window.boundsFreshRound=false;
+    if(typeof originalChg==='function') return originalChg.apply(this,arguments);
+  };
+
+  const originalOpenRound = window.openRound;
+  if(typeof originalOpenRound==='function'){
+    window.openRound = function(){
+      window.boundsFreshRound=false;
+      return originalOpenRound.apply(this,arguments);
+    };
+  }
+
+  const originalReset = window.resetScores;
+  window.resetScores = function(){
+    window.boundsFreshRound=true;
+    if(typeof originalReset==='function') return originalReset.apply(this,arguments);
+  };
+
+  // If the page is reloaded while no active round is selected, keep it clean.
+  if(!course?.value){
+    window.boundsFreshRound=true;
+    for(let i=1;i<=18;i++) scores[i]=0;
+  }
+})();
+</script>
+
 </html>

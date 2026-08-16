@@ -1538,13 +1538,43 @@ async function boundsSignUp(){
   }
 }
 async function boundsSignIn(){
-  const email=(document.getElementById('authEmail').value||'').trim();
+  const email=(document.getElementById('authEmail').value||'').trim().toLowerCase();
   const password=document.getElementById('authPassword').value||'';
+  const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Inloggen');
   if(!email||!password){boundsMessage('Vul e-mail en wachtwoord in.',true);return;}
-  boundsSetStatus('Inloggen…','busy');
-  const {error}=await boundsClient.auth.signInWithPassword({email,password});
-  if(error){boundsMessage(error.message,true);return;}
-  await boundsRefreshAuth();
+  if(!window.boundsClient?.auth){boundsMessage('Inloggen kan niet worden gestart: Supabase Auth is niet geladen.',true);return;}
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Inloggen…';}
+    boundsSetStatus('Inloggen…','busy');
+    const {data,error}=await window.boundsClient.auth.signInWithPassword({email,password});
+    if(error){
+      const msg=String(error.message||'Onbekende fout');
+      const extra=/email not confirmed/i.test(msg)
+        ? ' Bevestig eerst je e-mailadres via de bevestigingsmail.'
+        : /invalid login credentials/i.test(msg)
+          ? ' Controleer e-mailadres en wachtwoord.'
+          : '';
+      boundsMessage('Inloggen mislukt: '+msg+extra,true);
+      return;
+    }
+    window.boundsSession=data?.session||null;
+    if(!window.boundsSession){
+      const r=await window.boundsClient.auth.getSession();
+      window.boundsSession=r?.data?.session||null;
+    }
+    if(!window.boundsSession){
+      boundsMessage('Inloggen is niet gelukt: Supabase gaf geen actieve sessie terug.',true);
+      return;
+    }
+    await boundsRefreshAuth();
+    // Re-apply the authenticated UI after the guest-isolation guards have run.
+    if(typeof window.applyBoundsAuthenticatedUI==='function') window.applyBoundsAuthenticatedUI();
+    boundsMessage('Inloggen gelukt. Je account is gesynchroniseerd.');
+  }catch(e){
+    boundsMessage('Inloggen mislukt: '+(e?.message||String(e)),true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Inloggen';}
+  }
 }
 async function boundsSignOut(){
   await boundsClient.auth.signOut();
@@ -2354,6 +2384,8 @@ async function boundsApplyIdentityState(session){
     };
     window.loadCloudRounds.__boundsGuestGuard=true;
   }
+
+  window.applyBoundsAuthenticatedUI=()=>{ if(session()) applyAuthFinal(session()); };
 
   async function resolve(){
     try{

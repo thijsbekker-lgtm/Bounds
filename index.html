@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.13.3</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.15.1</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -2901,7 +2901,7 @@ function upsertLocalRound(data){
  localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
 }
 
-/* ===== BOUNDS v2.15 — RELIABLE ROUND SYNC ===== */
+/* ===== BOUNDS v2.15.1 — RELIABLE ROUND SYNC + LEGACY MIGRATION ===== */
 const BOUNDS_PENDING_SYNC_KEY='bounds_pending_round_sync';
 
 function boundsGetPendingRoundSyncs(){
@@ -2910,17 +2910,75 @@ function boundsGetPendingRoundSyncs(){
 function boundsSetPendingRoundSyncs(rows){
   localStorage.setItem(BOUNDS_PENDING_SYNC_KEY,JSON.stringify(rows.slice(0,50)));
 }
+function boundsNormalizeRoundForSync(input){
+  const r={...(input||{})};
+  const rawCourse=String(r.courseName||r.course||'').trim();
+  const rawCourseKey=String(r.courseKey||'').trim();
+  const rawRound=String(r.round||'');
+  const rawLoop=String(r.loopValue||r.loop||'').toLowerCase();
+  const rawTee=String(r.teeName||r.tee||'').trim();
+
+  // Legacy rounds (v2.14.x and earlier) did not store courseKey, teeName,
+  // courseVariant or holesPlayed. Reconstruct those values once, centrally,
+  // before a retry so the cloud writer never has to guess from partial data.
+  let courseKey=rawCourseKey;
+  let courseName=rawCourse;
+  const normalizedCourse=rawCourse.toLowerCase().replace(/–/g,'-').trim();
+
+  if(!courseKey){
+    if(normalizedCourse.includes('crimpenerhout'))courseKey='crimpenerhout';
+    else if(normalizedCourse.includes('kroonprins') && normalizedCourse.includes('par 3'))courseKey='kroonprins_par3';
+    else if(normalizedCourse.includes('kroonprins'))courseKey='kroonprins';
+    else if(normalizedCourse.includes('almkreek'))courseKey='almkreek';
+  }
+
+  const courseNames={
+    crimpenerhout:'Crimpenerhout',
+    kroonprins:'De Kroonprins',
+    kroonprins_par3:'De Kroonprins',
+    almkreek:'Golfpark Almkreek'
+  };
+  if(courseKey && courseNames[courseKey])courseName=courseNames[courseKey];
+
+  const holesPlayed=Number(r.holesPlayed||0)||((Array.isArray(r.holes)&&r.holes.length)||Number(rawRound.match(/\d+/)?.[0]||0)||18);
+  const loopValue=rawLoop.includes('second')||rawLoop.includes('2e')?'second'
+    :rawLoop.includes('first')||rawLoop.includes('1e')?'first'
+    :'full';
+
+  // Before tee selection was introduced, BOUNDS only used the yellow men's tee
+  // for these supported courses. Keep that historical meaning instead of
+  // silently picking an arbitrary tee.
+  let teeName=rawTee;
+  if(!teeName || teeName==='—' || teeName.toLowerCase().includes('kies'))teeName='Geel';
+  if(courseKey==='kroonprins_par3')teeName='Par 3 Geel';
+
+  r.localId=r.localId || ((crypto&&crypto.randomUUID)?crypto.randomUUID():('legacy-'+Date.now()));
+  r.courseKey=courseKey;
+  r.courseName=courseName;
+  r.courseVariant=courseKey==='kroonprins_par3'?'par3':'main';
+  r.teeName=teeName;
+  r.holesPlayed=String(holesPlayed);
+  r.loopValue=holesPlayed===9?loopValue:'full';
+  r.round=holesPlayed===18?'18 holes':'9 holes';
+  r.loop=r.loopValue==='first'?'1e 9':r.loopValue==='second'?'2e 9':'Hele baan';
+  r.course=courseName;
+  r.holes=Array.isArray(r.holes)?r.holes.map(h=>({...h,score:Number(h.score)||0,sf:h.sf==null?null:Number(h.sf)})):[];
+  return r;
+}
+
 function boundsQueuePendingRound(data){
+  const normalized=boundsNormalizeRoundForSync(data);
   const rows=boundsGetPendingRoundSyncs();
-  const idx=rows.findIndex(x=>x.localId===data.localId);
-  if(idx>=0)rows[idx]={...rows[idx],...data};
-  else rows.unshift(data);
+  const idx=rows.findIndex(x=>x.localId===normalized.localId);
+  if(idx>=0)rows[idx]={...rows[idx],...normalized};
+  else rows.unshift(normalized);
   boundsSetPendingRoundSyncs(rows);
 }
 function boundsRemovePendingRound(localId){
   boundsSetPendingRoundSyncs(boundsGetPendingRoundSyncs().filter(x=>x.localId!==localId));
 }
 async function boundsGetTeeForRoundData(data){
+  data=boundsNormalizeRoundForSync(data);
   const names={
     crimpenerhout:'Crimpenerhout',
     kroonprins:'De Kroonprins',
@@ -2968,7 +3026,10 @@ async function boundsProcessPendingRoundSyncs(){
 
   boundsSyncInProgress=true;
   try{
-    for(const item of pending){
+    let failed=0;
+    let lastError='';
+    for(const queued of pending){
+      const item=boundsNormalizeRoundForSync(queued);
       try{
         const cloudId=await saveRoundToCloud(item,user);
         item.cloudRoundId=cloudId;
@@ -2976,9 +3037,16 @@ async function boundsProcessPendingRoundSyncs(){
         boundsRemovePendingRound(item.localId);
         boundsSaveMessage('✓ Ronde opgeslagen en gesynchroniseerd.','ok');
       }catch(e){
+        failed++;
+        lastError=e?.message||String(e);
         console.warn('Pending round sync retry failed:',e);
         // Keep it queued; the next online/auth retry will try again.
       }
+    }
+    if(failed){
+      const cm=document.getElementById('accountMessage');
+      if(cm)cm.textContent=`${failed} ronde${failed===1?'':'s'} wachten op synchronisatie. ${lastError}`;
+      boundsSetStatus('Sync wacht','busy');
     }
     renderHistory();
     renderRecords();
@@ -3048,6 +3116,7 @@ async function saveRound(){
 }
 
 async function saveRoundToCloud(data,user){
+ data=boundsNormalizeRoundForSync(data);
  await syncProfile();
  const {courseRow,tee}=await boundsGetTeeForRoundData(data);
 
@@ -3118,9 +3187,9 @@ async function saveRoundToCloud(data,user){
    if(h.score||e.putts||e.penalty||e.fairway||e.gir||e.note){
      scoreRows.push({
        round_player_id:player.id,course_hole_id:ch.id,
-       score:h.score||null,stableford:h.sf,
-       putts:e.putts?Number(e.putts):null,
-       penalty:e.penalty?Number(e.penalty):null,
+       score:Number(h.score)>0?Number(h.score):null,stableford:h.sf==null?null:Number(h.sf),
+       putts:(e.putts!=='' && e.putts!=null && Number.isFinite(Number(e.putts)))?Number(e.putts):null,
+       penalty:(e.penalty!=='' && e.penalty!=null && Number.isFinite(Number(e.penalty)))?Number(e.penalty):null,
        fairway:e.fairway==='hit'?'yes':e.fairway==='miss'?'no':null,
        gir:e.gir==='yes'?'yes':e.gir==='no'?'no':null
      });
@@ -3133,8 +3202,10 @@ async function saveRoundToCloud(data,user){
      const source=data.holes.find(h=>holeByNumber[h.hole]?.id===row.course_hole_id);
      const note=source?.extra?.note||source?.note||'';
      if(note){
-       const {error:noteError}=await boundsClient.from('hole_score_notes').insert({hole_score_id:row.id,note});
-       if(noteError)throw noteError;
+       const {error:noteError}=await boundsClient.from('hole_score_notes').insert({hole_score_id:row.id,note:String(note)});
+       // A private note must never block the entire round from synchronising.
+       // Score + optional stats are the critical payload; a note can be retried later.
+       if(noteError)console.warn('Hole note sync skipped:',noteError);
      }
    }
  }

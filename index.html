@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.0</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.1</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -281,12 +281,6 @@
 </section>
 </main>
 </div>
-
-['course','round','loop'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(el)el.addEventListener('change',()=>setTimeout(boundsRefreshTees,0));
-});
-setTimeout(boundsRefreshTees,200);
 
 </body>
 <script>
@@ -740,44 +734,6 @@ function upsertLocalRound(data){
  if(idx>=0) history[idx]={...history[idx],...data};
  else history.unshift(data);
  localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
-}
-async function boundsRefreshTees(){
-  const sel=document.getElementById('tee');
-  if(!sel)return;
-  const courseName=course.options[course.selectedIndex]?.text||'';
-  const variant=boundsCourseVariant();
-  const holes=Number(round.value);
-  const loopValue=holes===9?loop.value:'full';
-
-  const {data:courseRow,error:courseError}=await boundsClient
-    .from('courses').select('id').eq('name',courseName).eq('country','NL').single();
-
-  if(courseError){
-    sel.innerHTML='<option value="">—</option>';
-    sel.disabled=true;
-    return;
-  }
-
-  const {data:tees,error}=await boundsClient.from('course_tees')
-    .select('id,tee_name,course_rating,slope_rating,par')
-    .eq('course_id',courseRow.id)
-    .eq('course_variant',variant)
-    .eq('gender','men')
-    .eq('holes',holes)
-    .eq('loop',loopValue)
-    .order('tee_name');
-
-  if(error||!tees?.length){
-    sel.innerHTML='<option value="">—</option>';
-    sel.disabled=true;
-    return;
-  }
-
-  const previous=sel.value;
-  sel.innerHTML=tees.map(t=>`<option value="${t.tee_name}">${t.tee_name}</option>`).join('');
-  sel.disabled=tees.length<=1;
-  if(tees.some(t=>t.tee_name===previous))sel.value=previous;
-  update();
 }
 async function saveRound(){
  const data=currentRoundData();
@@ -1718,13 +1674,12 @@ function boundsTeeStorageKey(){
 }
 async function boundsLoadTeeOptions(){
   const select=document.getElementById('tee');
-  const label=document.getElementById('teeLabel');
-  if(!select||!label)return;
+  if(!select)return;
 
   const hasCourse=!!course.value;
-  select.disabled=!hasCourse;
   if(!hasCourse){
     select.innerHTML='<option value="">Kies eerst een baan…</option>';
+    select.disabled=true;
     boundsTeeOptions=[];
     boundsSelectedTee=null;
     return;
@@ -1746,18 +1701,26 @@ async function boundsLoadTeeOptions(){
   }
 
   const holes=Number(round.value);
-  const loopValue=(holes===9)?loop.value:'full';
+  const loopValue=holes===9 ? loop.value : 'full';
+
+  // Show a neutral loading state, but never leave the native control disabled
+  // after successful data retrieval.
+  select.disabled=true;
+  select.innerHTML='<option value="">Teegegevens laden…</option>';
 
   try{
     const {data:courseRow,error:courseError}=await boundsClient
       .from('courses')
-      .select('id')
+      .select('id,name')
       .eq('name',meta.name)
       .eq('country','NL')
-      .single();
-    if(courseError)throw courseError;
+      .maybeSingle();
 
-    const {data,error}=await boundsClient.from('course_tees')
+    if(courseError)throw courseError;
+    if(!courseRow)throw new Error(`Baan niet gevonden: ${meta.name}`);
+
+    const {data,error}=await boundsClient
+      .from('course_tees')
       .select('id,course_id,course_variant,tee_name,gender,holes,loop,course_rating,slope_rating,par')
       .eq('course_id',courseRow.id)
       .eq('course_variant',meta.variant)
@@ -1779,7 +1742,8 @@ async function boundsLoadTeeOptions(){
     const savedId=localStorage.getItem('golf_tee_id');
     const savedName=localStorage.getItem('golf_tee_name');
 
-    let chosen=boundsTeeOptions.find(t=>t.id===savedId) ||
+    const chosen=
+      boundsTeeOptions.find(t=>String(t.id)===String(savedId)) ||
       boundsTeeOptions.find(t=>t.tee_name===savedName) ||
       boundsTeeOptions.find(t=>t.tee_name==='Geel') ||
       boundsTeeOptions[0];
@@ -1788,12 +1752,15 @@ async function boundsLoadTeeOptions(){
       `<option value="${t.id}">${boundsTeeDisplayName(t.tee_name)}</option>`
     ).join('');
 
-    select.value=chosen.id;
-    boundsSelectTee(chosen.id,false);
+    // Important: the selector must remain enabled even when there is only one
+    // available tee. The user should always be able to see/select the tee.
+    select.disabled=false;
+    select.value=String(chosen.id);
+    boundsSelectTee(String(chosen.id),false);
     updateUI();
   }catch(e){
-    console.error(e);
-    select.innerHTML='<option value="">Teegegevens laden…</option>';
+    console.error('BOUNDS tee load error:',e);
+    select.innerHTML='<option value="">Teegegevens konden niet worden geladen</option>';
     select.disabled=true;
     boundsTeeOptions=[];
     boundsSelectedTee=null;

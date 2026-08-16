@@ -365,6 +365,13 @@
   <div id="playersList"></div>
   <small class="muted">Je kunt meerdere spelers toevoegen; je eigen scorekaart blijft leidend.</small>
  </div>
+ <div class="card play-together-card">
+  <div class="eyebrow">SOCIAL</div>
+  <div class="section-title">Play Together</div>
+  <p class="muted" style="margin:0 0 12px">Speel samen met een BOUNDS-vriend en houd jullie scores bij op één gezamenlijke scorekaart.</p>
+  <button class="primary" type="button" onclick="boundsOpenPlayTogether()">＋ Vriend toevoegen</button>
+  <div id="playTogetherStatus" class="save-status"></div>
+ </div>
 
  <div class="action-grid">
   <button class="primary" onclick="saveRound()">Opslaan</button>
@@ -2046,6 +2053,27 @@
 .shared-round-item{padding:13px 0;border-bottom:1px solid #ececee}.shared-round-item:last-child{border-bottom:0}.shared-round-item.shared-round-clickable{cursor:pointer}.shared-round-item.shared-round-clickable:active{transform:scale(.995)}.shared-round-top{display:flex;justify-content:space-between;gap:10px}.shared-round-top b{font-size:14px}.shared-round-meta{color:var(--muted);font-size:11px;margin-top:4px}.shared-round-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.shared-round-stat{background:#f5f5f6;border-radius:10px;padding:6px 8px;font-size:11px}.shared-round-revoke{margin-top:9px}.shared-round-open-hint{margin-top:8px;color:#6f7a81;font-size:10px;font-weight:700}.shared-round-owner{margin:12px 0 2px;color:var(--muted);font-size:11px}.shared-round-owner b{color:var(--text)}
 </style>
 
+<div id="playTogetherBackdrop" class="share-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="playTogetherTitle">
+  <div class="share-modal" onclick="event.stopPropagation()">
+    <div class="share-modal-head">
+      <div class="share-avatar">⛳</div>
+      <div>
+        <h2 id="playTogetherTitle">Play Together</h2>
+        <p>Kies een vriend voor deze gezamenlijke ronde.</p>
+      </div>
+      <button class="share-close" onclick="boundsClosePlayTogether()" aria-label="Sluiten">×</button>
+    </div>
+    <div id="playTogetherFriendsList">
+      <div class="friends-empty">Vrienden laden…</div>
+    </div>
+    <div class="share-footer">
+      <button class="secondary" type="button" onclick="boundsClosePlayTogether()">Annuleren</button>
+      <button class="primary" id="playTogetherConfirm" type="button" onclick="boundsConfirmPlayTogether()">Toevoegen</button>
+    </div>
+    <div id="playTogetherMessage" class="save-status"></div>
+  </div>
+</div>
+
 <div id="shareRoundBackdrop" class="share-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="shareRoundTitle">
   <div class="share-modal" onclick="event.stopPropagation()">
     <div class="share-modal-head">
@@ -3167,6 +3195,18 @@ async function saveRound(){
  }
 }
 
+async function boundsSaveTogetherToCloud(roundId, data){
+  if(!roundId || !Array.isArray(data?.players) || !data.players.some(p=>p.userId||p.userId===null)) return;
+  const playersPayload=await boundsBuildTogetherPlayers(data);
+  const together=playersPayload.filter(p=>p.user_id);
+  if(together.length<=1)return;
+  const {error}=await boundsClient.rpc('save_play_together_v1',{
+    p_round_id:roundId,
+    p_players:together
+  });
+  if(error)throw error;
+}
+
 async function saveRoundToCloud(data,user){
  data=boundsNormalizeRoundForSync(data);
  await syncProfile();
@@ -3201,6 +3241,9 @@ async function saveRoundToCloud(data,user){
  });
  if(error)throw error;
  if(!rpcRoundId)throw new Error('Ronde kon niet worden opgeslagen in de cloud.');
+ if(Array.isArray(data.players) && data.players.some(p=>p.userId||p.userId===null)){
+   await boundsSaveTogetherToCloud(rpcRoundId,data);
+ }
  return rpcRoundId;
 }
 
@@ -3419,9 +3462,12 @@ function calculateStatsForRound(r){
 
 function buildEnhancedRound(){
   const r=originalCurrentRoundData();
-  r.players=players.slice();
+  r.players=Array.isArray(playerProfiles)
+    ? playerProfiles.map(p=>({name:p.name,hcp:Number(p.hcp)||0,userId:p.userId||null,isFriend:!!p.isFriend}))
+    : players.slice().map(name=>({name,hcp:0,userId:null,isFriend:false}));
   r.holes=r.holes.map(x=>({...x,extra:getExtra(x.hole)}));
   r.analysis=calculateStatsForRound(r);
+  r.together=Array.isArray(playerProfiles) && playerProfiles.some(p=>p.userId && p.isFriend);
   return r;
 }
 window.currentRoundData=buildEnhancedRound;
@@ -3481,7 +3527,7 @@ function renderCourseHistory(){
       <div class="course-round">
         <div class="course-round-main">
           <b>${r.date} · ${r.round}${r.loop&&r.loop!=='Hele baan'?' · '+r.loop:''}</b>
-          <small>${r.total} slagen · ${r.sft} Stableford · HCP ${r.handicap} · baanhcp ${r.courseHcp}</small>
+          <small>${r.total} slagen · ${r.sft} Stableford · HCP ${r.handicap} · baanhcp ${r.courseHcp}${Array.isArray(r.players)&&r.players.length>1?' · '+r.players.length+' spelers':''}</small>
         </div>
         <button class="history-action" type="button" onclick="openSavedRound(${i})">Bekijk / bewerk</button>
       </div>`).join('');
@@ -3659,6 +3705,138 @@ function openLatest(){
 
 renderDashboard();renderCourseHistory();renderMyGame();renderPlayers();
 </script><script>
+
+/* ===== BOUNDS v2.16.0 — Play Together ===== */
+(function(){
+  const escPT=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const initialsPT=name=>(String(name||'?').trim().split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('')||'?').toUpperCase();
+
+  window.boundsOpenPlayTogether=async function(){
+    const user=window.boundsSession?.user;
+    const backdrop=document.getElementById('playTogetherBackdrop');
+    const list=document.getElementById('playTogetherFriendsList');
+    const msg=document.getElementById('playTogetherMessage');
+    if(!user){ alert('Log eerst in om met vrienden te spelen.'); return; }
+    if(!backdrop||!list)return;
+    msg.textContent='';
+    backdrop.classList.add('open');
+    document.body.style.overflow='hidden';
+    list.innerHTML='<div class="friends-empty">Vrienden laden…</div>';
+
+    try{
+      const {data:rels,error:re}=await boundsClient
+        .from('friendships')
+        .select('requester_id,addressee_id,status')
+        .or('requester_id.eq.'+user.id+',addressee_id.eq.'+user.id)
+        .eq('status','accepted');
+      if(re)throw re;
+      const ids=[...new Set((rels||[]).map(r=>r.requester_id===user.id?r.addressee_id:r.requester_id))];
+      if(!ids.length){
+        list.innerHTML='<div class="friends-empty">Je hebt nog geen vrienden. Voeg eerst een vriend toe via Friends.</div>';
+        return;
+      }
+      const {data:profiles,error:pe}=await boundsClient.rpc('get_social_profiles_by_ids_v2',{user_ids:ids});
+      if(pe)throw pe;
+
+      const existing=new Set((Array.isArray(playerProfiles)?playerProfiles:[]).filter(p=>p.userId).map(p=>p.userId));
+      list.innerHTML=(profiles||[]).map(p=>{
+        const added=existing.has(p.id);
+        const meta=[
+          p.handicap_index!=null?'HCP '+Number(p.handicap_index).toFixed(1).replace('.',','):null,
+          p.woonplaats||p.region
+        ].filter(Boolean).join(' • ');
+        return `<label class="share-friend">
+          <div class="share-avatar">${escPT(initialsPT(p.display_name))}</div>
+          <div class="share-friend-main"><b>${escPT(p.display_name||'Golfer')}</b><small>${escPT(meta||'Vriend')}</small></div>
+          <input class="share-check" type="radio" name="playTogetherFriend" data-pt-user="${escPT(p.id)}" data-pt-name="${escPT(p.display_name||'Golfer')}" data-pt-hcp="${p.handicap_index!=null?escPT(p.handicap_index):''}" ${added?'disabled':''}>
+        </label>`;
+      }).join('');
+      if(!list.innerHTML)list.innerHTML='<div class="friends-empty">Geen vrienden gevonden.</div>';
+    }catch(e){
+      console.error('Play Together vrienden:',e);
+      list.innerHTML='<div class="friends-empty">Vrienden konden niet worden geladen.</div>';
+    }
+  };
+
+  window.boundsClosePlayTogether=function(){
+    const b=document.getElementById('playTogetherBackdrop');
+    if(b)b.classList.remove('open');
+    document.body.style.overflow='';
+  };
+
+  window.boundsConfirmPlayTogether=function(){
+    const selected=document.querySelector('#playTogetherFriendsList input[data-pt-user]:checked');
+    const msg=document.getElementById('playTogetherMessage');
+    if(!selected){
+      if(msg)msg.textContent='Kies eerst een vriend.';
+      return;
+    }
+    const uid=selected.dataset.ptUser;
+    const name=selected.dataset.ptName||'Golfer';
+    const hcp=Number(selected.dataset.ptHcp);
+    if(!Array.isArray(playerProfiles))playerProfiles=[{name:'Ik',hcp:Number(hi?.value)||0}];
+    if(playerProfiles.some(p=>p.userId===uid)){
+      if(msg)msg.textContent='Deze vriend staat al op de scorekaart.';
+      return;
+    }
+    playerProfiles.forEach(p=>{if(!p.userId && !p.isFriend && p.name==='Ik')p.userId=window.boundsSession?.user?.id||null;});
+    playerProfiles.push({name,hcp:Number.isFinite(hcp)?hcp:0,userId:uid,isFriend:true});
+    savePlayerProfiles();
+    activePlayerIndex=0;
+    loadActivePlayer();
+    renderPlayers();
+    renderPlayerSwitcher();
+    updateUI();
+    const status=document.getElementById('playTogetherStatus');
+    if(status)status.textContent='✓ '+name+' toegevoegd aan deze gezamenlijke ronde.';
+    boundsClosePlayTogether();
+  };
+
+  window.boundsBuildTogetherPlayers=async function(data){
+    const user=window.boundsSession?.user;
+    if(!user || !Array.isArray(playerProfiles))return [];
+    const cfg=currentConfig();
+    const all=[];
+    for(let pi=0;pi<playerProfiles.length;pi++){
+      const p=playerProfiles[pi];
+      if(!p.userId && pi===0)p.userId=user.id;
+      if(!p.userId)continue;
+      const hcp=Number(p.hcp)||0;
+      const courseHcp=Number(getCourseHcp({...cfg,h:hcp}))||0;
+      const holes=[];
+      let total=0,sft=0;
+      for(const ch of cfg.holes){
+        const raw=localStorage.getItem(pKey(pi,ch[0]));
+        const score=raw?Number(raw):0;
+        const sf=score?stableford(ch[1],score,ch[2],{...cfg, handicap:hcp}):null;
+        // Optional stats currently belong to the active scorecard.
+        // Keep them only for the owner; friend scorecards start with score/SF.
+        const extra=(pi===activePlayerIndex && typeof getExtra==='function') ? getExtra(ch[0]) : {};
+        if(score>0){total+=score;if(sf!=null)sft+=sf;}
+        holes.push({
+          hole:ch[0],
+          score,
+          stableford:sf,
+          putts:pi===activePlayerIndex ? (extra.putts||null) : null,
+          penalty:pi===activePlayerIndex ? (extra.penalty||null) : null,
+          fairway:pi===activePlayerIndex ? (extra.fairway||null) : null,
+          gir:pi===activePlayerIndex ? (extra.gir||null) : null
+        });
+      }
+      all.push({
+        user_id:p.userId,
+        display_name:p.name,
+        handicap_index:hcp,
+        course_handicap:courseHcp,
+        final_score:total||null,
+        stableford:sft,
+        holes
+      });
+    }
+    return all;
+  };
+})();
+
 /* Player profiles: each player has an independent handicap and scorecard. */
 let playerProfiles;
 try{playerProfiles=JSON.parse(localStorage.getItem('golf_player_profiles')||'null')}catch(e){playerProfiles=null}

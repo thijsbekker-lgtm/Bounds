@@ -2159,6 +2159,44 @@
 })();
 </script>
 
+
+<script>
+// BOUNDS v2.14.1 — share action wired after final history renderer
+(function(){
+  const previousRenderHistory=window.renderHistory;
+  window.renderHistory=function(){
+    if(typeof previousRenderHistory==='function') previousRenderHistory();
+    const el=document.getElementById('historyList');
+    if(!el || typeof getHistory!=='function' || typeof window.boundsOpenShareRound!=='function') return;
+    const history=getHistory();
+    const items=[...el.querySelectorAll('.rounditem')];
+    items.forEach((item,i)=>{
+      const r=history[i];
+      if(!r) return;
+      let actions=item.querySelector('.share-round-actions');
+      const del=item.querySelector('.delete');
+      if(!actions){
+        actions=document.createElement('div');
+        actions.className='share-round-actions';
+        if(del){ del.parentNode.insertBefore(actions,del); actions.appendChild(del); }
+        else item.appendChild(actions);
+      }
+      let btn=actions.querySelector('.share-round-btn');
+      if(!btn){
+        btn=document.createElement('button');
+        btn.className='share-round-btn';
+        btn.textContent='Delen';
+        actions.insertBefore(btn,actions.firstChild);
+      }
+      btn.disabled=!r.cloudRoundId;
+      btn.title=r.cloudRoundId ? 'Deel deze ronde met vrienden' : 'Ronde wordt nog gesynchroniseerd';
+      btn.onclick=(e)=>{e.preventDefault();e.stopPropagation();window.boundsOpenShareRound(i);};
+    });
+  };
+  setTimeout(()=>window.renderHistory?.(),0);
+})();
+</script>
+
 </body>
 <script>
 // -------------------- COURSE DATA --------------------

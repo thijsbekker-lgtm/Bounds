@@ -2852,7 +2852,7 @@ function addHoleNote(){
 function boundsActiveRoundId(){
   let id=localStorage.getItem('bounds_active_round_id');
   if(!id){
-    id=(crypto&&crypto.randomUUID)?crypto.randomUUID():('local-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+    id=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():('local-'+Date.now()+'-'+Math.random().toString(16).slice(2));
     localStorage.setItem('bounds_active_round_id',id);
   }
   return id;
@@ -2901,7 +2901,7 @@ function upsertLocalRound(data){
  localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
 }
 
-/* ===== BOUNDS v2.15.1 — RELIABLE ROUND SYNC + LEGACY MIGRATION ===== */
+/* ===== BOUNDS v2.15.2 — LEGACY ROUND SYNC REPAIR ===== */
 const BOUNDS_PENDING_SYNC_KEY='bounds_pending_round_sync';
 
 function boundsGetPendingRoundSyncs(){
@@ -2952,7 +2952,7 @@ function boundsNormalizeRoundForSync(input){
   if(!teeName || teeName==='—' || teeName.toLowerCase().includes('kies'))teeName='Geel';
   if(courseKey==='kroonprins_par3')teeName='Par 3 Geel';
 
-  r.localId=r.localId || ((crypto&&crypto.randomUUID)?crypto.randomUUID():('legacy-'+Date.now()));
+  r.localId=r.localId || ((window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():('legacy-'+Date.now()));
   r.courseKey=courseKey;
   r.courseName=courseName;
   r.courseVariant=courseKey==='kroonprins_par3'?'par3':'main';
@@ -3040,6 +3040,8 @@ async function boundsProcessPendingRoundSyncs(){
         failed++;
         lastError=e?.message||String(e);
         console.warn('Pending round sync retry failed:',e);
+        item.syncError=lastError;
+        item.syncError=lastError;
         // Keep it queued; the next online/auth retry will try again.
       }
     }
@@ -3137,8 +3139,8 @@ async function saveRoundToCloud(data,user){
  if(roundId){
    const {error}=await boundsClient.from('rounds').update({
      course_id:courseRow.id,tee_id:tee.id,
-     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||round.value),
-     loop:data.loopValue||loop.value,
+     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18),
+     loop:data.loopValue||'full',
      played_at:playedAt,status:'completed',
      client_round_id:data.localId||null
    }).eq('id',roundId).eq('owner_id',user.id);
@@ -3146,8 +3148,8 @@ async function saveRoundToCloud(data,user){
  }else{
    const {data:roundRow,error:roundError}=await boundsClient.from('rounds').insert({
      owner_id:user.id,course_id:courseRow.id,tee_id:tee.id,
-     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||round.value),
-     loop:data.loopValue||loop.value,played_at:playedAt,status:'in_progress',
+     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18),
+     loop:data.loopValue||'full',played_at:playedAt,status:'completed',
      client_round_id:data.localId||null
    }).select('id').single();
    if(roundError)throw roundError;

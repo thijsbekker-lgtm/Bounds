@@ -3122,96 +3122,36 @@ async function saveRoundToCloud(data,user){
  await syncProfile();
  const {courseRow,tee}=await boundsGetTeeForRoundData(data);
 
- let roundId=data.cloudRoundId||null;
+ const holePayload=(data.holes||[]).map(h=>{
+   const e=h.extra||{};
+   return {
+     hole:Number(h.hole),
+     score:Number(h.score)>0?Number(h.score):null,
+     sf:h.sf==null?'':Number(h.sf),
+     putts:(e.putts!==''&&e.putts!=null&&Number.isFinite(Number(e.putts)))?Number(e.putts):null,
+     penalty:(e.penalty!==''&&e.penalty!=null&&Number.isFinite(Number(e.penalty)))?Number(e.penalty):null,
+     fairway:e.fairway||'',
+     gir:e.gir||'',
+     note:String(e.note||h.note||'')
+   };
+ });
 
- if(!roundId && data.localId){
-   const {data:existing,error:existingError}=await boundsClient.from('rounds')
-     .select('id')
-     .eq('owner_id',user.id)
-     .eq('client_round_id',data.localId)
-     .maybeSingle();
-   if(existingError)throw existingError;
-   if(existing?.id)roundId=existing.id;
- }
-
- const playedAt=data.playedAt||new Date().toISOString();
-
- if(roundId){
-   const {error}=await boundsClient.from('rounds').update({
-     course_id:courseRow.id,tee_id:tee.id,
-     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18),
-     loop:data.loopValue||'full',
-     played_at:playedAt,status:'completed',
-     client_round_id:data.localId||null
-   }).eq('id',roundId).eq('owner_id',user.id);
-   if(error)throw error;
- }else{
-   const {data:roundRow,error:roundError}=await boundsClient.from('rounds').insert({
-     owner_id:user.id,course_id:courseRow.id,tee_id:tee.id,
-     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18),
-     loop:data.loopValue||'full',played_at:playedAt,status:'completed',
-     client_round_id:data.localId||null
-   }).select('id').single();
-   if(roundError)throw roundError;
-   roundId=roundRow.id;
- }
- let {data:player,error:playerError}=await boundsClient.from('round_players')
-   .select('id').eq('round_id',roundId).eq('user_id',user.id).maybeSingle();
- if(playerError)throw playerError;
- if(!player){
-   const {data:p,error}=await boundsClient.from('round_players').insert({
-     round_id:roundId,user_id:user.id,handicap_index_at_round:Number(data.handicap)||0,
-     course_handicap:Number(data.courseHcp)||0,final_score:Number(data.total)||null,
-     stableford:Number(data.sft)||0,is_owner:true
-   }).select('id').single();
-   if(error)throw error;
-   player=p;
- }else{
-   const {error}=await boundsClient.from('round_players').update({
-     handicap_index_at_round:Number(data.handicap)||0,
-     course_handicap:Number(data.courseHcp)||0,
-     final_score:Number(data.total)||null,
-     stableford:Number(data.sft)||0,
-     is_owner:true
-   }).eq('id',player.id);
-   if(error)throw error;
-   await boundsClient.from('hole_scores').delete().eq('round_player_id',player.id);
- }
- const {data:courseHoles,error:holesError}=await boundsClient.from('course_holes')
-   .select('id,hole_number,par,stroke_index').eq('tee_id',tee.id).order('hole_number');
- if(holesError)throw holesError;
- const holeByNumber=Object.fromEntries((courseHoles||[]).map(h=>[h.hole_number,h]));
- const scoreRows=[];
- for(const h of data.holes){
-   const ch=holeByNumber[h.hole];
-   if(!ch)continue;
-   const e=h.extra||getExtra(h.hole);
-   if(h.score||e.putts||e.penalty||e.fairway||e.gir||e.note){
-     scoreRows.push({
-       round_player_id:player.id,course_hole_id:ch.id,
-       score:Number(h.score)>0?Number(h.score):null,stableford:h.sf==null?null:Number(h.sf),
-       putts:(e.putts!=='' && e.putts!=null && Number.isFinite(Number(e.putts)))?Number(e.putts):null,
-       penalty:(e.penalty!=='' && e.penalty!=null && Number.isFinite(Number(e.penalty)))?Number(e.penalty):null,
-       fairway:e.fairway==='hit'?'yes':e.fairway==='miss'?'no':null,
-       gir:e.gir==='yes'?'yes':e.gir==='no'?'no':null
-     });
-   }
- }
- if(scoreRows.length){
-   const {data:inserted,error}=await boundsClient.from('hole_scores').insert(scoreRows).select('id,course_hole_id');
-   if(error)throw error;
-   for(const row of inserted||[]){
-     const source=data.holes.find(h=>holeByNumber[h.hole]?.id===row.course_hole_id);
-     const note=source?.extra?.note||source?.note||'';
-     if(note){
-       const {error:noteError}=await boundsClient.from('hole_score_notes').insert({hole_score_id:row.id,note:String(note)});
-       // A private note must never block the entire round from synchronising.
-       // Score + optional stats are the critical payload; a note can be retried later.
-       if(noteError)console.warn('Hole note sync skipped:',noteError);
-     }
-   }
- }
- return roundId;
+ const {data:rpcRoundId,error}=await boundsClient.rpc('save_round_v1',{
+   p_client_round_id:data.localId||null,
+   p_course_id:courseRow.id,
+   p_tee_id:tee.id,
+   p_holes_played:Number(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18),
+   p_loop:data.loopValue||'full',
+   p_played_at:data.playedAt||new Date().toISOString(),
+   p_handicap:Number(data.handicap)||0,
+   p_course_handicap:Number(data.courseHcp)||0,
+   p_final_score:Number(data.total)||null,
+   p_stableford:Number(data.sft)||0,
+   p_holes:holePayload
+ });
+ if(error)throw error;
+ if(!rpcRoundId)throw new Error('Ronde kon niet worden opgeslagen in de cloud.');
+ return rpcRoundId;
 }
 
 function renderAnalysis(r){
@@ -5597,4 +5537,46 @@ async function boundsApplyIdentityState(session){
 })();
 </script>
 
+
+<script>
+/* ===== BOUNDS v2.15.3 — NEW ROUND ID + RPC ROUND SYNC =====
+   The previous sync wrote directly through RLS and the active-round reset
+   reused the same localId. Both are corrected here as the final executable layer.
+*/
+(function(){
+  // A new round must always receive a fresh local identity.
+  window.resetScores=function(){
+    if(!confirm('Een nieuwe ronde starten? Scores van alle spelers worden gewist en je moet opnieuw een baan kiezen.'))return;
+    for(let h=1;h<=18;h++){
+      scores[h]=0;
+      localStorage.removeItem(storageKey(h));
+      if(Array.isArray(playerProfiles)){
+        for(let i=0;i<playerProfiles.length;i++)localStorage.removeItem(pKey(i,h));
+      }
+    }
+    localStorage.removeItem('golf_extra_stats');
+    extraStats={};
+    localStorage.removeItem('bounds_active_round_id');
+    localStorage.removeItem('golf_course');
+    localStorage.removeItem('golf_tee');
+    localStorage.removeItem('golf_tee_id');
+    localStorage.removeItem('golf_tee_name');
+    course.value='';
+    round.value='9';
+    loop.value='first';
+    editingHistoryIndex=-1;
+    const saveBtn=document.querySelector('.action-grid .primary');
+    if(saveBtn)saveBtn.textContent='Opslaan';
+    updateUI();
+    showTab('round');
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  // If an old pending round is still queued, the new RPC writer will match it
+  // by client_round_id and complete it without creating a duplicate.
+  setTimeout(()=>{
+    try{ if(typeof boundsProcessPendingRoundSyncs==='function')boundsProcessPendingRoundSyncs(); }catch(e){console.warn('Initial round sync retry:',e);}
+  },1200);
+})();
+</script>
 </html>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v1.2</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.0</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -1355,7 +1355,12 @@ function boundsCourseInfo(){
   if(course.value==='kroonprins_par3'){
     return {courseName:'De Kroonprins', teeName:'Par 3 Geel'};
   }
-  return {courseName:course.value==='crimpenerhout'?'Crimpenerhout':'De Kroonprins', teeName:'Geel'};
+  const names={
+    crimpenerhout:'Crimpenerhout',
+    kroonprins:'De Kroonprins',
+    almkreek:'Golfpark Almkreek'
+  };
+  return {courseName:names[course.value]||'', teeName:tee.value||'Geel'};
 }
 async function boundsGetTee(){
   const info=boundsCourseInfo();
@@ -1815,13 +1820,16 @@ function boundsCourseTeeLabel(){
 const boundsOriginalCurrentConfig = window.currentConfig;
 window.currentConfig=function(){
   const cfg=boundsOriginalCurrentConfig();
-  if(boundsSelectedTee &&
-     Number(cfg.n)===Number(boundsSelectedTee.holes) &&
-     ((cfg.n===9) ? boundsSelectedTee.loop===loop.value : boundsSelectedTee.loop==='full')){
-    cfg.cr=Number(boundsSelectedTee.course_rating);
-    cfg.sr=Number(boundsSelectedTee.slope_rating);
-    cfg.par=Number(boundsSelectedTee.par);
-    cfg.note=`${course.value==='crimpenerhout'?'Crimpenerhout':'De Kroonprins'} ${boundsTeeDisplayName(boundsSelectedTee.tee_name).toLowerCase()} • ${cfg.n} holes • CR ${cfg.cr.toFixed(1).replace('.',',')} / SR ${cfg.sr}.`;
+  const t=boundsSelectedTee;
+  if(t &&
+     Number(cfg.n)===Number(t.holes) &&
+     ((cfg.n===9) ? t.loop===loop.value : t.loop==='full')){
+    cfg.t=t.tee_name;
+    cfg.cr=Number(t.course_rating);
+    cfg.sr=Number(t.slope_rating);
+    cfg.par=Number(t.par);
+    const courseName=course.options[course.selectedIndex]?.text||'';
+    cfg.note=`${courseName} ${boundsTeeDisplayName(t.tee_name).toLowerCase()} • ${cfg.n} holes • CR ${cfg.cr.toFixed(1).replace('.',',')} / SR ${cfg.sr}.`;
   }
   return cfg;
 };
@@ -1907,36 +1915,7 @@ document.addEventListener('change',e=>{
 });
 
 /* First load. */
-setTimeout(boundsLoadTeeOptions,0);
-
-/* ===== v1.2: selected DB tee is the single source of truth ===== */
-const boundsConfigBeforeTeeAuthoritative=window.currentConfig;
-window.currentConfig=function(){
-  const cfg=boundsConfigBeforeTeeAuthoritative();
-  const t=boundsSelectedTee;
-  if(!t)return cfg;
-  if(Number(cfg.n)===Number(t.holes) &&
-     ((cfg.n===9 && t.loop===loop.value) || (cfg.n===18 && t.loop==='full'))){
-    cfg.t=t.tee_name;
-    cfg.cr=Number(t.course_rating);
-    cfg.sr=Number(t.slope_rating);
-    cfg.par=Number(t.par);
-    const courseName=course.options[course.selectedIndex]?.text||'';
-    cfg.note=`${courseName} ${boundsTeeDisplayName(t.tee_name).toLowerCase()} • ${cfg.n} holes • CR ${cfg.cr.toFixed(1).replace('.',',')} / SR ${cfg.sr}.`;
-  }
-  return cfg;
-};
-
-/* Clear stale tee identity whenever the round configuration changes. */
-[course,round,loop].forEach(el=>{
-  el.addEventListener('change',()=>{
-    localStorage.removeItem('golf_tee_id');
-    localStorage.removeItem('golf_tee_name');
-    boundsSelectedTee=null;
-    boundsTeeOptions=[];
-    setTimeout(()=>boundsLoadTeeOptions(),10);
-  });
-});
+document.addEventListener('DOMContentLoaded',()=>setTimeout(boundsLoadTeeOptions,0));
 
 </script>
 

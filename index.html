@@ -156,6 +156,11 @@
 .loss-row b{font-size:15px}
 @media(max-width:600px){.tabs .tab span{font-size:9px}.tabs{gap:2px}.hero h1{font-size:29px}}
 </style>
+<style>
+#page-courses .course-card-button{border-bottom:1px solid var(--line);padding:14px 4px}
+#page-game .loss-row strong{font-size:13px}
+#profileTee,#tee{background:#fff}
+</style>
 </head>
 <body>
 <div class="app">
@@ -233,6 +238,7 @@
   <div class="section-title">Ronde instellen <span class="round-status"><i></i> Ronde bezig</span></div>
   <div class="grid">
    <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
+   <label>Tee<select id="tee"><option value="">Kies tee…</option><option value="Rood">Rood</option><option value="Oranje">Oranje</option><option value="Blauw">Blauw</option><option value="Geel">Geel</option><option value="Wit">Wit</option></select></label>
    <label>Ronde<select id="round"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
    <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
    <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
@@ -307,11 +313,19 @@
 <section id="page-courses" class="tabpage">
  <div class="card">
   <div class="eyebrow">COURSES</div><h2>Your Courses</h2>
-  <div class="action-grid"><button class="primary" onclick="addCoursePreference('home')">Home / Member Course</button><button class="secondary" onclick="addCoursePreference('favorite')">Favorite Course</button></div>
-  <div id="coursePreferences" class="muted">Nog geen persoonlijke baanvoorkeuren ingesteld.</div>
+  <p class="muted">Ontdek banen, bekijk baaninformatie en open je persoonlijke historie per baan.</p>
+  <div class="action-grid">
+   <button class="primary" onclick="showCourseSearch()">⌕ Search Courses</button>
+   <button class="secondary" onclick="showNearbyCourses()">⌖ Nearby</button>
+  </div>
+  <div id="courseSearchArea" style="display:none;margin-top:10px">
+    <input id="courseSearch" type="search" placeholder="Zoek een golfbaan…" oninput="renderCourseDirectory()">
+  </div>
  </div>
+ <div class="card"><div class="section-title">My Courses</div><div id="myCourses"></div></div>
  <div class="card"><div class="section-title">Played Courses</div><div id="courseHistory"></div></div>
- <div class="card"><div class="section-title">Nearby</div><div class="muted">Nearby course discovery wordt gekoppeld aan de Courses-database. Exacte locatie blijft privé.</div></div>
+ <div class="card"><div class="section-title">Nearby</div><div id="nearbyCourses" class="muted">Banen in de buurt verschijnen hier zodra de course database locatiegegevens bevat.</div></div>
+ <div class="card" id="courseDetailCard" style="display:none"><div class="section-title">Course Detail</div><div id="courseDetail"></div></div>
 </section>
 
 <section id="page-profile" class="tabpage">
@@ -321,7 +335,14 @@
    <label>Naam<input id="profileName" type="text" placeholder="Je naam"></label>
    <label>Handicap Index<input id="profileHcp" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
    <label>Doelhandicap<input id="profileGoal" type="number" min="-10" max="54" step="0.1" value="12.0"></label>
-   <label>Voorkeur tee<input id="profileTee" type="text" placeholder="Bijv. Geel"></label>
+   <label>Voorkeur tee<select id="profileTee">
+<option value="">Kies tee…</option>
+<option value="Rood">Rood</option>
+<option value="Oranje">Oranje</option>
+<option value="Blauw">Blauw</option>
+<option value="Geel">Geel</option>
+<option value="Wit">Wit</option>
+</select></label>
   </div>
   <button class="primary" style="width:100%;margin-top:12px" onclick="saveProfile()">Profiel opslaan</button>
  </div>
@@ -1345,5 +1366,222 @@ function saveProfile(){
 }
 /* Initial IA render */
 setTimeout(()=>{renderHome();renderPlay();renderCoursePreferences();loadProfile();renderMyGameLosses();},100);
+</script>
+
+<script>
+/* BOUNDS v2.9.1 — Course / Tee / Profile correction layer */
+const BOUNDS_COURSES = {
+  crimpenerhout: {
+    name:"Crimpenerhout", location:"Krimpen aan de Lek", country:"Nederland",
+    member:false, tees:["Rood","Geel"], holes:18,
+    detail:"18 holes • Crimpenerhout geel heren in het huidige prototype"
+  },
+  kroonprins: {
+    name:"De Kroonprins", location:"Vianen", country:"Nederland",
+    member:false, tees:["Rood","Geel"], holes:18,
+    detail:"18 holes • De Kroonprins geel heren in het huidige prototype"
+  },
+  almkreek: {
+    name:"Almkreek", location:"Almkerk", country:"Nederland",
+    member:false, tees:["Rood","Geel","Wit"], holes:18,
+    detail:"18 holes • Course record wordt voorbereid voor de course database"
+  }
+};
+
+function courseOptionsForTee(){
+  const c=course.value, t=document.getElementById('tee');
+  if(!t)return;
+  const data=BOUNDS_COURSES[c];
+  const profile=getProfile();
+  const preferred=profile.tee || "";
+  const allowed=(data&&data.tees)||["Rood","Oranje","Blauw","Geel","Wit"];
+  t.innerHTML='<option value="">Kies tee…</option>'+allowed.map(x=>`<option value="${x}">${x}</option>`).join('');
+  const stored=localStorage.getItem('golf_tee')||preferred;
+  if(stored && allowed.includes(stored)) t.value=stored;
+}
+function saveTee(){
+  const t=document.getElementById('tee');
+  if(t && t.value)localStorage.setItem('golf_tee',t.value);
+}
+if(document.getElementById('tee')){
+  document.getElementById('tee').addEventListener('change',saveTee);
+}
+
+const oldUpdateUI_291=window.updateUI;
+window.updateUI=function(){
+  if(typeof oldUpdateUI_291==='function') oldUpdateUI_291();
+  courseOptionsForTee();
+};
+const oldCourseChange_291=course.onchange;
+course.addEventListener('change',()=>setTimeout(courseOptionsForTee,0));
+
+function renderCourseDirectory(){
+  const q=(document.getElementById('courseSearch')?.value||'').trim().toLowerCase();
+  const list=Object.entries(BOUNDS_COURSES).filter(([id,c])=>
+    !q || c.name.toLowerCase().includes(q) || c.location.toLowerCase().includes(q)
+  );
+  const el=document.getElementById('myCourses');
+  if(!el)return;
+  const p=getProfile();
+  const ids=[];
+  if(p.homeCourse)ids.push(p.homeCourse);
+  if(p.favoriteCourse && !ids.includes(p.favoriteCourse))ids.push(p.favoriteCourse);
+  const played=[...new Set(getHistory().map(r=>{
+    return Object.entries(BOUNDS_COURSES).find(([,c])=>c.name===r.course)?.[0];
+  }).filter(Boolean))];
+  played.forEach(x=>{if(!ids.includes(x))ids.push(x)});
+  const visible=ids.length?ids.map(id=>[id,BOUNDS_COURSES[id]]):list;
+  el.innerHTML=visible.map(([id,c])=>`
+    <button class="course-card-button" onclick="openCourseDetail('${id}')">
+      <div><strong>${c.name}</strong><small>${c.location} · ${c.holes} holes</small></div>
+      <div><small>${p.homeCourse===id?'HOME':''}</small></div>
+      <div><small>${p.favoriteCourse===id?'★ FAVORITE':''}</small></div>
+      <span class="course-chevron">›</span>
+    </button>`).join('') || '<div class="empty">Geen banen gevonden.</div>';
+}
+function showCourseSearch(){
+  const a=document.getElementById('courseSearchArea');
+  if(a)a.style.display='block';
+  renderCourseDirectory();
+  document.getElementById('courseSearch')?.focus();
+}
+function showNearbyCourses(){
+  const el=document.getElementById('nearbyCourses');
+  if(!el)return;
+  el.innerHTML=`
+   <div class="course-card-button" style="padding-left:0">
+    <div><strong>Almkreek</strong><small>Almkerk · 18 holes</small></div><span class="course-chevron">›</span>
+   </div>
+   <div class="course-card-button" style="padding-left:0">
+    <div><strong>Crimpenerhout</strong><small>Krimpen aan de Lek · 18 holes</small></div><span class="course-chevron">›</span>
+   </div>
+   <small class="muted">Afstanden worden pas getoond wanneer locatiegegevens voor de course database beschikbaar zijn.</small>`;
+}
+function openCourseDetail(id){
+  const c=BOUNDS_COURSES[id]; if(!c)return;
+  const p=getProfile();
+  const rounds=getHistory().filter(r=>r.course===c.name);
+  const best=rounds.length?Math.min(...rounds.map(r=>r.total)):'—';
+  const avg=rounds.length?(rounds.reduce((a,r)=>a+r.total,0)/rounds.length).toFixed(1).replace('.',','):'—';
+  const card=document.getElementById('courseDetailCard');
+  const el=document.getElementById('courseDetail');
+  card.style.display='block';
+  el.innerHTML=`
+    <h3 style="margin-top:0">${c.name}</h3>
+    <p class="muted">${c.location} · ${c.country} · ${c.holes} holes</p>
+    <div class="dashboard-grid">
+      <div class="metric"><b>${rounds.length}</b><span>rondes</span></div>
+      <div class="metric"><b>${best}</b><span>beste score</span></div>
+      <div class="metric"><b>${avg}</b><span>gem. score</span></div>
+      <div class="metric"><b>${p.favoriteCourse===id?'★':'—'}</b><span>favorite</span></div>
+    </div>
+    <h3>Tees</h3>
+    <p class="muted">${c.tees.join(' · ')}</p>
+    <div class="action-grid">
+      <button class="primary" onclick="chooseCourseForRound('${id}')">Start Round</button>
+      <button class="secondary" onclick="showTab('profile')">Profiel aanpassen</button>
+    </div>`;
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function chooseCourseForRound(id){
+  showTab('round');
+  course.value=id;
+  courseOptionsForTee();
+  const p=getProfile();
+  if(p.tee && document.getElementById('tee')?.querySelector(`option[value="${p.tee}"]`))
+    document.getElementById('tee').value=p.tee;
+  saveTee();
+  updateUI();
+}
+function renderMyCourses291(){
+  renderCourseDirectory();
+}
+function loadProfile_291(){
+  const p=getProfile();
+  const name=document.getElementById('profileName');
+  if(name)name.value=p.name||'';
+  document.getElementById('profileHcp').value=p.hcp ?? 14.2;
+  document.getElementById('profileGoal').value=p.goal ?? 12;
+  document.getElementById('profileTee').value=p.tee||'';
+  document.getElementById('profileHomeCourse').value=p.homeCourse||'';
+  document.getElementById('profileFavoriteCourse').value=p.favoriteCourse||'';
+}
+const oldSaveProfile291=window.saveProfile;
+window.saveProfile=function(){
+  const p=getProfile();
+  p.name=document.getElementById('profileName').value.trim();
+  p.hcp=Number(document.getElementById('profileHcp').value)||14.2;
+  p.goal=Number(document.getElementById('profileGoal').value)||12;
+  p.tee=document.getElementById('profileTee').value;
+  p.homeCourse=document.getElementById('profileHomeCourse').value;
+  p.favoriteCourse=document.getElementById('profileFavoriteCourse').value;
+  localStorage.setItem('bounds_profile',JSON.stringify(p));
+  localStorage.setItem('golf_tee',p.tee||'');
+  if(typeof playerProfiles!=='undefined' && playerProfiles[activePlayerIndex]){
+    playerProfiles[activePlayerIndex].hcp=p.hcp;
+    if(p.name)playerProfiles[activePlayerIndex].name=p.name;
+    savePlayerProfiles(); loadActivePlayer();
+  }
+  renderHome(); renderCourseDirectory(); renderMyGameLosses();
+  alert('Profiel opgeslagen.');
+};
+
+/* Expanded My Game: preserve the existing round/stat data and expose more of it. */
+function renderMyGameExpanded(){
+  renderDashboard(); renderMyGameLosses();
+  const h=getHistory();
+  let holes=0, birdies=0, pars=0, bogeys=0, doubles=0, penalties=0, putts=[], gir=[], fw=[];
+  h.forEach(r=>r.holes.filter(x=>x.score>0).forEach(x=>{
+    holes++;
+    if(x.score<x.par)birdies++;
+    if(x.score===x.par)pars++;
+    if(x.score===x.par+1)bogeys++;
+    if(x.score>=x.par+2)doubles++;
+    const e=x.extra||{};
+    if(e.penalty!=='')penalties+=Number(e.penalty||0);
+    if(e.putts!=='' && e.putts!=null)putts.push(Number(e.putts));
+    if(e.gir==='yes'||e.gir==='no')gir.push(e.gir);
+    if(e.fairway==='hit'||e.fairway==='miss')fw.push(e.fairway);
+  }));
+  const card=document.getElementById('page-game');
+  if(!card)return;
+  let ext=document.getElementById('expandedStatsCard');
+  if(!ext){
+    ext=document.createElement('div'); ext.className='card'; ext.id='expandedStatsCard';
+    card.insertBefore(ext,card.querySelector('.card:nth-of-type(2)'));
+  }
+  const avgPutts=putts.length?(putts.reduce((a,b)=>a+b,0)/putts.length).toFixed(1).replace('.',','):'—';
+  const girPct=gir.length?Math.round(gir.filter(x=>x==='yes').length/gir.length*100)+'%':'—';
+  const fwPct=fw.length?Math.round(fw.filter(x=>x==='hit').length/fw.length*100)+'%':'—';
+  ext.innerHTML=`
+   <div class="section-title">Expanded Statistics</div>
+   <div class="dashboard-grid">
+    <div class="metric"><b>${holes?Math.round(birdies/holes*100)+'%':'—'}</b><span>birdie+ holes</span></div>
+    <div class="metric"><b>${holes?Math.round(pars/holes*100)+'%':'—'}</b><span>par holes</span></div>
+    <div class="metric"><b>${holes?Math.round(bogeys/holes*100)+'%':'—'}</b><span>bogey holes</span></div>
+    <div class="metric"><b>${holes?Math.round(doubles/holes*100)+'%':'—'}</b><span>double+ holes</span></div>
+    <div class="metric"><b>${avgPutts}</b><span>gem. putts / hole</span></div>
+    <div class="metric"><b>${girPct}</b><span>GIR</span></div>
+    <div class="metric"><b>${fwPct}</b><span>fairways</span></div>
+    <div class="metric"><b>${penalties}</b><span>penalties</span></div>
+   </div>
+   <h3>Performance Areas</h3>
+   <div class="loss-row"><div><b>Tee-to-Green</b><div class="roundmeta">Driving + fairways + GIR</div></div><strong>${fwPct} / ${girPct}</strong></div>
+   <div class="loss-row"><div><b>Putting</b><div class="roundmeta">Gemiddelde putts per hole</div></div><strong>${avgPutts}</strong></div>
+   <div class="loss-row"><div><b>Scoring</b><div class="roundmeta">Birdie+ / par / bogey / double+</div></div><strong>${holes?Math.round((birdies+pars)/holes*100):0}%</strong></div>`;
+}
+const oldShowTab291=window.showTab;
+window.showTab=function(tab){
+  oldShowTab291(tab);
+  if(tab==='courses'){renderCourseDirectory();renderCourseHistory();}
+  if(tab==='profile')loadProfile_291();
+  if(tab==='game')renderMyGameExpanded();
+};
+setTimeout(()=>{
+  courseOptionsForTee();
+  renderCourseDirectory();
+  loadProfile_291();
+  renderMyGameExpanded();
+},150);
 </script>
 </html>

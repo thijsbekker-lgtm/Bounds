@@ -2068,7 +2068,7 @@ async function initBoundsCourses294(){
 }
 initBoundsCourses294();
 </script>\n<script>
-/* BOUNDS v2.9.9 — Nearby by driving route
+/* BOUNDS v2.9.10 — Nearby by driving route
    - Nearby is defined as <= 25 km driving distance.
    - Uses road routing, not straight-line/Haversine distance.
    - Shows driving distance and estimated driving time.
@@ -2275,7 +2275,7 @@ setTimeout(() => {
 </script>
 
 <script>
-/* BOUNDS v2.9.9 — Nearby UI wiring + correct course hole labels */
+/* BOUNDS v2.9.10 — Nearby UI wiring + correct course hole labels */
 
 function courseSummary296(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2341,7 +2341,7 @@ function courseVariantLabel297(v){
 </script>
 
 <script>
-/* BOUNDS v2.9.9 — physical course layout is distinct from rating length */
+/* BOUNDS v2.9.10 — physical course layout is distinct from rating length */
 
 function physicalCourseLabel298(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2385,7 +2385,7 @@ if(typeof _renderNearby298 === 'function' && !_renderNearby298.__bounds298){
 </script>
 
 <script>
-/* BOUNDS v2.9.9 — use physical holes for Play and Course Detail */
+/* BOUNDS v2.9.10 — use physical holes for Play and Course Detail */
 
 function updateRoundSelectors294(){
   if(!DB_READY)return;
@@ -2467,6 +2467,144 @@ function openDbCourseDetail(id){
         layoutText=`${physical[0]} holes`;
       }else if(physical.length>1){
         layoutText=`${physical[physical.length-1]} holes`;
+      }
+
+      return `<div class="card" style="margin:10px 0;background:#f7f7f8">
+        <div class="section-title">${dbVariantLabel(v)}</div>
+        <div class="muted">${layoutText}</div>
+        <div class="muted" style="margin-top:6px">Tees: ${[...new Set(vt.map(t=>t.tee_name))].join(' · ')}</div>
+      </div>`;
+    }).join('')}
+    <div class="dashboard-grid">
+      <div class="metric"><b>${rounds.length}</b><span>rondes bij deze club</span></div>
+      <div class="metric"><b>${rounds.length?Math.min(...rounds.map(r=>r.total)):'—'}</b><span>beste score</span></div>
+    </div>
+    <div class="action-grid"><button class="primary" onclick="chooseDbCourseForRound('${id}')">Start Round</button><button class="secondary" onclick="showTab('profile')">Profiel</button></div>`;
+
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+
+<script>
+/* BOUNDS v2.9.10 — Crimpenerhout is physically 9 holes but playable over 9 or 18 holes.
+   The 18-hole tee records carry the official 18-hole CR/Slope/Par.
+   Hole data for the 18-hole round is the physical 9-hole layout played twice. */
+
+function getPlayedHoles294(tee){
+  if(!tee)return [];
+
+  const n=Number(document.getElementById('round')?.value||tee.holes||9);
+  let holes=DB_HOLES.filter(h=>h.tee_id===tee.id)
+    .sort((a,b)=>a.hole_number-b.hole_number);
+
+  /* Crimpenerhout: 18-hole round = same physical 9 holes twice.
+     Use the 9-hole tee's hole definitions for the second loop. */
+  if(tee.course_variant==='main' &&
+     Number(tee.physical_holes)===9 &&
+     Number(tee.holes)===18 &&
+     Number(n)===18){
+    const base=DB_TEES.find(t =>
+      t.course_id===tee.course_id &&
+      t.course_variant===tee.course_variant &&
+      t.gender===tee.gender &&
+      Number(t.holes)===9 &&
+      Number(t.physical_holes)===9 &&
+      t.tee_name===tee.tee_name
+    );
+    const baseHoles=base ? DB_HOLES.filter(h=>h.tee_id===base.id)
+      .sort((a,b)=>a.hole_number-b.hole_number) : [];
+
+    if(baseHoles.length===9){
+      holes=[
+        ...baseHoles.map(h=>({...h, hole_number:Number(h.hole_number)})),
+        ...baseHoles.map(h=>({...h, hole_number:Number(h.hole_number)+9}))
+      ];
+    }
+  }
+
+  if(Number(tee.physical_holes)===14 && tee.qualifying_holes && Number(n)===9){
+    const wanted=String(tee.qualifying_holes).split(',').map(Number);
+    holes=holes
+      .filter(h=>wanted.includes(Number(h.hole_number)))
+      .sort((a,b)=>wanted.indexOf(Number(a.hole_number))-wanted.indexOf(Number(b.hole_number)));
+  }
+
+  return holes;
+}
+
+function updateRoundSelectors294(){
+  if(!DB_READY)return;
+  const cId=document.getElementById('course')?.value;
+  const variant=document.getElementById('courseVariant')?.value;
+  const roundSel=document.getElementById('round');
+  const loopSel=document.getElementById('loop');
+  const loopLabel=document.getElementById('loopLabel');
+  if(!cId||!variant||!roundSel||!loopSel)return;
+
+  const tees=DB_TEES.filter(t =>
+    t.course_id===cId &&
+    t.course_variant===variant &&
+    teeGenderMatches(t)
+  );
+
+  let supported=[...new Set(
+    tees.map(t=>Number(t.holes)).filter(Number.isFinite)
+  )].sort((a,b)=>a-b);
+
+  /* Keep the physical/playing distinction:
+     Crimpenerhout has 9 physical holes, but 9 and 18 are valid rounds. */
+  const course=DB_COURSES.find(c=>c.id===cId);
+  if(course?.name==='Crimpenerhout' && variant==='main'){
+    supported=[9,18].filter(n=>tees.some(t=>Number(t.holes)===n));
+  }
+
+  const oldN=Number(roundSel.value);
+  roundSel.innerHTML=supported.map(n=>`<option value="${n}">${n} holes</option>`).join('');
+  if(supported.includes(oldN)) roundSel.value=String(oldN);
+  else if(supported.length) roundSel.value=String(supported[0]);
+
+  const n=Number(roundSel.value);
+  let loops=[...new Set(
+    tees.filter(t=>Number(t.holes)===n).map(t=>t.loop)
+  )];
+
+  const oldLp=loopSel.value;
+  loopSel.innerHTML=loops.map(lp=>`<option value="${lp}">${dbLoopLabel(lp)}</option>`).join('');
+  if(loops.includes(oldLp)) loopSel.value=oldLp;
+  else if(loops.includes('first')) loopSel.value='first';
+  else if(loops.includes('full')) loopSel.value='full';
+  else if(loops.length) loopSel.value=loops[0];
+
+  loopLabel.style.display=loops.length>1?'block':'none';
+  updateTeeOptionsDb294();
+}
+
+function openDbCourseDetail(id){
+  const c=DB_COURSES.find(x=>x.id===id);
+  if(!c)return;
+
+  const tees=DB_TEES.filter(t=>t.course_id===id);
+  const variants=[...new Set(tees.map(t=>t.course_variant))];
+  const rounds=getHistory().filter(r=>r.course===c.name);
+  const card=document.getElementById('courseDetailCard');
+  const el=document.getElementById('courseDetail');
+  card.style.display='block';
+
+  el.innerHTML=`<h3 style="margin-top:0">${c.name}</h3>
+    <p class="muted">${c.location||''} · ${c.country||''}</p>
+    ${variants.map(v=>{
+      const vt=tees.filter(t=>t.course_variant===v);
+      let layoutText='';
+      if(c.name==='Crimpenerhout' && v==='main'){
+        layoutText='9 fysieke holes · speelbaar als 9 of 18 holes';
+      }else if(c.name==='De Kroonprins' && v==='main'){
+        layoutText='18 holes · 1e 9 · 2e 9';
+      }else if(c.name==='De Kroonprins' && v==='par3'){
+        layoutText='Par 3 · 9 holes';
+      }else if(c.name==='Golfpark Almkreek' && v==='main'){
+        layoutText='18 holes · 1e 9 · 2e 9';
+      }else if(c.name==='Golfpark Almkreek' && (v==='par34'||v==='par3_4')){
+        layoutText='14 holes · qualifying 9 holes (6–14)';
       }
 
       return `<div class="card" style="margin:10px 0;background:#f7f7f8">

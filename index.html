@@ -1790,7 +1790,7 @@
                   if(r.is_member)badges.push('Lid');
                   if(r.is_favorite)badges.push('Favoriet');
                   if(r.played_recently)badges.push('Speelt hier vaak');
-                  if(Number(r.round_count)>0)badges.push(Number(r.round_count)+' ronde'+(Number(r.round_count)===1?'':'s'));
+                  if(Number(r.round_count)>0)badges.push(Number(r.round_count)+'x gespeeld');
                   return '<div class="course-profile-friend">' +
                     '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
                     '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
@@ -1801,7 +1801,7 @@
                 }).join('') +
                 '</div>'
               : '') +
-            '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden. Het exacte aantal rondes is alleen zichtbaar als deze informatie voor vrienden beschikbaar is.</div>' +
+            '<div class="location-meta" style="margin-top:8px">Je ziet alleen geaccepteerde vrienden. “Speelt hier vaak” betekent minimaal 3 afgeronde rondes op deze baan in de afgelopen 12 maanden. Het aantal keer gespeeld is gebaseerd op de rondes die BOUNDS van deze baan kent.</div>' +
             '</div>';
         }catch(friendSocialError){
           console.warn('Vrienden met deze baan laden:',friendSocialError);

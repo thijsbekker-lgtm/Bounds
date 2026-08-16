@@ -1711,21 +1711,14 @@
           ).filter(Boolean))];
 
           if(friendIds.length){
-            const [{data:friendProfiles,error:profileError},
-                   {data:friendCourses,error:courseError}] = await Promise.all([
-              window.boundsClient.rpc('get_social_profiles_by_ids_v2',{user_ids:friendIds}),
-              window.boundsClient.from('user_courses')
-                .select('user_id,course_id,is_member,is_home_course,is_favorite')
-                .in('user_id',friendIds)
-                .eq('course_id',courseId)
-            ]);
-            if(profileError) throw profileError;
-            if(courseError) throw courseError;
+            const {data:friendPresence,error:presenceError} =
+              await window.boundsClient.rpc('get_friend_course_presence',{p_course_id:courseId});
+            if(presenceError) throw presenceError;
 
-            const pm=new Map((friendProfiles||[]).map(p=>[p.id,p]));
-            const matching=(friendCourses||[])
-              .map(r=>({profile:pm.get(r.user_id)||{},rel:r}))
-              .filter(x=>x.rel.is_member||x.rel.is_home_course||x.rel.is_favorite);
+            const matching=(friendPresence||[]).map(r=>({
+              profile:{id:r.user_id,display_name:r.display_name},
+              rel:r
+            }));
 
             if(matching.length){
               friendsEl.style.display='block';

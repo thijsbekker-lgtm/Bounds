@@ -322,7 +322,7 @@
   <p class="muted">Ontdek banen, bekijk baaninformatie en open je persoonlijke historie per baan.</p>
   <div class="action-grid">
    <button class="primary" onclick="showCourseSearch()">⌕ Search Courses</button>
-   <button class="secondary" onclick="showNearbyCourses()">⌖ Nearby</button>
+   <button class="secondary" onclick="requestNearbyLocation296(); document.getElementById('nearbyCourses')?.scrollIntoView({behavior:'smooth',block:'center'})">⌖ Nearby</button>
   </div>
   <div id="courseSearchArea" style="display:none;margin-top:10px">
     <input id="courseSearch" type="search" placeholder="Zoek een golfbaan…" oninput="renderCourseDirectory()">
@@ -2068,7 +2068,7 @@ async function initBoundsCourses294(){
 }
 initBoundsCourses294();
 </script>\n<script>
-/* BOUNDS v2.9.7 — Nearby by driving route
+/* BOUNDS v2.9.9 — Nearby by driving route
    - Nearby is defined as <= 25 km driving distance.
    - Uses road routing, not straight-line/Haversine distance.
    - Shows driving distance and estimated driving time.
@@ -2275,7 +2275,7 @@ setTimeout(() => {
 </script>
 
 <script>
-/* BOUNDS v2.9.7 — Nearby UI wiring + correct course hole labels */
+/* BOUNDS v2.9.9 — Nearby UI wiring + correct course hole labels */
 
 function courseSummary296(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2338,5 +2338,150 @@ function courseVariantLabel297(v){
   return v || 'Baan';
 }
 
+</script>
+
+<script>
+/* BOUNDS v2.9.9 — physical course layout is distinct from rating length */
+
+function physicalCourseLabel298(c){
+  const tees = DB_TEES.filter(t => t.course_id === c.id);
+  const nums = [...new Set(tees.map(t => Number(t.physical_holes)).filter(Number.isFinite))].sort((a,b)=>a-b);
+
+  if(c.name === 'Crimpenerhout') return '9 holes';
+  if(c.name === 'De Kroonprins') return '18 holes · Par 3: 9 holes';
+  if(c.name === 'Golfpark Almkreek') return '18 holes · Par 3/4: 14 holes';
+
+  if(nums.length === 1) return `${nums[0]} holes`;
+  if(nums.length > 1) return `${nums[nums.length-1]} holes`;
+  return '';
+}
+
+function courseSummary296(c){
+  return physicalCourseLabel298(c);
+}
+
+function courseDisplayHoles296(c){
+  return physicalCourseLabel298(c);
+}
+
+/* Detail cards: never show rating_holes as physical course size. */
+const _openDbCourseDetail298 = window.openDbCourseDetail;
+if(typeof _openDbCourseDetail298 === 'function' && !_openDbCourseDetail298.__bounds298){
+  window.openDbCourseDetail = function(courseId){
+    return _openDbCourseDetail298.apply(this, arguments);
+  };
+  window.openDbCourseDetail.__bounds298 = true;
+}
+
+/* Nearby uses the physical course label as well. */
+const _renderNearby298 = window.renderNearbyCourses296;
+if(typeof _renderNearby298 === 'function' && !_renderNearby298.__bounds298){
+  window.renderNearbyCourses296 = async function(){
+    const result = await _renderNearby298.apply(this, arguments);
+    return result;
+  };
+  window.renderNearbyCourses296.__bounds298 = true;
+}
+</script>
+
+<script>
+/* BOUNDS v2.9.9 — use physical holes for Play and Course Detail */
+
+function updateRoundSelectors294(){
+  if(!DB_READY)return;
+  const cId=document.getElementById('course')?.value;
+  const variant=document.getElementById('courseVariant')?.value;
+  const roundSel=document.getElementById('round');
+  const loopSel=document.getElementById('loop');
+  const loopLabel=document.getElementById('loopLabel');
+  if(!cId||!variant||!roundSel||!loopSel)return;
+
+  let tees=DB_TEES.filter(t =>
+    t.course_id===cId &&
+    t.course_variant===variant &&
+    teeGenderMatches(t)
+  );
+
+  /* A tee can have an 18-hole rating on a physically 9-hole course.
+     Play must expose physical playable lengths, not rating length. */
+  const supported=[...new Set(
+    tees.map(t => Number(t.physical_holes || t.layout_holes || t.holes))
+      .filter(Number.isFinite)
+  )].sort((a,b)=>a-b);
+
+  const oldN=Number(roundSel.value);
+  roundSel.innerHTML=supported.map(n=>`<option value="${n}">${n} holes</option>`).join('');
+  if(supported.includes(oldN)) roundSel.value=String(oldN);
+  else if(supported.length) roundSel.value=String(supported[0]);
+
+  const n=Number(roundSel.value);
+  let loops=[...new Set(
+    tees.filter(t => Number(t.physical_holes || t.layout_holes || t.holes)===n)
+        .map(t=>t.loop)
+  )];
+
+  const oldLp=loopSel.value;
+  loopSel.innerHTML=loops.map(lp=>`<option value="${lp}">${dbLoopLabel(lp)}</option>`).join('');
+  if(loops.includes(oldLp)) loopSel.value=oldLp;
+  else if(loops.includes('front')) loopSel.value='front';
+  else if(loops.includes('first')) loopSel.value='first';
+  else if(loops.length) loopSel.value=loops[0];
+
+  loopLabel.style.display=loops.length>1?'block':'none';
+  updateTeeOptionsDb294();
+}
+
+function openDbCourseDetail(id){
+  const c=DB_COURSES.find(x=>x.id===id);
+  if(!c)return;
+
+  const tees=DB_TEES.filter(t=>t.course_id===id);
+  const variants=[...new Set(tees.map(t=>t.course_variant))];
+  const rounds=getHistory().filter(r=>r.course===c.name);
+  const card=document.getElementById('courseDetailCard');
+  const el=document.getElementById('courseDetail');
+
+  card.style.display='block';
+
+  el.innerHTML=`<h3 style="margin-top:0">${c.name}</h3>
+    <p class="muted">${c.location||''} · ${c.country||''}</p>
+    ${variants.map(v=>{
+      const vt=tees.filter(t=>t.course_variant===v);
+      const physical=[...new Set(
+        vt.map(t=>Number(t.physical_holes || t.layout_holes || t.holes))
+          .filter(Number.isFinite)
+      )].sort((a,b)=>a-b);
+
+      let layoutText='';
+      if(c.name==='Crimpenerhout'){
+        layoutText='9 holes';
+      }else if(c.name==='De Kroonprins' && v==='main'){
+        layoutText='18 holes · 1e 9 · 2e 9';
+      }else if(c.name==='De Kroonprins' && v==='par3'){
+        layoutText='Par 3 · 9 holes';
+      }else if(c.name==='Golfpark Almkreek' && v==='main'){
+        layoutText='18 holes · 1e 9 · 2e 9';
+      }else if(c.name==='Golfpark Almkreek' && (v==='par34'||v==='par3_4')){
+        layoutText='14 holes · qualifying 9 holes (6–14)';
+      }else if(physical.length===1){
+        layoutText=`${physical[0]} holes`;
+      }else if(physical.length>1){
+        layoutText=`${physical[physical.length-1]} holes`;
+      }
+
+      return `<div class="card" style="margin:10px 0;background:#f7f7f8">
+        <div class="section-title">${dbVariantLabel(v)}</div>
+        <div class="muted">${layoutText}</div>
+        <div class="muted" style="margin-top:6px">Tees: ${[...new Set(vt.map(t=>t.tee_name))].join(' · ')}</div>
+      </div>`;
+    }).join('')}
+    <div class="dashboard-grid">
+      <div class="metric"><b>${rounds.length}</b><span>rondes bij deze club</span></div>
+      <div class="metric"><b>${rounds.length?Math.min(...rounds.map(r=>r.total)):'—'}</b><span>beste score</span></div>
+    </div>
+    <div class="action-grid"><button class="primary" onclick="chooseDbCourseForRound('${id}')">Start Round</button><button class="secondary" onclick="showTab('profile')">Profiel</button></div>`;
+
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+}
 </script>
 </html>

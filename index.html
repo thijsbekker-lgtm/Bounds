@@ -191,6 +191,12 @@
 }
 </style>
 
+
+<style>
+.location-meta{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.35}
+.location-meta.ok{color:#2b7a43}
+.location-meta.error{color:#a63b35}
+</style>
 </head>
 <body>
 <div class="app">
@@ -302,6 +308,8 @@
       <label>Naam<input id="authName" type="text" autocomplete="name" placeholder="Je naam"></label>
       <label>Handicap Index<input id="authHcp" type="number" min="-10" max="54" step="0.1" value=""></label>
     </div>
+    <label style="display:block;margin-top:10px">Woonplaats<input id="authWoonplaats" type="text" autocomplete="address-level2" placeholder="Bijv. Krimpen aan de Lek"></label>
+    <small class="muted">Je woonplaats gebruiken we om golfers en banen bij jou in de buurt te vinden.</small>
     <label style="display:block;margin-top:10px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="jij@example.com"></label>
     <label style="display:block;margin-top:10px">Wachtwoord<input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens"></label>
     <div class="action-grid" style="margin-top:10px">
@@ -316,6 +324,8 @@
       <label>Naam<input id="authNameSignedIn" type="text" autocomplete="name" placeholder="Je naam"></label>
       <label>Handicap Index<input id="authHcpSignedIn" type="number" min="-10" max="54" step="0.1" placeholder="Handicap Index"></label>
     </div>
+    <label style="display:block;margin-top:10px">Woonplaats<input id="authWoonplaatsSignedIn" type="text" autocomplete="address-level2" placeholder="Bijv. Krimpen aan de Lek"></label>
+    <div id="authLocationMeta" class="location-meta">Regio wordt automatisch bepaald op basis van je woonplaats.</div>
     <button class="secondary" type="button" onclick="boundsSaveSignedInProfile()" style="margin-top:10px;width:100%">Profiel opslaan</button>
     <small id="accountMessage" class="muted">Synchronisatie actief.</small>
     <button class="secondary" type="button" onclick="boundsSignOut()" style="margin-top:10px;width:100%">Uitloggen</button>
@@ -335,10 +345,10 @@
     <div id="friendsApp" style="display:none">
       <div class="section-title">Golfers zoeken</div>
       <div class="friends-search-row">
-        <input id="friendsSearch" type="search" placeholder="Naam of regio" autocomplete="off">
+        <input id="friendsSearch" type="search" placeholder="Naam, woonplaats of regio" autocomplete="off">
         <button class="primary" type="button" onclick="boundsSearchGolfers()">Zoeken</button>
       </div>
-      <small class="muted">Je ziet alleen golfers die vindbaar zijn volgens hun privacy-instellingen.</small>
+      <small class="muted">Zoek op naam, woonplaats of regio. Je ziet alleen golfers die vindbaar zijn volgens hun privacy-instellingen.</small>
       <div id="friendsSearchResults" class="friends-list" style="margin-top:10px"></div>
     </div>
   </div>
@@ -583,7 +593,7 @@
 
   async function loadProfiles(ids){
     if(!ids.length)return [];
-    const {data,error}=await window.boundsClient.rpc('get_social_profiles_by_ids',{
+    const {data,error}=await window.boundsClient.rpc('get_social_profiles_by_ids_v2',{
       user_ids:ids
     });
     if(error) throw error;
@@ -642,6 +652,7 @@
     const hcp=(p.handicap_index!==null && p.handicap_index!==undefined && p.handicap_index!=='')
       ? 'HCP '+Number(p.handicap_index).toFixed(1).replace('.',',') : 'Handicap niet gedeeld';
     const region=p.region||'';
+    const city=p.woonplaats||'';
     let actions='';
     if(type==='request'){
       actions='<div class="friend-actions">'
@@ -655,7 +666,7 @@
     }
     return '<div class="friend-row">'
       +'<div class="friend-avatar">'+esc(initials(name))+'</div>'
-      +'<div class="friend-main"><b>'+esc(name)+'</b><small>'+esc([hcp,region].filter(Boolean).join(' • '))+'</small></div>'
+      +'<div class="friend-main"><b>'+esc(name)+'</b><small>'+esc([hcp,city,region].filter(Boolean).join(' • '))+'</small></div>'
       +actions+'</div>';
   }
 
@@ -669,7 +680,7 @@
     el.innerHTML='<div class="friends-empty">Zoeken…</div>';
 
     try{
-      const {data,error}=await window.boundsClient.rpc('get_social_profiles',{
+      const {data,error}=await window.boundsClient.rpc('get_social_profiles_v2',{
         search_query:q,max_results:20
       });
       if(error)throw error;
@@ -699,7 +710,7 @@
         return '<div class="friend-row">'
           +'<div class="friend-avatar">'+esc(initials(p.display_name))+'</div>'
           +'<div class="friend-main"><b>'+esc(p.display_name||'Golfer')+'</b><small>'
-          +esc([p.handicap_index!==null&&p.handicap_index!==undefined?'HCP '+Number(p.handicap_index).toFixed(1).replace('.',','):'Handicap niet gedeeld',p.region||''].filter(Boolean).join(' • '))
+          +esc([p.handicap_index!==null&&p.handicap_index!==undefined?'HCP '+Number(p.handicap_index).toFixed(1).replace('.',','):'Handicap niet gedeeld',p.woonplaats||'',p.region||''].filter(Boolean).join(' • '))
           +'</small></div>'
           +'<div class="friend-actions"><button class="'+cls+'"'+disabled+' onclick="boundsSendFriendRequest(\''+p.id+'\')">'+label+'</button></div>'
           +'</div>';
@@ -830,6 +841,65 @@
 })();
 </script>
 
+
+<script>
+/* ===== BOUNDS profile location v1 =====
+   Woonplaats is user-entered. PDOK (open Dutch government geocoder)
+   resolves the selected place to municipality/province and coordinates.
+   Exact coordinates are stored for future distance-based discovery but
+   are never displayed to other golfers.
+*/
+(function(){
+  const PDOK='https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
+
+  function setLocationMeta(text,kind=''){
+    const el=document.getElementById('authLocationMeta');
+    if(el){el.textContent=text;el.className='location-meta '+kind;}
+  }
+
+  async function resolveWoonplaats(value){
+    const q=(value||'').trim();
+    if(!q) return null;
+    const url=PDOK+'?'+new URLSearchParams({q,rows:'5',fq:'type:woonplaats'}).toString();
+    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('Locatieservice gaf '+res.status);
+    const json=await res.json();
+    const docs=json?.response?.docs||[];
+    if(!docs.length) return null;
+    const d=docs[0];
+    let lat=null,lon=null;
+    const c=d.centroide_ll||d.centroide_ll_rd;
+    if(typeof c==='string'){
+      const m=c.match(/POINT\\s*\\(([-0-9.]+)\\s+([-0-9.]+)\\)/i);
+      if(m){lon=Number(m[1]);lat=Number(m[2]);}
+      else{
+        const parts=c.replace(/[()]/g,'').trim().split(/[ ,]+/).map(Number);
+        if(parts.length>=2){lat=parts[0];lon=parts[1];}
+      }
+    }
+    return {
+      woonplaats:d.woonplaatsnaam||q,
+      region:d.gemeentenaam||d.provincienaam||'',
+      province:d.provincienaam||'',
+      latitude:Number.isFinite(lat)?lat:null,
+      longitude:Number.isFinite(lon)?lon:null
+    };
+  }
+
+  window.boundsResolveWoonplaats=resolveWoonplaats;
+
+  // Show resolved location after a profile is loaded.
+  window.boundsRenderLocationMeta=function(p){
+    const city=p?.woonplaats||'';
+    const region=p?.region||'';
+    const el=document.getElementById('authLocationMeta');
+    if(!el)return;
+    if(city && region) el.textContent='Regio: '+region+' • locatie opgeslagen voor toekomstige afstandszoekopdrachten.';
+    else if(city) el.textContent='Woonplaats opgeslagen. Regio kon nog niet automatisch worden bepaald.';
+    else el.textContent='Regio wordt automatisch bepaald op basis van je woonplaats.';
+  };
+})();
+</script>
 </body>
 <script>
 // -------------------- COURSE DATA --------------------
@@ -2403,13 +2473,14 @@ async function boundsSignUp(){
   const password=document.getElementById('authPassword').value||'';
   const name=(document.getElementById('authName').value||'').trim();
   const hcp=Number(document.getElementById('authHcp').value);
+  const woonplaats=(document.getElementById('authWoonplaats')?.value||'').trim();
   if(!email||!password||!name||!Number.isFinite(hcp)||hcp<-10||hcp>54){
     boundsMessage('Vul naam, geldig e-mailadres, wachtwoord en handicap in.',true); return;
   }
   boundsSetStatus('Account maken…','busy');
   const {data,error}=await boundsClient.auth.signUp({
     email,password,
-    options:{data:{display_name:name,handicap_index:hcp}}
+    options:{data:{display_name:name,handicap_index:hcp,woonplaats}}
   });
   if(error){boundsMessage(error.message,true);return;}
   if(data.session){
@@ -2465,9 +2536,22 @@ async function boundsSaveSignedInProfile(){
     const h=Number(document.getElementById('authHcpSignedIn')?.value);
     const name=(document.getElementById('authNameSignedIn')?.value||'').trim();
     if(!Number.isFinite(h)||h<-10||h>54){boundsMessage('Vul een geldige Handicap Index in.',true);return;}
+    const woonplaats=(document.getElementById('authWoonplaatsSignedIn')?.value||'').trim();
+    let location=null;
+    if(woonplaats){
+      try{
+        location=await window.boundsResolveWoonplaats(woonplaats);
+      }catch(e){
+        console.warn('Woonplaats geocoderen mislukt:',e);
+      }
+    }
     const payload={id:user.id,handicap_index:h};
     if(name)payload.display_name=name;
-    const {data:p,error}=await boundsClient.from('profiles').upsert(payload).select('display_name,handicap_index,target_handicap').single();
+    if(woonplaats)payload.woonplaats=location?.woonplaats||woonplaats;
+    if(location?.region)payload.region=location.region;
+    if(Number.isFinite(location?.latitude))payload.latitude=location.latitude;
+    if(Number.isFinite(location?.longitude))payload.longitude=location.longitude;
+    const {data:p,error}=await boundsClient.from('profiles').upsert(payload).select('display_name,handicap_index,target_handicap,woonplaats,region,latitude,longitude').single();
     if(error)throw error;
     hi.value=h;
     document.getElementById('authHcp').value=h;
@@ -2477,7 +2561,8 @@ async function boundsSaveSignedInProfile(){
     renderPlayers();renderPlayerSwitcher();
     try{renderMyGame();}catch(e){console.warn('Mijn spel vernieuwen:',e);}
     try{render();}catch(e){console.warn('Scorekaart vernieuwen:',e);}
-    boundsMessage('Profiel opgeslagen.');
+    window.boundsRenderLocationMeta?.(p);
+    boundsMessage(location ? 'Profiel opgeslagen. Woonplaats en regio bijgewerkt.' : 'Profiel opgeslagen.');
   }catch(e){boundsMessage('Profiel opslaan mislukt: '+(e?.message||String(e)),true);}
 }
 async function boundsSignOut(){
@@ -2494,7 +2579,7 @@ async function boundsRefreshAuth(){
     document.getElementById('authUserLabel').textContent=session.user.email||'Ingelogde golfer';
     boundsSetStatus('Gesynchroniseerd','ok');
     try{
-      const {data:p,error}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap').eq('id',session.user.id).single();
+      const {data:p,error}=await boundsClient.from('profiles').select('display_name,handicap_index,target_handicap,woonplaats,region,latitude,longitude').eq('id',session.user.id).single();
       if(!error&&p){
         const profileHcp=Number(p.handicap_index);
         const profileName=p.display_name||session.user.user_metadata?.display_name||'Ik';
@@ -2502,8 +2587,11 @@ async function boundsRefreshAuth(){
         hi.value=Number.isFinite(profileHcp)?profileHcp:'';
         const signedHcp=document.getElementById('authHcpSignedIn');
         const signedName=document.getElementById('authNameSignedIn');
+        const signedWoonplaats=document.getElementById('authWoonplaatsSignedIn');
         if(signedHcp)signedHcp.value=Number.isFinite(profileHcp)?profileHcp:'';
         if(signedName)signedName.value=profileName;
+        if(signedWoonplaats)signedWoonplaats.value=p.woonplaats||'';
+        window.boundsRenderLocationMeta?.(p);
         if(p.target_handicap!==null && document.getElementById('goalHcp'))document.getElementById('goalHcp').value=p.target_handicap;
         playerProfiles[activePlayerIndex]={...(playerProfiles[activePlayerIndex]||{}),name:profileName,hcp:Number.isFinite(profileHcp)?profileHcp:null};
         savePlayerProfiles();

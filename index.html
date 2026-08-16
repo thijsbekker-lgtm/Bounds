@@ -248,6 +248,7 @@
    <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
    <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label><div id="handicapTableIndicator" class="muted" style="grid-column:1/-1;margin-top:-6px">Handicap tabel: Heren</div>
   </div>
+  <div id="courseConfigNote" class="muted" style="margin:10px 0 0">Kies een baan en tee om de officiële course-configuratie te laden.</div>
   <div class="stats">
    <div class="stat"><small>Baanhcp</small><b id="courseHcp">—</b></div>
    <div class="stat"><small>CR / Slope</small><b id="crsr">—</b></div>
@@ -359,8 +360,8 @@
  <div class="card">
   <div class="section-title">Your Courses</div>
   <div class="grid">
-   <label>Home / Member Course<select id="profileHomeCourse"><option value="">Geen</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
-   <label>Favorite Course<select id="profileFavoriteCourse"><option value="">Geen</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option></select></label>
+   <label>Home / Member Course<select id="profileHomeCourse"><option value="">Geen</option></select></label>
+   <label>Favorite Course<select id="profileFavoriteCourse"><option value="">Geen</option></select></label>
   </div>
  </div>
  <div class="card">
@@ -1632,7 +1633,7 @@ let DB_READY = false;
 async function loadCoursesFromSupabase(){
   const [cRes,tRes,hRes] = await Promise.all([
     boundsSupabase.from('courses').select('id,name,location,country,source'),
-    boundsSupabase.from('course_tees').select('id,course_id,tee_name,gender,holes,course_rating,slope_rating,par,loop,course_variant,verification_status,source_url'),
+    boundsSupabase.from('course_tees').select('id,course_id,tee_name,gender,holes,course_rating,slope_rating,par,loop,course_variant,verification_status,source_url,physical_holes,physical_par,rating_holes,rating_par,qualifying_holes,qualifying_par,qualifying_hole_sequence,layout_holes,layout_par'),
     boundsSupabase.from('course_holes').select('id,tee_id,hole_number,par,stroke_index')
   ]);
   if(cRes.error) throw cRes.error;
@@ -1891,4 +1892,175 @@ async function initBoundsCourses(){
 }
 initBoundsCourses();
 </script>
-</html>
+\n<script>
+/* BOUNDS v2.9.4 — Course Engine / Profile preferences
+   Final integration layer on top of v2.9.3.
+   Goals: gender-aware tee selection, real DB variants/loops, Almkreek 14-hole qualifying 6-14, dynamic profile courses.
+*/
+function dbGender(){
+  return (getProfile().handicapTable||'men')==='women' ? 'women' : 'men';
+}
+function dbLoopLabel(lp){
+  return ({front:'1e 9',first:'1e 9',back:'2e 9',second:'2e 9',full:'18 holes'}[lp]||lp||'');
+}
+function dbVariantLabel(v){
+  return ({main:'Main Course',par3:'Par 3',par34:'Par 3/4',shortgolf:'Shortgolf'}[v]||v||'Course');
+}
+function teeGenderMatches(t){ return !t.gender || t.gender===dbGender(); }
+function getDbTeesForSelection(){
+  const cId=document.getElementById('course')?.value;
+  const v=document.getElementById('courseVariant')?.value;
+  const n=Number(document.getElementById('round')?.value||9);
+  const lp=document.getElementById('loop')?.value;
+  return DB_TEES.filter(t=>t.course_id===cId && t.course_variant===v && Number(t.holes)===n && (!lp || t.loop===lp) && teeGenderMatches(t));
+}
+function populateProfileCourseSelects(){
+  const h=document.getElementById('profileHomeCourse'), f=document.getElementById('profileFavoriteCourse');
+  if(!h||!f||!DB_READY)return;
+  const opts='<option value="">Geen</option>'+DB_COURSES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const p=getProfile();
+  h.innerHTML=opts; f.innerHTML=opts;
+  if(p.homeCourse && DB_COURSES.some(c=>c.id===p.homeCourse))h.value=p.homeCourse;
+  else if(p.homeCourse){ const c=DB_COURSES.find(c=>c.name.toLowerCase()===String(p.homeCourse).toLowerCase()); if(c)h.value=c.id; }
+  if(p.favoriteCourse && DB_COURSES.some(c=>c.id===p.favoriteCourse))f.value=p.favoriteCourse;
+  else if(p.favoriteCourse){ const c=DB_COURSES.find(c=>c.name.toLowerCase()===String(p.favoriteCourse).toLowerCase()); if(c)f.value=c.id; }
+}
+function updateRoundSelectors294(){
+  if(!DB_READY)return;
+  const cId=document.getElementById('course')?.value;
+  const variant=document.getElementById('courseVariant')?.value;
+  const roundSel=document.getElementById('round');
+  const loopSel=document.getElementById('loop');
+  const loopLabel=document.getElementById('loopLabel');
+  if(!cId||!variant)return;
+  let tees=DB_TEES.filter(t=>t.course_id===cId&&t.course_variant===variant&&teeGenderMatches(t));
+  const supported=[...new Set(tees.map(t=>Number(t.holes)))].sort((a,b)=>a-b);
+  const oldN=Number(roundSel.value);
+  roundSel.innerHTML=supported.map(n=>`<option value="${n}">${n} holes</option>`).join('');
+  if(supported.includes(oldN))roundSel.value=oldN; else if(supported.length)roundSel.value=String(supported[0]);
+  const n=Number(roundSel.value);
+  let loops=[...new Set(tees.filter(t=>Number(t.holes)===n).map(t=>t.loop))];
+  const oldLp=loopSel.value;
+  loopSel.innerHTML=loops.map(lp=>`<option value="${lp}">${dbLoopLabel(lp)}</option>`).join('');
+  if(loops.includes(oldLp))loopSel.value=oldLp; else if(loops.includes('front'))loopSel.value='front'; else if(loops.includes('first'))loopSel.value='first'; else if(loops.length)loopSel.value=loops[0];
+  loopLabel.style.display=loops.length>1?'block':'none';
+  updateTeeOptionsDb294();
+}
+function updateVariantOptions294(){
+  const cId=document.getElementById('course')?.value, v=document.getElementById('courseVariant');
+  if(!v||!DB_READY)return;
+  const variants=[...new Set(DB_TEES.filter(t=>t.course_id===cId).map(t=>t.course_variant))];
+  const old=v.value;
+  v.innerHTML=variants.map(x=>`<option value="${x}">${dbVariantLabel(x)}</option>`).join('');
+  if(variants.includes(old))v.value=old; else if(variants.includes('main'))v.value='main'; else if(variants.length)v.value=variants[0];
+}
+function updateTeeOptionsDb294(){
+  const sel=document.getElementById('tee'); if(!sel||!DB_READY)return;
+  const tees=getDbTeesForSelection();
+  const old=sel.value;
+  sel.innerHTML='<option value="">Kies tee…</option>'+tees.map(t=>`<option value="${t.id}">${t.tee_name}</option>`).join('');
+  const preferred=getProfile().tee||'';
+  const preferredTee=tees.find(t=>t.tee_name===preferred);
+  if(old && tees.some(t=>t.id===old))sel.value=old; else if(preferredTee)sel.value=preferredTee.id; else if(tees.length===1)sel.value=tees[0].id;
+}
+function selectedDbTee294(){ return DB_TEES.find(t=>t.id===document.getElementById('tee')?.value)||null; }
+function getPlayedHoles294(tee){
+  if(!tee)return [];
+  let holes=DB_HOLES.filter(h=>h.tee_id===tee.id).sort((a,b)=>a.hole_number-b.hole_number);
+  if(Number(tee.physical_holes)===14 && tee.qualifying_holes){
+    const wanted=String(tee.qualifying_holes).split(',').map(Number);
+    if(Number(document.getElementById('round')?.value)===9) holes=holes.filter(h=>wanted.includes(Number(h.hole_number))).sort((a,b)=>wanted.indexOf(Number(a.hole_number))-wanted.indexOf(Number(b.hole_number)));
+  }
+  return holes;
+}
+function updateCourseConfigNote294(){
+  const note=document.getElementById('courseConfigNote'); if(!note)return;
+  const c=selectedDbCourse(),t=selectedDbTee294();
+  if(!c||!t){note.textContent='Kies een baan en tee om de officiële course-configuratie te laden.';return;}
+  const physical=t.physical_holes||t.layout_holes||t.holes;
+  const playing=getPlayedHoles294(t);
+  let extra='';
+  if(Number(physical)===14 && Number(t.holes)===9) extra=' · qualifying holes 6–14';
+  note.textContent=`${c.name} · ${dbVariantLabel(t.course_variant)} · ${dbLoopLabel(t.loop)} · ${t.tee_name} · ${t.gender==='women'?'Dames':'Heren'} · CR ${t.course_rating} / Slope ${t.slope_rating} · Par ${t.par}${extra}`;
+}
+// Final currentConfig override: uses selected DB tee and the correct played-hole sequence.
+window.currentConfig=function(){
+  if(!DB_READY){ return originalCurrentConfig292(); }
+  const tee=selectedDbTee294(), c=selectedDbCourse();
+  if(!tee||!c) return {h:+hi.value||0,c:c?.id||'',n:Number(round.value)||9,holes:[],cr:0,sr:113,par:0,table:null,note:'Kies eerst een baan en tee.'};
+  const played=getPlayedHoles294(tee);
+  const cfg={h:+hi.value||0,c:c.id,n:played.length,holes:played.map(h=>[h.hole_number,h.par,h.stroke_index]),cr:Number(tee.course_rating),sr:Number(tee.slope_rating),par:Number(tee.par),table:null,note:''};
+  cfg.note=`${c.name} • ${dbVariantLabel(tee.course_variant)} • ${dbLoopLabel(tee.loop)} • ${tee.tee_name} • ${tee.gender==='women'?'Dames':'Heren'}`;
+  return cfg;
+};
+window.getCourseHcp=function(cfg){
+  const t=selectedDbTee294();
+  if(!t)return null;
+  const h=Number(cfg.h)||0;
+  const holes=Number(t.holes);
+  // For Almkreek Par 3/4, t.holes is the rated qualifying 9 while physical_holes is 14.
+  const raw=holes===9 ? (h/2)*(Number(t.slope_rating)/113)+(Number(t.course_rating)-Number(t.par)) : h*(Number(t.slope_rating)/113)+(Number(t.course_rating)-Number(t.par));
+  return Math.round(raw);
+};
+window.strokesForSI=function(si,cfg){
+  const ch=window.getCourseHcp(cfg); if(ch===null||ch===undefined)return 0;
+  const sis=cfg.holes.map(x=>Number(x[2])).filter(Number.isFinite).sort((a,b)=>a-b);
+  const idx=sis.indexOf(Number(si)); if(idx<0)return 0;
+  const n=sis.length, abs=Math.abs(ch), base=Math.floor(abs/n), rem=abs%n;
+  let s=base+(idx<rem?1:0); if(ch<0)s=-s; return s;
+};
+window.updateUI=function(){
+  if(typeof originalUpdateUI292==='function')originalUpdateUI292();
+  if(DB_READY){updateVariantOptions294();updateRoundSelectors294();updateCourseConfigNote294();}
+};
+async function loadProfileFromSupabase294(){
+  // If authentication is added later, this field is ready. For now localStorage remains the offline source of truth.
+  return;
+}
+function saveProfile294(){
+  const p=getProfile();
+  p.name=document.getElementById('profileName').value.trim();
+  p.hcp=Number(document.getElementById('profileHcp').value)||14.2;
+  p.goal=Number(document.getElementById('profileGoal').value)||12;
+  p.tee=document.getElementById('profileTee').value;
+  p.homeCourse=document.getElementById('profileHomeCourse').value;
+  p.favoriteCourse=document.getElementById('profileFavoriteCourse').value;
+  p.handicapTable=document.getElementById('profileHandicapTable').value||'men';
+  localStorage.setItem('bounds_profile',JSON.stringify(p));
+  if(typeof playerProfiles!=='undefined'&&playerProfiles[activePlayerIndex]){playerProfiles[activePlayerIndex].hcp=p.hcp;if(p.name)playerProfiles[activePlayerIndex].name=p.name;savePlayerProfiles();loadActivePlayer();}
+  updateRoundSelectors294();updateCourseConfigNote294();renderHome();renderDbCourseDirectory();
+  alert('Profiel opgeslagen.');
+}
+window.saveProfile=saveProfile294;
+function loadProfile294(){
+  const p=getProfile();
+  document.getElementById('profileName').value=p.name||'';
+  document.getElementById('profileHcp').value=p.hcp??14.2;
+  document.getElementById('profileGoal').value=p.goal??12;
+  document.getElementById('profileTee').value=p.tee||'';
+  document.getElementById('profileHandicapTable').value=p.handicapTable||'men';
+  populateProfileCourseSelects();
+}
+const _showTab294=window.showTab;
+window.showTab=function(tab){
+  _showTab294(tab);
+  if(tab==='profile')loadProfile294();
+  if(tab==='courses')renderDbCourseDirectory();
+};
+// Replace old static selector listeners with one final event layer.
+['course','courseVariant','round','loop','tee'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{
+  if(!DB_READY)return;
+  updateVariantOptions294();updateRoundSelectors294();updateCourseConfigNote294();render();
+}));
+document.getElementById('profileHandicapTable')?.addEventListener('change',()=>{updateRoundSelectors294();updateCourseConfigNote294();render();});
+
+const _oldInit294=initBoundsCourses;
+async function initBoundsCourses294(){
+  await _oldInit294();
+  if(!DB_READY)return;
+  populateProfileCourseSelects();
+  loadProfile294();
+  updateVariantOptions294();updateRoundSelectors294();updateCourseConfigNote294();
+}
+initBoundsCourses294();
+</script>\n</html>

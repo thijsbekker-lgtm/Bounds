@@ -42,6 +42,27 @@
 .course-profile-friend-main b{display:block;font-size:12px}
 .course-profile-friend-main small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
 .course-profile-friend-badge{font-size:9px;background:#e9f5ec;color:#2b7a43;border-radius:9px;padding:4px 6px;font-weight:700}
+
+.shared-round-detail-backdrop{position:fixed;inset:0;background:rgba(10,18,22,.28);z-index:1200;display:none;padding:12px;overflow:auto}
+.shared-round-detail-backdrop.open{display:flex;align-items:flex-end;justify-content:center}
+.shared-round-detail-modal{width:min(680px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.shared-round-detail-head{display:flex;align-items:flex-start;gap:10px}
+.shared-round-detail-head h2{margin:0;font-size:20px}
+.shared-round-detail-head p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.shared-round-detail-close{margin-left:auto;border:0;background:#eef0f1;border-radius:10px;width:34px;height:34px;font-size:18px}
+.shared-round-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:14px 0}
+.shared-round-summary div{background:#f5f5f7;border-radius:12px;padding:9px;text-align:center}
+.shared-round-summary b{display:block;font-size:16px}
+.shared-round-summary span{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+.shared-hole-table{width:100%;border-collapse:separate;border-spacing:0 5px;font-size:10px}
+.shared-hole-table th{color:var(--muted);font-weight:700;text-align:center;padding:3px}
+.shared-hole-table th:first-child,.shared-hole-table td:first-child{text-align:left}
+.shared-hole-table td{background:#f7f7f8;padding:8px 6px;text-align:center}
+.shared-hole-table td:first-child{border-radius:9px 0 0 9px;font-weight:800}
+.shared-hole-table td:last-child{border-radius:0 9px 9px 0}
+.shared-hole-table .hole-score{font-weight:900;font-size:12px}
+.shared-hole-note{color:var(--muted);font-size:9px;margin-top:10px}
+.shared-round-clickable{cursor:pointer}
 </style>
 
 <style>
@@ -1989,7 +2010,7 @@
 .share-avatar{width:38px;height:38px;border-radius:50%;background:#eef2f4;display:grid;place-items:center;font-weight:800;color:#5d6870}
 .share-friend-main{flex:1;min-width:0}.share-friend-main b{display:block}.share-friend-main small{display:block;color:var(--muted);margin-top:2px}
 .share-check{width:20px;height:20px}.share-options{margin-top:18px;padding-top:14px;border-top:1px solid #e9e9eb}.share-options h3{margin:0 0 8px;font-size:14px}.share-option{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13px}.share-footer{display:flex;gap:9px;margin-top:18px}.share-footer button{flex:1}
-.shared-round-item{padding:13px 0;border-bottom:1px solid #ececee}.shared-round-item:last-child{border-bottom:0}.shared-round-top{display:flex;justify-content:space-between;gap:10px}.shared-round-top b{font-size:14px}.shared-round-meta{color:var(--muted);font-size:11px;margin-top:4px}.shared-round-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.shared-round-stat{background:#f5f5f6;border-radius:10px;padding:6px 8px;font-size:11px}.shared-round-revoke{margin-top:9px}
+.shared-round-item{padding:13px 0;border-bottom:1px solid #ececee}.shared-round-item:last-child{border-bottom:0}.shared-round-item.shared-round-clickable{cursor:pointer}.shared-round-item.shared-round-clickable:active{transform:scale(.995)}.shared-round-top{display:flex;justify-content:space-between;gap:10px}.shared-round-top b{font-size:14px}.shared-round-meta{color:var(--muted);font-size:11px;margin-top:4px}.shared-round-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.shared-round-stat{background:#f5f5f6;border-radius:10px;padding:6px 8px;font-size:11px}.shared-round-revoke{margin-top:9px}
 </style>
 
 <div id="shareRoundBackdrop" class="share-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="shareRoundTitle">
@@ -2118,7 +2139,7 @@
       list.innerHTML=rows.map(sh=>{
         const r=sh.rounds||{}; const rp=(r.round_players||[]).find(x=>x.user_id!==user.id)||r.round_players?.[0]||{}; const holes=rp.hole_scores||[];
         const date=r.played_at?new Date(r.played_at).toLocaleDateString('nl-NL'):''; const course=r.course?.name||'Onbekende baan';
-        return '<div class="shared-round-item"><div class="shared-round-top"><b>'+esc(course)+'</b><small>'+esc(date)+'</small></div><div class="shared-round-meta">'+esc(r.holes_played==='9'?'9 holes':'18 holes')+' · gedeeld met jou</div><div class="shared-round-stats">'+formatStats(sh.shared_stats,rp,holes)+'</div></div>';
+        return '<div class="shared-round-item shared-round-clickable" data-shared-round-id="'+esc(sh.round_id)+'" onclick="boundsOpenSharedRoundDetail(this.dataset.sharedRoundId)"><div class="shared-round-top"><b>'+esc(course)+'</b><small>'+esc(date)+'</small></div><div class="shared-round-meta">'+esc(r.holes_played==='9'?'9 holes':'18 holes')+' · gedeeld met jou</div><div class="shared-round-stats">'+formatStats(sh.shared_stats,rp,holes)+'</div></div>';
       }).join('');
     }catch(e){console.error('Gedeelde rondes laden:',e);card.style.display='block';list.innerHTML='<div class="empty">Gedeelde rondes konden niet worden geladen.</div>';}
   };
@@ -2264,6 +2285,149 @@
 })();
 </script>
 
+
+<div id="sharedRoundDetailBackdrop" class="shared-round-detail-backdrop" role="dialog" aria-modal="true">
+  <div class="shared-round-detail-modal" onclick="event.stopPropagation()">
+    <div class="shared-round-detail-head">
+      <div>
+        <h2 id="sharedRoundDetailTitle">Gedeelde ronde</h2>
+        <p id="sharedRoundDetailSubtitle"></p>
+      </div>
+      <button class="shared-round-detail-close" onclick="boundsCloseSharedRoundDetail()" aria-label="Sluiten">×</button>
+    </div>
+    <div id="sharedRoundDetailBody"><div class="friends-empty">Ronde laden…</div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  window.boundsCloseSharedRoundDetail=function(){
+    const b=document.getElementById('sharedRoundDetailBackdrop');
+    if(b)b.classList.remove('open');
+    document.body.style.overflow='';
+  };
+
+  window.boundsOpenSharedRoundDetail=async function(roundId){
+    const user=window.boundsSession?.user;
+    const b=document.getElementById('sharedRoundDetailBackdrop');
+    const body=document.getElementById('sharedRoundDetailBody');
+    const title=document.getElementById('sharedRoundDetailTitle');
+    const subtitle=document.getElementById('sharedRoundDetailSubtitle');
+    if(!user||!b||!body)return;
+
+    b.classList.add('open'); document.body.style.overflow='hidden';
+    body.innerHTML='<div class="friends-empty">Ronde laden…</div>';
+
+    try{
+      const {data:share,error:se}=await window.boundsClient
+        .from('round_shares')
+        .select('round_id,shared_stats,created_at')
+        .eq('round_id',roundId)
+        .eq('shared_with_user_id',user.id)
+        .is('revoked_at',null)
+        .maybeSingle();
+      if(se)throw se;
+      if(!share){body.innerHTML='<div class="friends-empty">Deze gedeelde ronde is niet meer beschikbaar.</div>';return;}
+
+      const [{data:round,error:re},{data:players,error:pe}]=await Promise.all([
+        window.boundsClient.from('rounds').select('id,course_id,tee_id,holes_played,loop,played_at').eq('id',roundId).single(),
+        window.boundsClient.from('round_players').select('id,user_id,final_score,stableford').eq('round_id',roundId).eq('is_owner',true).single()
+      ]);
+      if(re)throw re;
+      if(pe)throw pe;
+
+      const {data:course,error:ce}=await window.boundsClient.from('courses').select('name,location').eq('id',round.course_id).single();
+      if(ce)throw ce;
+
+      const {data:holes,error:he}=await window.boundsClient
+        .from('hole_scores')
+        .select('course_hole_id,score,stableford,putts,penalty,fairway,gir')
+        .eq('round_player_id',players.id)
+        .order('course_hole_id');
+      if(he)throw he;
+
+      const {data:holeMeta,error:hme}=await window.boundsClient
+        .from('course_holes')
+        .select('id,hole_number,par,stroke_index')
+        .in('id',(holes||[]).map(h=>h.course_hole_id));
+      if(hme)throw hme;
+
+      const meta=new Map((holeMeta||[]).map(h=>[h.id,h]));
+      const allowed=new Set(share.shared_stats||['score','stableford']);
+
+      title.textContent=course?.name||'Gedeelde ronde';
+      subtitle.textContent=(course?.location||'')+' · '+(round.holes_played||'')+' holes · '+(round.played_at?new Date(round.played_at).toLocaleDateString('nl-NL'):'');
+
+      const totalScore=players.final_score;
+      const totalStable=players.stableford;
+      const totalPutts=allowed.has('putts') ? (holes||[]).reduce((a,h)=>a+(Number(h.putts)||0),0) : null;
+      const totalPenalty=allowed.has('penalty') ? (holes||[]).reduce((a,h)=>a+(Number(h.penalty)||0),0) : null;
+
+      let summary='<div class="shared-round-summary">'
+        +'<div><b>'+((allowed.has('score')&&totalScore!=null)?esc(totalScore):'—')+'</b><span>Slagen</span></div>'
+        +'<div><b>'+((allowed.has('stableford')&&totalStable!=null)?esc(totalStable):'—')+'</b><span>Stableford</span></div>';
+      if(allowed.has('putts'))summary+='<div><b>'+(totalPutts??'—')+'</b><span>Putts</span></div>';
+      else if(allowed.has('penalty'))summary+='<div><b>'+(totalPenalty??'—')+'</b><span>Strafslagen</span></div>';
+      else summary+='<div><b>'+esc((holes||[]).length)+'</b><span>Holes</span></div>';
+      summary+='</div>';
+
+      const sorted=(holes||[]).map(h=>({...h,meta:meta.get(h.course_hole_id)}))
+        .filter(h=>h.meta).sort((a,b)=>a.meta.hole_number-b.meta.hole_number);
+
+      const cols=['score'];
+      if(allowed.has('stableford'))cols.push('stableford');
+      if(allowed.has('putts'))cols.push('putts');
+      if(allowed.has('penalty'))cols.push('penalty');
+      if(allowed.has('fairway'))cols.push('fairway');
+      if(allowed.has('gir'))cols.push('gir');
+
+      const labels={score:'Slag',stableford:'Stfd',putts:'Putts',penalty:'Straf',fairway:'FW',gir:'GIR'};
+      let table='<table class="shared-hole-table"><thead><tr><th>Hole</th><th>Par</th>'
+        +cols.map(c=>'<th>'+labels[c]+'</th>').join('')+'</tr></thead><tbody>';
+
+      table+=sorted.map(h=>{
+        const val=c=>{
+          if(c==='score')return h.score??'—';
+          if(c==='stableford')return h.stableford??'—';
+          if(c==='putts')return h.putts??'—';
+          if(c==='penalty')return h.penalty??'—';
+          if(c==='fairway')return h.fairway||'—';
+          if(c==='gir')return h.gir||'—';
+          return '—';
+        };
+        return '<tr><td>Hole '+esc(h.meta.hole_number)+'</td><td>'+esc(h.meta.par??'—')+'</td>'
+          +cols.map(c=>'<td class="'+(c==='score'?'hole-score':'')+'">'+esc(val(c))+'</td>').join('')
+          +'</tr>';
+      }).join('');
+      table+='</tbody></table>';
+
+      body.innerHTML=summary+table+
+        '<div class="shared-hole-note">Je ziet alleen de statistieken die door de eigenaar van deze ronde met jou zijn gedeeld.</div>';
+    }catch(e){
+      console.error('Gedeelde ronde detail:',e);
+      body.innerHTML='<div class="friends-empty">De slagen per hole konden niet worden geladen.</div>';
+    }
+  };
+
+  document.addEventListener('click',e=>{
+    const b=document.getElementById('sharedRoundDetailBackdrop');
+    if(e.target===b)window.boundsCloseSharedRoundDetail();
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')window.boundsCloseSharedRoundDetail();
+  });
+})();
+</script>
+
+<script>
+document.addEventListener('click',function(e){
+  const card=e.target.closest?.('.shared-round-card[data-shared-round-id]');
+  if(card && typeof window.boundsOpenSharedRoundDetail==='function'){
+    window.boundsOpenSharedRoundDetail(card.dataset.sharedRoundId);
+  }
+});
+</script>
 </body>
 <script>
 // -------------------- COURSE DATA --------------------

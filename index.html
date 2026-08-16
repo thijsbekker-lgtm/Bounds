@@ -960,6 +960,20 @@
         if(parts.length>=2){lat=parts[0];lon=parts[1];}
       }
     }
+    // If PDOK does not expose a usable centroid, use a small fallback for
+    // the current demo locations. The production version should store
+    // coordinates in profiles and courses, so this is only a safety net.
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+      const fallbackPlaces={
+        schoonhoven:{latitude:51.9469,longitude:4.8480,region:'Krimpenerwaard'},
+        krimpen aan de lek:{latitude:51.8980,longitude:4.6320,region:'Krimpenerwaard'},
+        krimpen aan den ijssel:{latitude:51.9167,longitude:4.6028,region:'Krimpenerwaard'},
+        utrecht:{latitude:52.0907,longitude:5.1214,region:'Utrecht'},
+        rotterdam:{latitude:51.9244,longitude:4.4777,region:'Rotterdam'}
+      };
+      const fb=fallbackPlaces[q.toLowerCase()];
+      if(fb){lat=fb.latitude;lon=fb.longitude;}
+    }
     return {
       woonplaats:d.woonplaatsnaam||q,
       region:d.gemeentenaam||d.provincienaam||'',
@@ -1361,7 +1375,7 @@
           hint.textContent='Banen binnen 25 km van je woonplaats, gesorteerd op afstand.';
         }else{
           rows=[];
-          hint.textContent='Vul je woonplaats in bij Account om banen in de buurt te zien.';
+          hint.textContent='Je woonplaats is opgeslagen, maar de locatie kon niet worden bepaald. Open Account en sla je woonplaats één keer opnieuw op.';
         }
       }
     }
@@ -1426,9 +1440,17 @@
         // Resolve the woonplaats on demand so nearby discovery still works.
         const hasProfileLoc=Number.isFinite(Number(discoverUser.latitude)) &&
                              Number.isFinite(Number(discoverUser.longitude));
-        if(!hasProfileLoc && discoverUser.woonplaats && typeof window.boundsResolveWoonplaats==='function'){
+        if(!hasProfileLoc && discoverUser.woonplaats){
           try{
-            const resolved=await window.boundsResolveWoonplaats(discoverUser.woonplaats);
+            let resolved=null;
+            if(typeof window.boundsResolveWoonplaats==='function'){
+              resolved=await window.boundsResolveWoonplaats(discoverUser.woonplaats);
+            }
+            // Direct fallback through the same place resolver used by search.
+            if(!resolved || !Number.isFinite(Number(resolved.latitude)) ||
+               !Number.isFinite(Number(resolved.longitude))){
+              resolved=await geocodeSearchPlace(discoverUser.woonplaats);
+            }
             if(resolved && Number.isFinite(Number(resolved.latitude)) &&
                Number.isFinite(Number(resolved.longitude))){
               discoverUser={...discoverUser,...resolved};

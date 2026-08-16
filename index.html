@@ -170,6 +170,494 @@ body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSys
 .account-status.busy{color:#9A6B25!important}
 .tee-help{display:block;color:var(--muted);font-size:10px;margin-top:4px}
 </style>
+
+<style id="bounds-design-system-v1-final">
+/* =========================================================
+   BOUNDS DESIGN SYSTEM v1 — FINAL VISUAL LAYER
+   Design-only layer. No application logic or data behaviour.
+   ========================================================= */
+:root{
+  --bg:#F5F5F3;
+  --card:#FFFFFF;
+  --ink:#111111;
+  --muted:#6E6E73;
+  --line:#E5E5E2;
+  --soft:#ECECE8;
+  --accent:#315C4A;
+  --accent-soft:#E7EFEA;
+  --success:#2E7D55;
+  --warning:#9A6B25;
+  --error:#B84A45;
+  --radius-control:14px;
+  --radius-card:20px;
+  --radius-sheet:24px;
+}
+
+html,body{
+  background:var(--bg);
+  color:var(--ink);
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.app{
+  max-width:720px;
+  padding:env(safe-area-inset-top) 20px calc(38px + env(safe-area-inset-bottom));
+}
+
+/* Brand */
+.bounds-hero{
+  padding:30px 4px 22px;
+}
+.brand-row{gap:9px}
+.bounds-mark{
+  font-size:17px;
+  font-weight:700;
+  letter-spacing:3px;
+}
+.bounds-dot{
+  width:5px;height:5px;background:var(--accent);
+}
+.hero-kicker{
+  margin-top:9px;
+  font-size:9px;
+  letter-spacing:1.55px;
+  font-weight:600;
+  color:var(--muted);
+}
+.account-shortcut{
+  margin-top:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.82);
+  color:var(--ink);
+  border-radius:999px;
+  padding:9px 14px;
+  font-size:12px;
+  font-weight:600;
+  box-shadow:none;
+  backdrop-filter:blur(16px);
+}
+.account-shortcut span{color:var(--accent)}
+
+/* Navigation */
+.bounds-tabs{
+  position:sticky;
+  top:0;
+  z-index:10;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:3px;
+  border:0;
+  border-bottom:1px solid rgba(229,229,226,.9);
+  background:rgba(245,245,243,.88);
+  backdrop-filter:saturate(180%) blur(20px);
+  padding:7px 0;
+}
+.bounds-tabs .tab{
+  min-height:42px;
+  padding:10px 6px;
+  border-radius:12px;
+  background:transparent;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+  box-shadow:none;
+}
+.bounds-tabs .tab span{font-size:13px;margin:0}
+.bounds-tabs .tab.active{
+  background:var(--card);
+  color:var(--ink);
+  box-shadow:0 1px 5px rgba(17,17,17,.06);
+}
+
+/* Page rhythm */
+.tabpage{padding-top:20px}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  box-shadow:none;
+  padding:20px;
+  margin:12px 0;
+}
+.section-title{
+  font-size:15px;
+  font-weight:600;
+  margin-bottom:14px;
+}
+.section-title span{
+  background:var(--accent-soft);
+  color:var(--accent);
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:9px;
+  letter-spacing:.2px;
+}
+
+/* Typography */
+.eyebrow{
+  font-size:10px;
+  line-height:1.2;
+  letter-spacing:1.4px;
+  font-weight:700;
+  color:var(--muted);
+}
+.dashboard h2{
+  font-size:32px;
+  line-height:1;
+  letter-spacing:-1.4px;
+  font-weight:600;
+  margin:7px 0 22px;
+}
+h3{
+  font-size:16px;
+  line-height:1.2;
+  font-weight:600;
+  margin:24px 0 11px;
+}
+.muted,.empty{
+  color:var(--muted);
+}
+
+/* Home */
+.home-page{padding-top:26px}
+.home-intro{
+  padding:0 2px 25px;
+}
+.home-intro h1{
+  font-size:40px;
+  line-height:.98;
+  letter-spacing:-2px;
+  font-weight:600;
+  margin:8px 0 9px;
+}
+.home-intro h1 span{color:var(--accent)}
+.home-intro p{
+  margin:0;
+  color:var(--muted);
+  font-size:16px;
+}
+.home-primary{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  padding:22px;
+  margin-bottom:30px;
+}
+.home-primary h2,.friends-hero h2{
+  font-size:24px;
+  line-height:1.1;
+  letter-spacing:-.8px;
+  font-weight:600;
+  margin:7px 0 9px;
+}
+.home-primary p,.friends-hero p{
+  font-size:14px;
+  line-height:1.5;
+  color:var(--muted);
+  max-width:520px;
+  margin:0 0 20px;
+}
+.home-section-head{
+  margin:0 2px 10px;
+}
+.home-section-head>span{
+  font-size:10px;
+  letter-spacing:1.4px;
+  font-weight:700;
+  color:var(--muted);
+}
+.home-section-head button{
+  color:var(--accent);
+  font-weight:600;
+}
+.last-round{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  padding:19px;
+}
+.last-round b{font-size:18px;font-weight:600}
+.last-score strong{
+  font-size:32px;
+  letter-spacing:-1px;
+  font-weight:600;
+}
+.home-metrics{
+  gap:1px;
+  background:var(--line);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  margin-bottom:30px;
+}
+.home-metrics>div{padding:19px 13px}
+.home-metrics strong{
+  font-size:26px;
+  font-weight:600;
+}
+.home-friend-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  padding:19px;
+}
+
+/* Buttons */
+.primary,.secondary{
+  min-height:48px;
+  border-radius:var(--radius-control);
+  padding:13px 16px;
+  font-size:15px;
+  font-weight:600;
+  box-shadow:none;
+}
+.primary{
+  background:var(--ink);
+  color:#fff;
+}
+.secondary{
+  background:var(--soft);
+  color:var(--ink);
+}
+.home-start{
+  width:100%;
+  justify-content:space-between;
+}
+button{
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Forms */
+.grid{gap:12px}
+label{
+  font-size:11px;
+  color:var(--muted);
+  font-weight:600;
+}
+select,input{
+  height:48px;
+  margin-top:6px;
+  border:1px solid #DADAD6;
+  border-radius:var(--radius-control);
+  background:#fff;
+  color:var(--ink);
+  font-size:16px;
+  font-weight:500;
+  box-shadow:none;
+}
+select:focus,input:focus{
+  border-color:#A8B8B0;
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+
+/* Metrics */
+.stats{gap:8px;margin-top:14px}
+.stat,.metric{
+  background:var(--bg);
+  border-radius:16px;
+  padding:13px 11px;
+}
+.stat small,.metric span{
+  color:var(--muted);
+  font-size:10px;
+}
+.stat b{font-size:17px;font-weight:600}
+.metric b{
+  font-size:26px;
+  font-weight:600;
+}
+
+/* Round / scorecard */
+.score-card{padding:12px}
+.score-head{padding:8px 7px 13px}
+.score-head b{
+  font-size:18px;
+  font-weight:600;
+}
+.score-head small{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:3px;
+}
+.ghost{
+  background:var(--soft);
+  color:var(--ink);
+  border-radius:12px;
+  padding:9px 11px;
+  font-size:11px;
+  font-weight:600;
+}
+table{
+  border-radius:16px;
+}
+th{
+  height:42px;
+  font-size:9px;
+  letter-spacing:.8px;
+  color:#8B8B88;
+}
+td{
+  height:66px;
+  font-size:19px;
+  border-bottom:1px solid var(--line);
+}
+td+td{border-left:1px solid var(--line)}
+.scorebox{gap:7px}
+.scorebox button{
+  width:38px;
+  height:38px;
+  background:var(--soft);
+  color:var(--ink);
+  font-size:20px;
+}
+.score{
+  min-width:28px;
+  font-size:19px;
+  font-weight:600;
+}
+.sf{font-weight:600}
+.ik{color:var(--accent)}
+tfoot td{
+  height:58px;
+  font-weight:600;
+}
+
+/* Player selection */
+.current-player-card .current-player-name{
+  color:var(--muted);
+  font-size:14px!important;
+}
+.player-switcher{
+  gap:8px!important;
+  padding-top:12px!important;
+}
+.player-chip{
+  min-height:48px!important;
+  border:1px solid var(--line)!important;
+  background:var(--bg)!important;
+  color:var(--ink)!important;
+  border-radius:14px!important;
+  padding:11px 14px!important;
+  font-size:15px!important;
+  font-weight:600!important;
+  box-shadow:none!important;
+}
+.player-chip.active{
+  background:var(--ink)!important;
+  color:#fff!important;
+  border-color:var(--ink)!important;
+  box-shadow:none!important;
+}
+
+/* Per-hole stats */
+.extra-panel{
+  background:var(--bg);
+  border-radius:14px;
+  padding:12px;
+}
+.extra-grid{gap:10px}
+.stat-stepper{gap:10px;min-height:44px}
+.stat-stepper button{
+  width:36px!important;
+  height:36px!important;
+  background:var(--soft)!important;
+}
+.stat-stepper span{
+  font-size:17px;
+  font-weight:600;
+}
+.mini-action{
+  background:var(--soft);
+  color:var(--ink);
+  border-radius:11px;
+  padding:8px 10px;
+  font-size:11px;
+  font-weight:600;
+}
+
+/* Status */
+.round-status{
+  margin-left:8px;
+  padding:5px 9px;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:10px;
+  font-weight:600;
+}
+.round-status i{background:var(--accent)}
+
+/* Friends */
+.friends-page{padding-top:26px}
+.friends-hero{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  padding:22px;
+  margin-bottom:24px;
+}
+.friends-list-card{margin-top:0}
+.friend-row{padding:14px 0}
+.friend-row b{font-weight:600}
+
+/* History / My Game */
+.dashboard-grid{gap:8px}
+.barrow div{background:#E8E8E4}
+.barrow i{background:var(--accent)}
+.course-card-button{
+  padding:15px 4px;
+}
+.course-card-button strong{
+  font-weight:600;
+}
+.course-chevron{color:var(--muted)}
+.course-round{
+  padding:12px 4px;
+}
+.history-action{
+  background:var(--soft);
+  color:var(--ink);
+  border-radius:11px;
+  font-weight:600;
+}
+.rounditem{padding:11px 0}
+.roundopen b{font-weight:600}
+.delete{
+  background:var(--soft);
+  border-radius:10px;
+}
+
+/* Account */
+.account-card{
+  scroll-margin-top:90px;
+}
+.account-status.ok{color:var(--accent)!important}
+.account-status.error{color:var(--error)!important}
+.account-status.busy{color:var(--warning)!important}
+
+/* Remove decorative visual noise while preserving controls */
+.hole-stats-btn{
+  border:0;
+  background:transparent;
+  color:var(--accent);
+  font-size:10px;
+  font-weight:600;
+  padding:5px 0 0;
+}
+.tee-help{color:var(--muted)}
+
+/* Responsive */
+@media(max-width:520px){
+  .app{padding-left:16px;padding-right:16px}
+  .home-intro h1{font-size:36px}
+  .home-primary,.friends-hero{padding:20px}
+  .card{padding:18px}
+  .dashboard h2{font-size:30px}
+}
+</style>
+
 </head>
 <body>
 <div class="app">

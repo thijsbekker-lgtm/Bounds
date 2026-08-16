@@ -2404,7 +2404,7 @@ async function boundsApplyIdentityState(session){
     window.loadCloudRounds.__boundsGuestGuard=true;
   }
 
-  window.applyBoundsAuthenticatedUI=()=>{ if(session()) applyAuthFinal(session()); };
+  window.applyBoundsAuthenticatedUI=()=>{ const s=window.boundsSession&&window.boundsSession.user?window.boundsSession:null; if(s) applyAuthFinal(s); };
 
   async function resolve(){
     try{
@@ -2439,7 +2439,7 @@ async function boundsApplyIdentityState(session){
 </script>
 <script>
 /* ============================================================
-   BOUNDS v2.8 FIXED — PAR 3 OFFICIAL BAANHANDICAP TABLE + AUTH/GUEST ISOLATION
+   BOUNDS v2.8.4 FINAL — PAR 3 OFFICIAL BAANHANDICAP TABLE + AUTH/GUEST ISOLATION
    This is deliberately the LAST executable code in the document.
    Guest: no personal handicap, target handicap, history or profile.
    Authenticated: profile values are loaded from Supabase and editable.

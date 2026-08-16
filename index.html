@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.1</title>
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f5f7"><title>BOUNDS — Prototype v2.2</title>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#102a35;--muted:#7b858a;--line:#e7e7eb;--accent:#007aff;--soft:#eef3f5}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}.app{max-width:680px;margin:auto;padding:env(safe-area-inset-top) 12px calc(30px + env(safe-area-inset-bottom))}
@@ -186,7 +186,7 @@
    <label>Golfbaan<select id="course"><option value="" selected>Kies een baan…</option><option value="crimpenerhout">Crimpenerhout</option><option value="kroonprins">De Kroonprins</option><option value="almkreek">Golfpark Almkreek</option></select></label><label id="teeLabel" class="tee-select-wrap">Tee<select id="tee" disabled><option value="">Kies eerst een baan…</option></select><small class="tee-help">Kies de tee die je speelt.</small></label>
    <label>Ronde<select id="round"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
    <label id="loopLabel">Lus / baan<select id="loop"><option value="first">1e 9</option><option value="second">2e 9</option></select></label>
-   <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value="14.2"></label>
+   <label>Handicap Index<input id="hi" type="number" min="-10" max="54" step="0.1" value=""></label>
   </div>
   <div class="stats">
    <div class="stat"><small>Baanhcp</small><b id="courseHcp">—</b></div>
@@ -255,6 +255,7 @@
  </div>
 
  <section class="card account-card">
+  <div id="guestStatsNotice" class="muted" style="display:none;margin-bottom:10px">Log in om je persoonlijke statistieken te bekijken.</div>
   <div class="section-title">
     <span>ACCOUNT</span>
     <span id="accountStatus" class="account-status">Niet ingelogd</span>
@@ -1072,6 +1073,10 @@ function buildEnhancedRound(){
 window.currentRoundData=buildEnhancedRound;
 
 function saveRoundEnhanced(){
+  if(boundsIsGuest()){
+    boundsSaveMessage('Log in om deze ronde op te slaan in BOUNDS.','pending');
+    return;
+  }
   const data=buildEnhancedRound();
   if(!data.holes.some(x=>x.score)){alert('Vul eerst minimaal één score in.');return;}
   const history=getHistory();
@@ -1611,6 +1616,10 @@ window.openSavedRound=boundsOpenSavedRoundFinal;
 /* Keep the main history view as the user-facing source of truth. */
 function renderHistoryFinal(){
   const el=document.getElementById('historyList');
+  if(boundsIsGuest()){
+    el.innerHTML='<div class="empty">Log in om je opgeslagen rondes te bekijken.</div>';
+    return;
+  }
   const history=getHistory();
   if(!history.length){
     el.innerHTML='<div class="empty">Nog geen opgeslagen rondes.</div>';
@@ -1883,6 +1892,80 @@ document.addEventListener('change',e=>{
 
 /* First load. */
 document.addEventListener('DOMContentLoaded',()=>setTimeout(boundsLoadTeeOptions,0));
+
+
+/* ===== BOUNDS v2.2 — Guest/account isolation ===== */
+function boundsIsGuest(){
+  return !boundsSession || !boundsSession.user;
+}
+function boundsGuestReset(){
+  // Remove legacy personal/test state. The active scorecard itself remains empty.
+  [
+    'golf_history','golf_course','golf_round','golf_loop','golf_tee',
+    'golf_tee_id','golf_tee_name','golf_hi','golf_players',
+    'bounds_active_round_id','bounds_last_course'
+  ].forEach(k=>localStorage.removeItem(k));
+
+  // Remove old user-specific caches created by earlier prototype versions.
+  Object.keys(localStorage).filter(k=>/^bounds_user_/i.test(k)).forEach(k=>localStorage.removeItem(k));
+}
+function boundsSetGuestUI(){
+  const signedOut=document.getElementById('accountSignedOut');
+  const signedIn=document.getElementById('accountSignedIn');
+  if(signedOut)signedOut.style.display=boundsIsGuest()?'block':'none';
+  if(signedIn)signedIn.style.display=boundsIsGuest()?'none':'block';
+
+  const rounds=document.getElementById('historyList');
+  if(rounds && boundsIsGuest()){
+    rounds.innerHTML='<div class="empty">Log in om je opgeslagen rondes te bekijken.</div>';
+  }
+
+  const accountStatus=document.getElementById('accountStatus');
+  if(accountStatus && boundsIsGuest()){
+    accountStatus.textContent='Niet ingelogd';
+    accountStatus.className='account-status';
+  }
+}
+function boundsClearPersonalUIForGuest(){
+  if(!boundsIsGuest())return;
+
+  // Empty the current round's personal selections.
+  if(course)course.value='';
+  if(round)round.value='9';
+  if(loop)loop.value='first';
+  if(tee){
+    tee.innerHTML='<option value="">Kies eerst een baan…</option>';
+    tee.disabled=true;
+  }
+  if(hi)hi.value='';
+  if(typeof boundsSelectedTee!=='undefined')boundsSelectedTee=null;
+  if(typeof boundsTeeOptions!=='undefined')boundsTeeOptions=[];
+
+  const saveStatus=document.getElementById('saveStatus');
+  if(saveStatus)saveStatus.textContent='Log in om rondes op te slaan in BOUNDS.';
+}
+async function boundsApplyIdentityState(session){
+  window.boundsSession=session||null;
+
+  if(!session){
+    boundsGuestReset();
+    boundsClearPersonalUIForGuest();
+    boundsSetGuestUI();
+    return;
+  }
+
+  // Do not restore legacy global localStorage state for a logged-in user.
+  // The cloud profile/round history becomes the source for personal data.
+  boundsSetGuestUI();
+
+  try{
+    if(typeof syncProfile==='function')await syncProfile();
+  }catch(e){ console.warn('Profile sync:',e); }
+
+  try{
+    if(typeof loadCloudRounds==='function')await loadCloudRounds(true);
+  }catch(e){ console.warn('Round sync:',e); }
+}
 
 </script>
 

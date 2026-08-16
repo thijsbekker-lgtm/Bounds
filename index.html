@@ -2197,6 +2197,73 @@
 })();
 </script>
 
+
+<script>
+(function(){
+  function getCurrentHistory(){
+    try{
+      if(typeof window.getHistory==='function') return window.getHistory()||[];
+    }catch(e){}
+    return [];
+  }
+  function injectShareButtons(){
+    const list=document.getElementById('historyList');
+    if(!list) return;
+    const items=[...list.querySelectorAll('.rounditem')];
+    if(!items.length) return;
+
+    const history=getCurrentHistory();
+    items.forEach((item,i)=>{
+      if(item.querySelector('.bounds-share-btn')) return;
+
+      const round=history[i];
+      if(!round || !round.cloudRoundId) return;
+
+      const del=item.querySelector('.delete');
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='bounds-share-btn';
+      btn.textContent='Delen';
+      btn.style.cssText='border:0;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:800;background:#eef0f1;color:#263238;cursor:pointer;margin-left:6px;';
+      btn.addEventListener('click',function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        if(typeof window.boundsOpenShareRound==='function'){
+          window.boundsOpenShareRound(i);
+        }else{
+          alert('Delen is nog niet geladen. Open de pagina opnieuw.');
+        }
+      });
+
+      if(del && del.parentNode){
+        del.parentNode.insertBefore(btn,del.nextSibling);
+      }else{
+        const target=item.querySelector('.round-actions')||item;
+        target.appendChild(btn);
+      }
+    });
+  }
+
+  const list=document.getElementById('historyList');
+  if(list){
+    const observer=new MutationObserver(()=>setTimeout(injectShareButtons,0));
+    observer.observe(list,{childList:true,subtree:true});
+  }
+
+  document.addEventListener('click',function(e){
+    if(e.target.closest('.tab[data-tab="history"], [onclick*="showTab(\'history\')"]')){
+      setTimeout(injectShareButtons,50);
+      setTimeout(injectShareButtons,500);
+    }
+  });
+
+  window.boundsInjectShareButtons=injectShareButtons;
+  setTimeout(injectShareButtons,300);
+  setTimeout(injectShareButtons,1000);
+  setTimeout(injectShareButtons,2000);
+})();
+</script>
+
 </body>
 <script>
 // -------------------- COURSE DATA --------------------

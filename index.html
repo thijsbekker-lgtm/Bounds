@@ -1744,6 +1744,9 @@ loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
     // Putts: normalize to 18 holes based only on holes with recorded putts.
     const puttHoles = validPuttHoles(holes);
     const puttTotal = puttHoles.reduce((sum, h) => sum + num(extra(h).putts), 0);
+    // Primary putting metric: actual average putts per hole.
+    // A 9-hole round is not extrapolated to 18 holes.
+    const puttsPerHole = puttHoles.length ? (puttTotal / puttHoles.length) : null;
     const puttsPer18 = normalizedPer18(puttTotal, puttHoles.length);
 
     // 3-putts: one 3-putt event for any hole with >= 3 putts.
@@ -1786,6 +1789,13 @@ loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
       metrics: {
         fairways: metric(fairways, fwHoles.length, benchmarks.fairways, "higher", "%"),
         gir: metric(gir, girHoles.length, benchmarks.gir, "higher", "%"),
+        puttsPerHole: metric(
+          puttsPerHole,
+          puttHoles.length,
+          benchmarks.puttsPer18 === null ? null : benchmarks.puttsPer18 / 18,
+          "lower",
+          "putts/hole"
+        ),
         puttsPer18: metric(puttsPer18, puttHoles.length, benchmarks.puttsPer18, "lower", "putts"),
         threePuttsPer18: metric(threePuttsPer18, puttHoles.length, null, "lower", "3-putts"),
         scrambling: metric(scrambling, scrambleHoles.length, benchmarks.scrambling, "higher", "%"),
@@ -1887,10 +1897,10 @@ loadActivePlayer();renderPlayers();renderPlayerSwitcher();renderMyGame();
     const result=window.BOUNDSStatistics.calculateRoundStats({handicap,holes});
     const m=result.metrics;
     const defs=[
-      ['Putts / 18',fmt(m.puttsPer18.value,1),'putts',m.puttsPer18],
+      ['Gem. putts / hole',fmt(m.puttsPerHole.value,1),'putts',m.puttsPer18],
       ['GIR',pct(m.gir.value),'',m.gir],
       ['Fairways',pct(m.fairways.value),'par 4/5',m.fairways],
-      ['3-putts / 18',fmt(m.threePuttsPer18.value,1),'',m.threePuttsPer18],
+      ['3-gem. putts / hole',fmt(m.threePuttsPer18.value,1),'',m.threePuttsPer18],
       ['Scrambling',pct(m.scrambling.value),'',m.scrambling],
       ['Penalties / 18',fmt(m.penaltiesPer18.value,1),'',m.penaltiesPer18]
     ];

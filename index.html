@@ -457,7 +457,7 @@
       <button class="discover-filter" data-filter="favorites" onclick="boundsDiscoverFilter('favorites')">Favorieten</button>
       <button class="discover-filter" data-filter="all" onclick="boundsDiscoverFilter('all')">Alle banen</button>
     </div>
-    <div id="discoverLocationHint" class="location-meta">Bij mij in de buurt = maximaal 25 km vanaf je woonplaats.</div>
+    <div id="discoverLocationHint" class="location-meta">Bij mij in de buurt = maximaal 25 km rijden vanaf je woonplaats.</div>
   </div>
 
   <div class="card">
@@ -1279,38 +1279,94 @@
   async function geocodeSearchPlace(query){
     const q=(query||'').trim();
     if(!q)return null;
+
+    const fallbackPlaces={
+      utrecht:{name:'Utrecht',latitude:52.0907,longitude:5.1214},
+      schoonhoven:{name:'Schoonhoven',latitude:51.9469,longitude:4.8480},
+      rotterdam:{name:'Rotterdam',latitude:51.9244,longitude:4.4777}
+    };
+
     try{
-      const url=PDOK+'?'+new URLSearchParams({
-        q, rows:'10'
-      }).toString();
+      const url=PDOK+'?'+new URLSearchParams({q,rows:'20'}).toString();
+      const res=await fetch(url,{headers:{Accept:'application/json'}});
+      if(res.ok){
+        const json=await res.json();
+        const docs=json?.response?.docs||[];
+        const qLower=q.toLowerCase();
+
+        const candidates=[
+          ...docs.filter(d=>String(d.woonplaatsnaam||'').toLowerCase()===qLower),
+          ...docs.filter(d=>String(d.weergavenaam||'').toLowerCase().includes(qLower)),
+          ...docs
+        ];
+
+        for(const d of candidates){
+          const c=d.centroide_ll||d.centroide_ll_rd;
+          if(typeof c!=='string')continue;
+          const m=c.match(/POINT\s*\(([-0-9.]+)\s+([-0-9.]+)\)/i);
+          if(!m)continue;
+          const lon=Number(m[1]), lat=Number(m[2]);
+          if(Number.isFinite(lat)&&Number.isFinite(lon)){
+            return {
+              name:d.woonplaatsnaam||q,
+              latitude:lat,
+              longitude:lon
+            };
+          }
+        }
+      }
+    }catch(e){
+      console.warn('PDOK plaatszoeking mislukt:',e);
+    }
+
+    return fallbackPlaces[q.toLowerCase()]||null;
+  }
+
+  const ROUTER='https://router.project-osrm.org/route/v1/driving';
+
+  async function routeDistanceKm(lat1,lon1,lat2,lon2){
+    if(![lat1,lon1,lat2,lon2].every(Number.isFinite))return null;
+
+    const key=[
+      Number(lat1).toFixed(5),Number(lon1).toFixed(5),
+      Number(lat2).toFixed(5),Number(lon2).toFixed(5)
+    ].join(',');
+    const cached=localStorage.getItem('bounds_route_'+key);
+    if(cached){
+      const n=Number(cached);
+      if(Number.isFinite(n))return n;
+    }
+
+    try{
+      const url=ROUTER+'/'+
+        encodeURIComponent(Number(lon1).toFixed(6)+','+Number(lat1).toFixed(6)+
+        ';'+Number(lon2).toFixed(6)+','+Number(lat2).toFixed(6))+
+        '?overview=false';
       const res=await fetch(url,{headers:{Accept:'application/json'}});
       if(!res.ok)return null;
       const json=await res.json();
-      const d=(json?.response?.docs||[])[0];
-      if(!d)return null;
-      const c=d.centroide_ll||d.centroide_ll_rd;
-      let lat=null,lon=null;
-      if(typeof c==='string'){
-        const m=c.match(/POINT\s*\(([-0-9.]+)\s+([-0-9.]+)\)/i);
-        if(m){lon=Number(m[1]);lat=Number(m[2]);}
-      }
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-        const normalized=q.toLowerCase();
-        const fallbackPlaces={
-          utrecht:{name:'Utrecht',latitude:52.0907,longitude:5.1214},
-          schoonhoven:{name:'Schoonhoven',latitude:51.9469,longitude:4.8480}
-        };
-        if(fallbackPlaces[normalized])return fallbackPlaces[normalized];
-        return null;
-      }
-      return {
-        name:d.woonplaatsnaam||q,
-        latitude:lat,
-        longitude:lon
-      };
+      const meters=Number(json?.routes?.[0]?.distance);
+      if(!Number.isFinite(meters))return null;
+      const km=meters/1000;
+      localStorage.setItem('bounds_route_'+key,String(km));
+      return km;
     }catch(e){
+      console.warn('Route-afstand niet beschikbaar:',e);
       return null;
     }
+  }
+
+  async function routeDistancesForCourses(originLat,originLon,courses){
+    const results=await Promise.all(courses.map(async c=>{
+      const g=courseGeoCache[c.id];
+      if(!g)return {...c,__distance:null};
+      const km=await routeDistanceKm(
+        Number(originLat),Number(originLon),
+        Number(g.lat),Number(g.lon)
+      );
+      return {...c,__distance:km};
+    }));
+    return results.filter(c=>Number.isFinite(c.__distance));
   }
 
   async function renderDiscover(){
@@ -1334,7 +1390,7 @@
       title.textContent='Alle banen';
       hint.textContent='';
     }else{
-      // "Bij mij in de buurt" is a real radius filter, not merely a sort.
+      // "Bij mij in de buurt" uses driving distance, not straight-line distance.
       title.textContent='Banen in de buurt';
 
       if(q){
@@ -1350,13 +1406,10 @@
           const place=await geocodeSearchPlace(q);
           if(place){
             await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
-            rows=discoverCourses.map(c=>{
-              const g=courseGeoCache[c.id];
-              const distance=g?haversine(place.latitude,place.longitude,g.lat,g.lon):99999;
-              return {...c,__distance:distance};
-            }).filter(c=>c.__distance<=35).sort((a,b)=>a.__distance-b.__distance);
+            rows=await routeDistancesForCourses(place.latitude,place.longitude,discoverCourses);
+            rows=rows.filter(c=>c.__distance<=35).sort((a,b)=>a.__distance-b.__distance);
             title.textContent='Banen bij '+place.name;
-            hint.textContent='Getoond binnen 35 km van '+place.name+'.';
+            hint.textContent='Getoond binnen 35 km rijden van '+place.name+'.';
           }else{
             rows=[];
             title.textContent='Zoekresultaten';
@@ -1367,12 +1420,13 @@
         const hasLoc=Number.isFinite(Number(discoverUser?.latitude))&&Number.isFinite(Number(discoverUser?.longitude));
         if(hasLoc){
           await Promise.all(discoverCourses.map(c=>geocodeCourse(c)));
-          rows=discoverCourses.map(c=>{
-            const g=courseGeoCache[c.id];
-            const distance=g?haversine(Number(discoverUser.latitude),Number(discoverUser.longitude),g.lat,g.lon):99999;
-            return {...c,__distance:distance};
-          }).filter(c=>c.__distance<=25).sort((a,b)=>a.__distance-b.__distance);
-          hint.textContent='Banen binnen 25 km van je woonplaats, gesorteerd op afstand.';
+          rows=await routeDistancesForCourses(
+            Number(discoverUser.latitude),
+            Number(discoverUser.longitude),
+            discoverCourses
+          );
+          rows=rows.filter(c=>c.__distance<=25).sort((a,b)=>a.__distance-b.__distance);
+          hint.textContent='Banen binnen 25 km rijden van je woonplaats, gesorteerd op afstand.';
         }else{
           rows=[];
           hint.textContent='Je woonplaats is opgeslagen, maar de locatie kon niet worden bepaald. Open Account en sla je woonplaats één keer opnieuw op.';

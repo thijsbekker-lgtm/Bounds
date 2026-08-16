@@ -1689,56 +1689,32 @@
       const parLabel=primary?.par!=null?String(primary.par):'—';
       const teeCount=new Set(main18.map(t=>t.tee_name)).size || new Set(rows.map(t=>t.tee_name)).size;
 
-      const friendsEl=document.getElementById('courseProfileFriends');
-      if(friendsEl){
-        friendsEl.style.display='none';
-        friendsEl.innerHTML='';
-      }
-
-      // Show only accepted friends who have explicitly marked this course
-      // as a club, home course or favorite. We do not expose private rounds.
-      if(user && friendsEl){
+      let friendCourseHtml='';
+      if(user){
         try{
-          const {data:friendRows,error:friendError}=await window.boundsClient
-            .from('friendships')
-            .select('requester_id,addressee_id,status')
-            .eq('status','accepted')
-            .or('requester_id.eq.'+user.id+',addressee_id.eq.'+user.id);
-          if(friendError) throw friendError;
+          const {data:friendPresence,error:presenceError} =
+            await window.boundsClient.rpc('get_friend_course_presence',{p_course_id:courseId});
+          if(presenceError) throw presenceError;
 
-          const friendIds=[...new Set((friendRows||[]).map(r =>
-            r.requester_id===user.id ? r.addressee_id : r.requester_id
-          ).filter(Boolean))];
-
-          if(friendIds.length){
-            const {data:friendPresence,error:presenceError} =
-              await window.boundsClient.rpc('get_friend_course_presence',{p_course_id:courseId});
-            if(presenceError) throw presenceError;
-
-            const matching=(friendPresence||[]).map(r=>({
-              profile:{id:r.user_id,display_name:r.display_name},
-              rel:r
-            }));
-
-            if(matching.length){
-              friendsEl.style.display='block';
-              friendsEl.innerHTML =
-                '<h3>Vrienden met deze baan</h3>' +
-                '<div class="course-profile-friends-list">' +
-                matching.map(x=>{
-                  const p=x.profile||{}, r=x.rel||{};
-                  const display=p.display_name||p.username||p.full_name||'Golfer';
-                  const label=r.is_home_course?'Thuisbaan':
-                    (r.is_member?'Mijn club':'Favoriet');
-                  return '<div class="course-profile-friend">' +
-                    '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
-                    '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
-                    '<span class="course-profile-friend-badge">'+esc(label)+'</span>' +
-                    '</div>';
-                }).join('') +
-                '</div>' +
-                '<div class="location-meta" style="margin-top:8px">Alleen baanrelaties die voor vrienden zichtbaar zijn.</div>';
-            }
+          const matching=(friendPresence||[]);
+          if(matching.length){
+            friendCourseHtml =
+              '<div class="course-profile-section">' +
+              '<h3>Vrienden met deze baan</h3>' +
+              '<div class="course-profile-friends-list">' +
+              matching.map(r=>{
+                const display=r.display_name||'Golfer';
+                const label=r.is_home_course?'Thuisbaan':
+                  (r.is_member?'Mijn club':'Favoriet');
+                return '<div class="course-profile-friend">' +
+                  '<div class="course-profile-avatar">'+esc(initials(display))+'</div>' +
+                  '<div class="course-profile-friend-main"><b>'+esc(display)+'</b><small>Vriend</small></div>' +
+                  '<span class="course-profile-friend-badge">'+esc(label)+'</span>' +
+                  '</div>';
+              }).join('') +
+              '</div>' +
+              '<div class="location-meta" style="margin-top:8px">Alleen expliciete baanrelaties van geaccepteerde vrienden worden getoond.</div>' +
+              '</div>';
           }
         }catch(friendSocialError){
           console.warn('Vrienden met deze baan laden:',friendSocialError);
@@ -1778,7 +1754,8 @@
         +'</div></div>'
         +(distance!=null?'<div class="location-meta" style="margin-top:10px">'+distanceLabel(distance)+' rijden vanaf jouw woonplaats.</div>':'')
         +(user?'<div class="course-profile-section"><h3>Jouw spel op deze baan</h3><div class="course-profile-stat"><b>'+(roundCount??0)+'</b><span>opgeslagen rondes</span></div></div>':'')
-        +teeHtml;
+        +teeHtml
+        +friendCourseHtml;
 
       const cv=courseValueByName(course.name);
       actions.innerHTML=
@@ -1853,7 +1830,6 @@
     <div id="courseProfileBody">
       <div class="friends-empty">Baaninformatie laden…</div>
     </div>
-    <div id="courseProfileFriends" class="course-profile-section" style="display:none"></div>
     <div id="courseProfileActions" class="course-profile-actions"></div>
   </div>
 </div>

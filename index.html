@@ -2872,6 +2872,13 @@ function currentRoundData(){
  });
  return {
    localId:boundsActiveRoundId(),
+   playedAt:new Date().toISOString(),
+   courseKey:course.value,
+   courseName:course.options[course.selectedIndex]?.text||'',
+   courseVariant:boundsCourseVariant(),
+   teeName:tee.value||'',
+   holesPlayed:String(round.value),
+   loopValue:loop.value||'full',
    date:new Date().toLocaleDateString('nl-NL'),
    time:new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),
    course:course.options[course.selectedIndex].text,
@@ -2893,6 +2900,115 @@ function upsertLocalRound(data){
  else history.unshift(data);
  localStorage.setItem('golf_history',JSON.stringify(history.slice(0,50)));
 }
+
+/* ===== BOUNDS v2.15 — RELIABLE ROUND SYNC ===== */
+const BOUNDS_PENDING_SYNC_KEY='bounds_pending_round_sync';
+
+function boundsGetPendingRoundSyncs(){
+  try{return JSON.parse(localStorage.getItem(BOUNDS_PENDING_SYNC_KEY)||'[]')}catch(e){return []}
+}
+function boundsSetPendingRoundSyncs(rows){
+  localStorage.setItem(BOUNDS_PENDING_SYNC_KEY,JSON.stringify(rows.slice(0,50)));
+}
+function boundsQueuePendingRound(data){
+  const rows=boundsGetPendingRoundSyncs();
+  const idx=rows.findIndex(x=>x.localId===data.localId);
+  if(idx>=0)rows[idx]={...rows[idx],...data};
+  else rows.unshift(data);
+  boundsSetPendingRoundSyncs(rows);
+}
+function boundsRemovePendingRound(localId){
+  boundsSetPendingRoundSyncs(boundsGetPendingRoundSyncs().filter(x=>x.localId!==localId));
+}
+async function boundsGetTeeForRoundData(data){
+  const names={
+    crimpenerhout:'Crimpenerhout',
+    kroonprins:'De Kroonprins',
+    kroonprins_par3:'De Kroonprins',
+    almkreek:'Golfpark Almkreek'
+  };
+  const courseName=data.courseName||names[data.courseKey]||data.course||'';
+  const variant=data.courseVariant||(
+    data.courseKey==='kroonprins_par3' ? 'par3' : 'main'
+  );
+  const teeName=data.teeName||data.tee||'Geel';
+  const holes=Number(data.holesPlayed||data.round?.match(/\d+/)?.[0]||18);
+  const loopValue=data.loopValue||(
+    data.loop==='1e 9'?'first':data.loop==='2e 9'?'second':'full'
+  );
+
+  const {data:courseRow,error:courseError}=await boundsClient
+    .from('courses').select('id,name').eq('name',courseName).eq('country','NL').single();
+  if(courseError)throw courseError;
+
+  let q=boundsClient.from('course_tees')
+    .select('id,course_id,course_variant,holes,loop,course_rating,slope_rating,par,tee_name')
+    .eq('course_id',courseRow.id)
+    .eq('course_variant',variant)
+    .eq('tee_name',teeName)
+    .eq('gender','men')
+    .eq('holes',holes);
+
+  if(holes===9)q=q.eq('loop',loopValue);
+  else q=q.eq('loop','full');
+
+  const {data:tee,error}=await q.single();
+  if(error)throw error;
+  return {courseRow,tee};
+}
+
+let boundsSyncInProgress=false;
+async function boundsProcessPendingRoundSyncs(){
+  if(boundsSyncInProgress || !boundsClient) return;
+  const user=await boundsCurrentUser().catch(()=>null);
+  if(!user) return;
+
+  const pending=boundsGetPendingRoundSyncs();
+  if(!pending.length)return;
+
+  boundsSyncInProgress=true;
+  try{
+    for(const item of pending){
+      try{
+        const cloudId=await saveRoundToCloud(item,user);
+        item.cloudRoundId=cloudId;
+        upsertLocalRound(item);
+        boundsRemovePendingRound(item.localId);
+        boundsSaveMessage('✓ Ronde opgeslagen en gesynchroniseerd.','ok');
+      }catch(e){
+        console.warn('Pending round sync retry failed:',e);
+        // Keep it queued; the next online/auth retry will try again.
+      }
+    }
+    renderHistory();
+    renderRecords();
+    renderDashboard();
+    renderCourseHistory();
+    renderMyGame();
+    if(boundsGetPendingRoundSyncs().length===0)boundsSetStatus('Gesynchroniseerd','ok');
+  }finally{
+    boundsSyncInProgress=false;
+  }
+}
+window.boundsProcessPendingRoundSyncs=boundsProcessPendingRoundSyncs;
+
+function boundsMigrateLegacyUnsyncedRounds(){
+  const history=getHistory();
+  const pendingIds=new Set(boundsGetPendingRoundSyncs().map(x=>x.localId));
+  let added=0;
+  for(const r of history){
+    if(r && !r.cloudRoundId && r.localId && !pendingIds.has(r.localId)){
+      boundsQueuePendingRound(r);
+      added++;
+    }
+  }
+  return added;
+}
+window.boundsMigrateLegacyUnsyncedRounds=boundsMigrateLegacyUnsyncedRounds;
+
+window.addEventListener('online',()=>setTimeout(boundsProcessPendingRoundSyncs,500));
+setInterval(()=>boundsProcessPendingRoundSyncs(),60000);
+
 async function saveRound(){
  const data=currentRoundData();
  if(!data.holes.some(x=>x.score)){
@@ -2925,28 +3041,47 @@ async function saveRound(){
  }catch(e){
    console.error(e);
    boundsSetStatus('Offline','busy');
-   boundsSaveMessage('✓ Lokaal opgeslagen — wordt later gesynchroniseerd.','pending');
-   const cm=document.getElementById('accountMessage'); if(cm)cm.textContent='Tijdelijk offline. Je ronde blijft veilig lokaal bewaard.';
+   boundsQueuePendingRound(data);
+   boundsSaveMessage('✓ Lokaal opgeslagen — wacht op synchronisatie.','pending');
+   const cm=document.getElementById('accountMessage'); if(cm)cm.textContent='Synchronisatie mislukt. De ronde blijft lokaal bewaard en wordt automatisch opnieuw geprobeerd.';
  }
 }
 
 async function saveRoundToCloud(data,user){
  await syncProfile();
- const {courseRow,tee}=await boundsGetTee();
+ const {courseRow,tee}=await boundsGetTeeForRoundData(data);
 
  let roundId=data.cloudRoundId||null;
+
+ if(!roundId && data.localId){
+   const {data:existing,error:existingError}=await boundsClient.from('rounds')
+     .select('id')
+     .eq('owner_id',user.id)
+     .eq('client_round_id',data.localId)
+     .maybeSingle();
+   if(existingError)throw existingError;
+   if(existing?.id)roundId=existing.id;
+ }
+
+ const playedAt=data.playedAt||new Date().toISOString();
+
  if(roundId){
    const {error}=await boundsClient.from('rounds').update({
-     course_id:courseRow.id,tee_id:tee.id,holes_played:String(round.value),
-     loop:loop.value,played_at:new Date().toISOString(),status:'completed'
+     course_id:courseRow.id,tee_id:tee.id,
+     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||round.value),
+     loop:data.loopValue||loop.value,
+     played_at:playedAt,status:'completed',
+     client_round_id:data.localId||null
    }).eq('id',roundId).eq('owner_id',user.id);
    if(error)throw error;
  }else{
-   const {data:roundRow,error}=await boundsClient.from('rounds').insert({
+   const {data:roundRow,error:roundError}=await boundsClient.from('rounds').insert({
      owner_id:user.id,course_id:courseRow.id,tee_id:tee.id,
-     holes_played:String(round.value),loop:loop.value,played_at:new Date().toISOString(),status:'in_progress'
+     holes_played:String(data.holesPlayed||data.round?.match(/\d+/)?.[0]||round.value),
+     loop:data.loopValue||loop.value,played_at:playedAt,status:'in_progress',
+     client_round_id:data.localId||null
    }).select('id').single();
-   if(error)throw error;
+   if(roundError)throw roundError;
    roundId=roundRow.id;
  }
  let {data:player,error:playerError}=await boundsClient.from('round_players')
@@ -4296,9 +4431,10 @@ async function boundsSaveRoundFinal(){
   }catch(e){
     console.error(e);
     boundsSetStatus('Offline','busy');
-    boundsSaveMessage('✓ Lokaal opgeslagen — wordt later gesynchroniseerd.','pending');
+    boundsQueuePendingRound(data);
+    boundsSaveMessage('✓ Lokaal opgeslagen — wacht op synchronisatie.','pending');
     const cm=document.getElementById('accountMessage');
-    if(cm)cm.textContent='Tijdelijk offline. Je ronde blijft veilig lokaal bewaard.';
+    if(cm)cm.textContent='Synchronisatie mislukt. De ronde blijft lokaal bewaard en wordt automatisch opnieuw geprobeerd.';
   }
 
   editingHistoryIndex=-1;
@@ -4403,7 +4539,7 @@ window.loadCloudRounds=async function(silent=false){
 </script>
 <style>
 .round-sync{display:inline-block;margin-left:4px;font-size:12px;color:#2b7a43}
-.round-sync.pending{color:#9a6500}
+.round-sync.pending{color:#9a6500}.round-sync.pending::after{content:' Wacht op sync';font-size:9px;font-weight:700}
 </style>
 
 
@@ -4714,6 +4850,13 @@ async function boundsApplyIdentityState(session){
   try{
     if(typeof loadCloudRounds==='function')await loadCloudRounds(true);
   }catch(e){ console.warn('Round sync:',e); }
+
+  // Older BOUNDS versions displayed “later synchroniseren” but did not keep
+  // a real retry queue. Move those still-local rounds into the new queue.
+  try{
+    boundsMigrateLegacyUnsyncedRounds();
+    setTimeout(()=>boundsProcessPendingRoundSyncs(),700);
+  }catch(e){ console.warn('Pending round migration:',e); }
 }
 
 </script>

@@ -41,22 +41,23 @@ async function boot(){
   try{
     await waitForSupabase();
     wireAuthForm();
-    const {data:{session}}=await sb.auth.getSession();
+    const {data:{session},error}=await sb.auth.getSession();
+    if(error) throw error;
     if(session) await enterApp(session.user);
+    sb.auth.onAuthStateChange((_e,s)=>{
+      if(s?.user && !user) enterApp(s.user);
+      if(!s && user){
+        user=null; profile=null;
+        $('#appShell').classList.add('hidden');
+        $('#authView').classList.remove('hidden');
+        $('#sessionArea').innerHTML='';
+        setMessage('');
+      }
+    });
   }catch(e){
-    console.error(e);
-    setMessage('BOUNDS kan de login niet initialiseren. Vernieuw de pagina en probeer opnieuw.');
+    console.error('BOUNDS auth boot error',e);
+    setMessage('Login kon niet worden geladen. Vernieuw de pagina en probeer opnieuw.');
   }
-  sb.auth.onAuthStateChange((_e,s)=>{
-    if(s?.user && !user) enterApp(s.user);
-    if(!s && user){
-      user=null; profile=null;
-      $('#appShell').classList.add('hidden');
-      $('#authView').classList.remove('hidden');
-      $('#sessionArea').innerHTML='';
-      setMessage('');
-    }
-  });
 }
 
 async function enterApp(u){
@@ -582,15 +583,19 @@ function wireAuthForm(){
     button.disabled=true;
     try{
       await waitForSupabase();
+      if(!sb?.auth) throw new Error('Supabase Auth is niet beschikbaar.');
       if(authRegister){
         const {data,error}=await sb.auth.signUp({email,password});
         if(error)throw error;
-        if(data.session)toast('Account aangemaakt.');
-        else setMessage('Account aangemaakt. Controleer je e-mail als verificatie actief is.');
+        if(data.session){
+          await enterApp(data.session.user);
+          toast('Account aangemaakt.');
+        }else setMessage('Account aangemaakt. Controleer je e-mail als verificatie actief is.');
       }else{
         const {data,error}=await sb.auth.signInWithPassword({email,password});
         if(error)throw error;
-        if(data?.user) setMessage('');
+        if(data?.session?.user) await enterApp(data.session.user);
+        else throw new Error('Geen actieve sessie ontvangen na inloggen.');
       }
     }catch(err){
       console.error('Auth error',err);

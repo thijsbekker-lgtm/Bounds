@@ -1,4 +1,4 @@
-# BOUNDS v1 — Foundation v1.4
+# BOUNDS v1 — Foundation v1.10 v1.4
 
 Deze versie is bewust opnieuw opgebouwd als schone basis en niet als uitbreiding van het oude monolithische HTML-prototype.
 
@@ -53,3 +53,9 @@ Open daarna `http://localhost:8080`.
 - Per-hole Stats button uses robust event delegation.
 - App script cache-busted to ensure the latest frontend is loaded.
 - Supabase `save_round_v1` updated separately to persist `played_hole_number`.
+
+
+## v1.10
+- Fix round save payload: empty score values are normalized to NULL before Supabase sync.
+- Optional stats remain nullable and are normalized to valid integer ranges.
+- No database constraint changes.

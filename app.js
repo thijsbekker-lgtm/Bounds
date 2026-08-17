@@ -3,69 +3,14 @@ import * as data from './data.js';
 
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+import {createBoundsSupabase} from './supabase-rest.js';
+
 let sb=null;
-let supabaseLoading=null;
-
-function loadSupabaseScript(src){
-  return new Promise((resolve,reject)=>{
-    const existing=[...document.scripts].find(s=>s.src===src);
-    if(existing){
-      if(window.supabase?.createClient) return resolve();
-      existing.addEventListener('load',()=>resolve(),{once:true});
-      existing.addEventListener('error',()=>reject(new Error('Supabase script kon niet worden geladen.')),{once:true});
-      return;
-    }
-    const script=document.createElement('script');
-    script.src=src;
-    script.async=false;
-    script.onload=()=>resolve();
-    script.onerror=()=>reject(new Error('Supabase script kon niet worden geladen.'));
-    document.head.appendChild(script);
-  });
-}
-
 async function initSupabase(){
   if(sb) return sb;
-
-  if(window.supabase?.createClient){
-    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-    });
-    return sb;
-  }
-
-  if(!supabaseLoading){
-    supabaseLoading=(async()=>{
-      const sources=[
-        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-        'https://unpkg.com/@supabase/supabase-js@2'
-      ];
-
-      let lastError=null;
-      for(const src of sources){
-        try{
-          await loadSupabaseScript(src);
-          if(window.supabase?.createClient){
-            sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-              auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-            });
-            return sb;
-          }
-        }catch(e){
-          lastError=e;
-        }
-      }
-
-      throw new Error(
-        'De BOUNDS loginservice kon niet worden geladen. Controleer internetverbinding of browserblokkering.'
-        +(lastError?.message ? ' '+lastError.message : '')
-      );
-    })();
-  }
-
-  return supabaseLoading;
+  sb=createBoundsSupabase(SUPABASE_URL,SUPABASE_KEY);
+  return sb;
 }
-
 async function waitForSupabase(){
   const client=await initSupabase();
   if(!client?.auth) throw new Error('Supabase Auth kon niet worden geladen.');

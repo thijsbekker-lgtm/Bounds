@@ -3,7 +3,21 @@ import * as data from './data.js';
 
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let sb=null;
+function initSupabase(){
+  if(sb) return sb;
+  if(!window.supabase?.createClient) return null;
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  return sb;
+}
+async function waitForSupabase(){
+  for(let i=0;i<100;i++){
+    const client=initSupabase();
+    if(client) return client;
+    await new Promise(r=>setTimeout(r,50));
+  }
+  throw new Error('Supabase library kon niet worden geladen.');
+}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let user=null,profile=null,courses=[],tees=[],ranges=[],holes=[],variants=[]; let activeRound=null; let authRegister=false;
 const openStatsHoles=new Set();
@@ -25,6 +39,8 @@ function showTab(tab){
 async function boot(){
   $('#authView').classList.remove('hidden');
   try{
+    await waitForSupabase();
+    wireAuthForm();
     const {data:{session}}=await sb.auth.getSession();
     if(session) await enterApp(session.user);
   }catch(e){
@@ -371,12 +387,41 @@ async function openRound(roundId){
 async function renderCourses(){const h=await data.loadCourseHistory(sb,user.id);const by=new Map();for(const r of h){if(!by.has(r.course_id))by.set(r.course_id,[]);by.get(r.course_id).push(r)}$('#courseCatalog').innerHTML=courses.map(c=>{const rs=by.get(c.id)||[];const scores=rs.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite);const avg=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):'—';return `<button class="course-item course-button" data-course="${c.id}"><div><b>${esc(c.name)}</b><small>${esc(c.location||'Nederland')} · ${rs.length} ${rs.length===1?'ronde':'rondes'}</small></div><div><b>${scores.length?Math.min(...scores):'—'}</b><small>${avg==='—'?'':'gem. '+avg}</small></div></button>`}).join('');$$('[data-course]').forEach(b=>b.onclick=()=>openCourseDetail(b.dataset.course))}
 async function openCourseDetail(id){const c=courses.find(x=>x.id===id);if(!c)return;const rs=(await data.loadCourseHistory(sb,user.id)).filter(r=>r.course_id===id);const all=await data.loadTees(sb,id,18).catch(()=>[]);const nine=await data.loadTees(sb,id,9).catch(()=>[]);const allTees=[...all,...nine];const vars=[...new Set(allTees.map(t=>t.course_variant).filter(Boolean))];$('#courseCatalog').innerHTML=`<div class="course-detail"><button class="text-button" id="backCourses">← Alle banen</button><div class="eyebrow">COURSE</div><h3>${esc(c.name)}</h3><div class="muted">${esc(c.location||'Nederland')} · ${esc(c.country||'NL')}</div><div class="course-facts"><div><b>${vars.length?vars.map(variantLabel).join(' · '):'—'}</b><span>Layouts</span></div><div><b>${rs.length}</b><span>Jouw rondes</span></div><div><b>${rs.length?Math.min(...rs.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite)):'—'}</b><span>Beste score</span></div></div><div class="section-title">Jouw historie</div>${rs.length?rs.slice(0,10).map(r=>`<button class="round-item round-button" data-round="${r.id}"><div><b>${dateLabel(r.played_at)}</b><small>${r.holes_played} holes · ${r.loop||'full'}</small></div><div><b>${r.players?.[0]?.final_score||'—'}</b><small>${r.players?.[0]?.stableford||'—'} SF</small></div></button>`).join(''):'<div class="muted">Nog geen rondes op deze baan.</div>'}</div>`;$('#backCourses').onclick=renderCourses;$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round))}
 
-$$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$$('[data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));$$('[data-new-round]').forEach(b=>b.onclick=startNewRound);
-$('#cancelRound')?.addEventListener('click',cancelRound);$('#cancelRoundTop')?.addEventListener('click',cancelRound);
-['#authEmail','#authPassword'].forEach(sel=>{
-  const el=$(sel);
-  if(el){el.disabled=false;el.readOnly=false;el.tabIndex=0;el.style.pointerEvents='auto';}
-});
-$('#authMode').onclick=()=>{authRegister=!authRegister;$('#authSubmit').textContent=authRegister?'Account maken':'Inloggen';$('#authMode').textContent=authRegister?'Al een account? Inloggen':'Nog geen account? Registreren';setMessage('')};
-$('#authForm').onsubmit=async e=>{e.preventDefault();setMessage('');const email=$('#authEmail').value.trim(),password=$('#authPassword').value;try{if(authRegister){const {data,error}=await sb.auth.signUp({email,password});if(error)throw error;if(data.session)toast('Account aangemaakt.');else setMessage('Account aangemaakt. Controleer je e-mail als verificatie actief is.')}else{const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error}}catch(err){setMessage(err.message||'Inloggen mislukt.')}};
+function wireAuthForm(){
+  $$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$$('[data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));$$('[data-new-round]').forEach(b=>b.onclick=startNewRound);
+  $('#cancelRound')?.addEventListener('click',cancelRound);$('#cancelRoundTop')?.addEventListener('click',cancelRound);
+  ['#authEmail','#authPassword'].forEach(sel=>{
+    const el=$(sel);
+    if(el){el.disabled=false;el.readOnly=false;el.tabIndex=0;el.style.pointerEvents='auto';}
+  });
+  $('#authMode').onclick=()=>{authRegister=!authRegister;$('#authSubmit').textContent=authRegister?'Account maken':'Inloggen';$('#authMode').textContent=authRegister?'Al een account? Inloggen':'Nog geen account? Registreren';setMessage('')};
+  $('#authForm').onsubmit=async e=>{
+    e.preventDefault();
+    setMessage('');
+    const email=$('#authEmail').value.trim(),password=$('#authPassword').value;
+    if(!email||!password){setMessage('Vul e-mail en wachtwoord in.');return;}
+    const button=$('#authSubmit');
+    button.disabled=true;
+    try{
+      await waitForSupabase();
+      if(authRegister){
+        const {data,error}=await sb.auth.signUp({email,password});
+        if(error)throw error;
+        if(data.session)toast('Account aangemaakt.');
+        else setMessage('Account aangemaakt. Controleer je e-mail als verificatie actief is.');
+      }else{
+        const {data,error}=await sb.auth.signInWithPassword({email,password});
+        if(error)throw error;
+        if(data?.user) setMessage('');
+      }
+    }catch(err){
+      console.error('Auth error',err);
+      setMessage(err.message||'Inloggen mislukt.');
+    }finally{
+      button.disabled=false;
+    }
+  };
+}
+
+$$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 boot();

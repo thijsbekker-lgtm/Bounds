@@ -266,7 +266,8 @@ function renderScorecard(){
     if(!row)return;
     const i=Number(row.dataset.i),h=activeRound.holes[i];
 
-    if(e.target.dataset.stats){
+    const statsButton=e.target.closest('[data-stats]');
+    if(statsButton){
       if(openStatsHoles.has(h.hole)) openStatsHoles.delete(h.hole);
       else openStatsHoles.add(h.hole);
       renderScorecard();
@@ -384,7 +385,7 @@ $('#startRound').onclick=async()=>{
   renderScorecard();
   persistDraft();
 };
-$('#saveRound').onclick=async()=>{if(!activeRound)return;const totals=roundTotals(activeRound.holes);if(!totals.score){toast('Vul eerst minimaal één score in.');return}const payload={p_client_round_id:activeRound.clientRoundId,p_course_id:activeRound.courseId,p_tee_id:activeRound.teeId,p_holes_played:activeRound.holesPlayed,p_loop:activeRound.loop,p_played_at:new Date().toISOString(),p_handicap:activeRound.handicap,p_course_handicap:activeRound.courseHandicap,p_final_score:totals.score,p_stableford:totals.stableford,p_holes:activeRound.holes.map(h=>({hole:h.hole,score:h.score,sf:h.sf,putts:h.putts,penalty:h.penalty,fairway:h.fairway,gir:h.gir,note:h.note}))};try{await data.saveRound(sb,payload);resetRoundUI();toast('Ronde opgeslagen.');await refreshDashboard();showTab('game')}catch(e){console.error(e);toast('Opslaan mislukt: '+(e.message||'controleer je login'));}};
+$('#saveRound').onclick=async()=>{if(!activeRound)return;const totals=roundTotals(activeRound.holes);if(!totals.score){toast('Vul eerst minimaal één score in.');return}const payload={p_client_round_id:activeRound.clientRoundId,p_course_id:activeRound.courseId,p_tee_id:activeRound.teeId,p_holes_played:activeRound.holesPlayed,p_loop:activeRound.loop,p_played_at:new Date().toISOString(),p_handicap:activeRound.handicap,p_course_handicap:activeRound.courseHandicap,p_final_score:totals.score,p_stableford:totals.stableford,p_holes:activeRound.holes.map(h=>({hole:h.hole,played_hole_number:h.hole,score:h.score,sf:h.sf,putts:h.putts,penalty:h.penalty,fairway:h.fairway,gir:h.gir,note:h.note}))};try{await data.saveRound(sb,payload);resetRoundUI();toast('Ronde opgeslagen.');await refreshDashboard();showTab('game')}catch(e){console.error(e);toast('Opslaan mislukt: '+(e.message||'controleer je login'));}};
 
 async function refreshDashboard(){await renderHome();await renderGame();await renderCourses()}
 async function renderHome(){if(!user)return;profile=await data.loadProfile(sb,user.id);const history=await data.loadHistory(sb,user.id);$('#homeGreeting').textContent=`Welkom, ${profile?.display_name||'golfer'}`;$('#homeHcp').textContent=fmt(profile?.handicap_index);$('#homeRounds').textContent=history.length;const scores=history.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite);$('#homeBest').textContent=scores.length?Math.min(...scores):'—';const last=history[0];$('#homeLastRound').innerHTML=last?`<div class="section-title">Laatste ronde</div><b>${esc(last.course?.name||'Baan')}</b><div class="muted">${dateLabel(last.played_at)} · ${last.players?.[0]?.final_score||'—'} slagen · ${last.players?.[0]?.stableford||'—'} Stableford</div><button class="secondary full small-action" data-open-round="${last.id}">Bekijk ronde</button>`:`<div class="section-title">Je eerste ronde</div><div class="muted">Start met Play en bouw je persoonlijke golfhistorie op.</div>`;$('#homeLastRound').querySelector('[data-open-round]')?.addEventListener('click',()=>openRound(last.id));$('#homeOpportunity').innerHTML=`<div class="section-title">Waar verlies je slagen?</div><div class="muted">Na een paar rondes gebruikt BOUNDS je holedata om te laten zien of par 3, 4 of 5 je grootste kans is — en later ook putts, GIR, fairways en penalties.</div>`}

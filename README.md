@@ -47,3 +47,9 @@ Open daarna `http://localhost:8080`.
 - Tee-keuze toont alleen de teenaam; CR/Slope blijft in het configuratieblok eronder.
 
 ## v1.3 fix\n- Loginvelden worden expliciet focusable en niet-disabled gemaakt.\n- Auth-view/form krijgen een expliciete interactielaag zodat geen bovenliggende UI de velden kan blokkeren.\n- Supabase CDN-script gebruikt `defer` zodat een trage CDN-load de pagina niet onnodig blokkeert.\n- Auth boot/logout is robuuster gemaakt; uitloggen toont weer het login-scherm zonder volledige reload.\n
+
+## v1.9 fixes
+- Save round sends `played_hole_number` explicitly.
+- Per-hole Stats button uses robust event delegation.
+- App script cache-busted to ensure the latest frontend is loaded.
+- Supabase `save_round_v1` updated separately to persist `played_hole_number`.

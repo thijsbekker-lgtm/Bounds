@@ -4,19 +4,29 @@ import * as data from './data.js';
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
 let sb=null;
-function initSupabase(){
+let supabaseLoading=null;
+async function initSupabase(){
   if(sb) return sb;
-  if(!window.supabase?.createClient) return null;
-  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-  return sb;
+  if(window.supabase?.createClient){
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    return sb;
+  }
+  if(!supabaseLoading){
+    supabaseLoading=import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
+      .then(mod=>{
+        const createClient=mod.createClient;
+        if(!createClient) throw new Error('Supabase createClient ontbreekt.');
+        window.supabase={createClient};
+        sb=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+        return sb;
+      });
+  }
+  return supabaseLoading;
 }
 async function waitForSupabase(){
-  for(let i=0;i<100;i++){
-    const client=initSupabase();
-    if(client) return client;
-    await new Promise(r=>setTimeout(r,50));
-  }
-  throw new Error('Supabase library kon niet worden geladen.');
+  const client=await initSupabase();
+  if(!client) throw new Error('Supabase library kon niet worden geladen.');
+  return client;
 }
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let user=null,profile=null,courses=[],tees=[],ranges=[],holes=[],variants=[]; let activeRound=null; let authRegister=false;
@@ -38,9 +48,9 @@ function showTab(tab){
 
 async function boot(){
   $('#authView').classList.remove('hidden');
+  wireAuthForm();
   try{
     await waitForSupabase();
-    wireAuthForm();
     const {data:{session},error}=await sb.auth.getSession();
     if(error) throw error;
     if(session) await enterApp(session.user);
@@ -56,7 +66,7 @@ async function boot(){
     });
   }catch(e){
     console.error('BOUNDS auth boot error',e);
-    setMessage('Login kon niet worden geladen. Vernieuw de pagina en probeer opnieuw.');
+    setMessage('Verbinding met de loginservice lukt niet. Controleer je internetverbinding en probeer opnieuw.');
   }
 }
 

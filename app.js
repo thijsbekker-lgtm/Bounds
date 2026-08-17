@@ -559,7 +559,6 @@ async function renderGame(){
 $('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class="muted">Nog geen rondes opgeslagen.</div>';
 $$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));
 $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});
-}
 async function openRound(roundId){
   try{const r=await data.loadRoundDetail(sb,user.id,roundId);if(!r){toast('Ronde niet gevonden.');return}openStatsHoles.clear(); activeRound={clientRoundId:r.client_round_id||crypto.randomUUID(),courseId:r.course_id,teeId:r.tee_id,holesPlayed:Number(r.holes_played),loop:r.loop||'full',handicap:Number(r.player.handicap_index_at_round),courseHandicap:Number(r.player.course_handicap),holes:r.holes};$('#hcpInput').value=activeRound.handicap;$('#courseSelect').value=activeRound.courseId;await loadCourseConfiguration();$('#holesSelect').value=String(activeRound.holesPlayed);await loadCourseConfiguration();$('#variantSelect').value=tees.find(t=>t.id===activeRound.teeId)?.course_variant||'';await loadTeeOptions();$('#teeSelect').value=activeRound.teeId;await updateRoundConfig();$('#roundSetup').classList.add('hidden');$('#scoreArea').classList.remove('hidden');$('#roundStatus').classList.remove('hidden');$('#scoreSubtitle').textContent=`${r.course?.name||'Baan'} · ${r.holes_played} holes · ${dateLabel(r.played_at)}`;renderScorecard();persistDraft();showTab('play');}catch(e){console.error(e);toast('Ronde kon niet worden geopend.')}}
 

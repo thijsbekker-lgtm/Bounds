@@ -1,0 +1,40 @@
+name: Fix app.js syntax
+
+on:
+  push:
+    branches:
+      - bounds-v1-15-core-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'fix: repair app.js syntax'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bounds-v1-15-core-hardening
+          fetch-depth: 0
+      - name: Repair renderGame block
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app.js')
+          s = p.read_text()
+          old = """  }\n}\n$('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class=\"muted\">Nog geen rondes opgeslagen.</div>';\n$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));\n$$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});\n}\nasync function openRound(roundId){"""
+          new = """  }\n  $('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class=\"muted\">Nog geen rondes opgeslagen.</div>';\n  $$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));\n  $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});\n}\nasync function openRound(roundId){"""
+          if old not in s:
+              raise SystemExit('Expected app.js block not found; no changes made')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Validate JavaScript
+        run: node --check app.js
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          git diff --cached --quiet || git commit -m "fix: repair app.js syntax"
+          git push

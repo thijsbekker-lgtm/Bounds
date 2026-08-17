@@ -73,8 +73,15 @@ Open daarna `http://localhost:8080`.
 - Bijbehorende spelers, hole-scores, notities en shares worden door de bestaande cascade-relaties mee verwijderd.
 
 
-## v1.13
+## v1.14
 - Fix Golfpark Almkreek Par 3/4 qualifying 9-hole layout.
 - The scorecard now uses physical holes 6–14 (9 playable holes) instead of all 14 physical holes.
 - Saved-round loading applies the same qualifying-hole mapping.
 - No database schema changes.
+
+
+## v1.14
+- My Game now reads saved hole-level statistics from Supabase.
+- Added first actionable insights: score vs par by par type, putting, GIR, fairway and penalties.
+- Added recent score trend and data coverage indicators.
+- Avoids claiming strokes gained; uses score above par where appropriate.

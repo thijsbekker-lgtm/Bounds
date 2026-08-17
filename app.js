@@ -484,7 +484,77 @@ function roundHistoryItem(r){
   </div>`;
 }
 
-async function renderGame(){if(!user)return;const history=await data.loadHistory(sb,user.id);const scores=history.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite);const sf=history.flatMap(r=>r.players||[]).map(p=>Number(p.stableford)).filter(Number.isFinite);$('#gameHcp').textContent=fmt(profile?.handicap_index);$('#gameRounds').textContent=history.length;$('#gameAvg').textContent=scores.length?fmt((scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1)):'—';$('#gameBestSf').textContent=sf.length?Math.max(...sf):'—';$('#insights').innerHTML=history.length<3?'<div class="muted">Na een paar rondes kan BOUNDS betrouwbare inzichten tonen. We bewaren extra stats bewust optioneel.</div>':'<div class="insight-list"><div><b>Par 3</b><span>Analyse wordt opgebouwd uit je gespeelde holes.</span></div><div><b>Par 4</b><span>Analyse wordt opgebouwd uit je gespeelde holes.</span></div><div><b>Par 5</b><span>Analyse wordt opgebouwd uit je gespeelde holes.</span></div></div>';
+async function renderGame(){
+  if(!user)return;
+  const history=await data.loadHistory(sb,user.id);
+  const scores=history.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite);
+  const sf=history.flatMap(r=>r.players||[]).map(p=>Number(p.stableford)).filter(Number.isFinite);
+  $('#gameHcp').textContent=fmt(profile?.handicap_index);
+  $('#gameRounds').textContent=history.length;
+  $('#gameAvg').textContent=scores.length?fmt((scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1)):'—';
+  $('#gameBestSf').textContent=sf.length?Math.max(...sf):'—';
+
+  try{
+    const stats=await data.loadInsightStats(sb,user.id);
+    const holes=(stats.holes||[]).filter(h=>h.course_hole);
+    if(!holes.length){
+      $('#insights').innerHTML='<div class="muted">Vul tijdens je rondes enkele extra stats in. Daarna laat BOUNDS zien waar je structureel de meeste winst kunt pakken.</div>';
+      return;
+    }
+
+    const byPar={3:[],4:[],5:[]};
+    holes.forEach(h=>{
+      const par=Number(h.course_hole.par), score=Number(h.score);
+      if(byPar[par] && Number.isFinite(score)) byPar[par].push(score-par);
+    });
+    const parSummary=Object.entries(byPar)
+      .filter(([,v])=>v.length)
+      .map(([p,v])=>({p:Number(p),avg:v.reduce((a,b)=>a+b,0)/v.length,n:v.length}))
+      .sort((a,b)=>b.avg-a.avg);
+    const worstPar=parSummary[0];
+
+    const putts=holes.map(h=>Number(h.putts)).filter(Number.isFinite);
+    const gir=holes.map(h=>h.gir).filter(v=>v==='yes'||v==='no');
+    const fw=holes.filter(h=>[4,5].includes(Number(h.course_hole.par))).map(h=>h.fairway).filter(v=>v==='yes'||v==='no');
+    const penalties=holes.map(h=>Number(h.penalty)).filter(Number.isFinite);
+    const avgPutts=putts.length?putts.reduce((a,b)=>a+b,0)/putts.length:null;
+    const girPct=gir.length?gir.filter(v=>v==='yes').length/gir.length:null;
+    const fwPct=fw.length?fw.filter(v=>v==='yes').length/fw.length:null;
+    const totalPenalties=penalties.reduce((a,b)=>a+b,0);
+
+    const cards=[];
+    if(worstPar){
+      cards.push(`<div class="insight-card"><div class="insight-kicker">GROOTSTE KANS</div><b>Par ${worstPar.p}</b><span>Gemiddeld ${worstPar.avg>=0?'+':''}${worstPar.avg.toFixed(1).replace('.',',')} slag t.o.v. par over ${worstPar.n} gespeelde holes.</span></div>`);
+    }
+    if(avgPutts!==null){
+      cards.push(`<div class="insight-card"><div class="insight-kicker">PUTTING</div><b>${avgPutts.toFixed(1).replace('.',',')} putts</b><span>${avgPutts>=2?'Dit is een aandachtspunt.':'Dit ziet er op basis van de ingevulde data stabiel uit.'}</span></div>`);
+    }
+    if(girPct!==null){
+      cards.push(`<div class="insight-card"><div class="insight-kicker">GIR</div><b>${Math.round(girPct*100)}%</b><span>Gebaseerd op ${gir.length} holes met GIR ingevuld.</span></div>`);
+    }
+    if(fwPct!==null){
+      cards.push(`<div class="insight-card"><div class="insight-kicker">FAIRWAY</div><b>${Math.round(fwPct*100)}%</b><span>Alleen par 4 en par 5 tellen mee.</span></div>`);
+    }
+    if(totalPenalties){
+      cards.push(`<div class="insight-card"><div class="insight-kicker">PENALTIES</div><b>${totalPenalties}</b><span>Geregistreerde penaltyslagen. Dit is directe score-impact.</span></div>`);
+    }
+
+    const recent=stats.rounds.slice(0,6).reverse().filter(r=>r.players?.[0]?.final_score!=null);
+    const trend=recent.map(r=>`<div class="trend-row"><span>${dateLabel(r.played_at)}</span><b>${r.players[0].final_score}</b></div>`).join('');
+    const coverage=`${holes.length} holes met scoredata · ${putts.length} met putts · ${gir.length} met GIR · ${fw.length} met fairway · ${penalties.length} met penalty`;
+    $('#insights').innerHTML=`
+      <div class="insight-lead"><b>Waar zit je grootste winst?</b><span>BOUNDS kijkt eerst naar score boven par en gebruikt extra stats alleen wanneer je ze invult.</span></div>
+      <div class="insight-grid">${cards.join('')}</div>
+      <div class="insight-subsection"><div class="section-title">Score per par-type</div>
+        ${parSummary.map(x=>`<div class="performance-row"><b>Par ${x.p}</b><span>${x.avg>=0?'+':''}${x.avg.toFixed(1).replace('.',',')} / hole</span><small>${x.n} holes</small></div>`).join('')}
+      </div>
+      ${recent.length?`<div class="insight-subsection"><div class="section-title">Laatste scores</div>${trend}</div>`:''}
+      <div class="stat-coverage">${coverage}</div>`;
+  }catch(e){
+    console.error('My Game insights:',e);
+    $('#insights').innerHTML='<div class="muted">De basisstatistieken zijn beschikbaar, maar de detailanalyse kon nu niet worden geladen.</div>';
+  }
+}
 $('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class="muted">Nog geen rondes opgeslagen.</div>';
 $$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));
 $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});

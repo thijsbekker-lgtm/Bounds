@@ -36,6 +36,26 @@ export async function loadHistory(sb,userId){
   if(error) throw error; return data||[];
 }
 
+export async function loadInsightStats(sb,userId){
+  const {data:rounds,error:roundError}=await sb.from('rounds')
+    .select('id,played_at,holes_played,course:courses(name),players:round_players!inner(id,user_id,final_score,stableford)')
+    .eq('owner_id',userId)
+    .eq('round_players.user_id',userId)
+    .order('played_at',{ascending:false})
+    .limit(100);
+  if(roundError) throw roundError;
+  const rows=rounds||[];
+  const playerIds=rows.flatMap(r=>(r.players||[]).map(p=>p.id));
+  if(!playerIds.length) return {rounds:rows,holes:[]};
+  const {data:holes,error:holeError}=await sb.from('hole_scores')
+    .select('round_player_id,score,stableford,putts,penalty,fairway,gir,course_hole:course_holes(hole_number,par,stroke_index)')
+    .in('round_player_id',playerIds);
+  if(holeError) throw holeError;
+  const roundByPlayer=new Map();
+  rows.forEach(r=>(r.players||[]).forEach(p=>roundByPlayer.set(p.id,r)));
+  return {rounds:rows,holes:(holes||[]).map(h=>({...h,round:roundByPlayer.get(h.round_player_id)||null}))};
+}
+
 async function loadRoundTee(sb,teeId){
   const {data,error}=await sb.from('course_tees').select('id,course_id,tee_name,gender,holes,loop,course_rating,slope_rating,par,course_variant,layout_key,played_holes,physical_holes,physical_par,rating_holes,rating_par,length_m,qualifying_holes,qualifying_par').eq('id',teeId).maybeSingle();
   if(error) throw error;

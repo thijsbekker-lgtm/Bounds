@@ -1,4 +1,4 @@
-name: Fix app.js syntax
+name: v1.15 core hardening
 
 on:
   push:
@@ -9,32 +9,124 @@ permissions:
   contents: write
 
 jobs:
-  fix:
-    if: github.event.head_commit.message != 'fix: repair app.js syntax'
+  harden:
+    if: github.event.head_commit.message != 'fix: restore unfinished draft'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: bounds-v1-15-core-hardening
           fetch-depth: 0
-      - name: Repair renderGame block
+
+      - name: Restore unfinished local round after reload
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('app.js')
           s = p.read_text()
-          old = """  }\n}\n$('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class=\"muted\">Nog geen rondes opgeslagen.</div>';\n$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));\n$$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});\n}\nasync function openRound(roundId){"""
-          new = """  }\n  $('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class=\"muted\">Nog geen rondes opgeslagen.</div>';\n  $$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));\n  $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});\n}\nasync function openRound(roundId){"""
+          old = '''async function restoreDraft(){
+  const raw=localStorage.getItem(localKey); if(!raw)return;
+  try{
+    const d=JSON.parse(raw);
+    if(!d?.clientRoundId){localStorage.removeItem(localKey);return;}
+    toast('Er staat nog een onafgemaakte ronde klaar.');
+  }catch{localStorage.removeItem(localKey)}
+}'''
+          new = '''async function restoreDraft(){
+  const raw=localStorage.getItem(localKey); if(!raw)return;
+  try{
+    const d=JSON.parse(raw);
+    if(!d?.clientRoundId||!d.courseId||!d.teeId||!Number(d.holesPlayed)){
+      localStorage.removeItem(localKey);
+      return;
+    }
+
+    $('#courseSelect').value=d.courseId;
+    $('#holesSelect').value=String(d.holesPlayed);
+    await loadCourseConfiguration();
+
+    if(d.variant && $('#variantSelect').querySelector(`option[value="${CSS.escape(d.variant)}"]`)){
+      $('#variantSelect').value=d.variant;
+      await loadTeeOptions();
+    }
+
+    if(d.loop && [...$('#loopSelect').options].some(o=>o.value===d.loop)){
+      $('#loopSelect').value=d.loop;
+      await loadTeeOptions();
+    }
+
+    const tee=tees.find(t=>t.id===d.teeId);
+    if(!tee){
+      localStorage.removeItem(localKey);
+      toast('De onafgemaakte ronde kon niet worden hersteld.');
+      return;
+    }
+
+    $('#teeSelect').value=d.teeId;
+    await updateRoundConfig();
+
+    const scores=d.scores||{};
+    const extra=d.extra||{};
+    activeRound={
+      clientRoundId:d.clientRoundId,
+      courseId:d.courseId,
+      teeId:d.teeId,
+      holesPlayed:Number(d.holesPlayed),
+      loop:d.loop||tee.loop||'full',
+      variant:d.variant||tee.course_variant,
+      handicap:Number(d.handicap),
+      courseHandicap:Number(d.courseHandicap),
+      holes:holes.map(h=>{
+        const e=extra[h.hole]||{};
+        return {
+          id:h.id,
+          hole:h.hole_number,
+          par:h.par,
+          si:h.stroke_index,
+          score:Number(scores[h.hole]||0),
+          putts:e.putts??'',
+          penalty:e.penalty??'',
+          fairway:e.fairway??'',
+          gir:e.gir??'',
+          note:e.note??''
+        };
+      })
+    };
+
+    if(!Number.isFinite(activeRound.courseHandicap)) activeRound.courseHandicap=null;
+    $('#hcpInput').value=activeRound.handicap;
+    $('#roundSetup').classList.add('hidden');
+    $('#scoreArea').classList.remove('hidden');
+    $('#roundStatus').classList.remove('hidden');
+    $('#roundStatus').textContent='🟢 Ronde hervat';
+    $('#playTitle').textContent='Ronde hervat';
+    $('#scoreSubtitle').textContent=`${courses.find(c=>c.id===d.courseId)?.name||'Baan'} · ${d.holesPlayed} holes · onafgemaakt`;
+    renderScorecard();
+    persistDraft();
+    showTab('play');
+    toast('Onafgeronde ronde hersteld.');
+  }catch(e){
+    console.error('BOUNDS draft restore error',e);
+    localStorage.removeItem(localKey);
+    toast('De onafgemaakte ronde kon niet worden hersteld.');
+  }
+}'''
           if old not in s:
-              raise SystemExit('Expected app.js block not found; no changes made')
+              raise SystemExit('Expected restoreDraft block not found; no changes made')
           p.write_text(s.replace(old, new, 1))
           PY
+
+      - name: Bump app cache version
+        run: sed -i 's/app.js?v=1.15.0/app.js?v=1.15.1/' index.html
+
       - name: Validate JavaScript
         run: node --check app.js
-      - name: Commit fix
+
+      - name: Commit hardening and remove temporary workflow
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js
-          git diff --cached --quiet || git commit -m "fix: repair app.js syntax"
+          git add app.js index.html
+          git rm .github/workflows/fix-app-syntax.yml
+          git commit -m "fix: restore unfinished draft"
           git push

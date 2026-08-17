@@ -61,9 +61,19 @@ async function boot(){
 
 async function enterApp(u){
   user=u; $('#authView').classList.add('hidden'); $('#appShell').classList.remove('hidden');
-  $('#sessionArea').innerHTML=`<button class="ghost" id="accountButton">${esc(u.email||'Account')}</button>`;
-  const accountButton=$('#accountButton');
-  if(accountButton) accountButton.onclick=()=>sb.auth.signOut();
+  $('#sessionArea').innerHTML=`<div class="session-controls"><span class="account-email">${esc(u.email||'Account')}</span><button class="ghost logout-button" id="logoutButton" type="button">Uitloggen</button></div>`;
+  const logoutButton=$('#logoutButton');
+  if(logoutButton) logoutButton.onclick=async()=>{
+    logoutButton.disabled=true;
+    logoutButton.textContent='Uitloggen…';
+    const {error}=await sb.auth.signOut();
+    if(error){
+      console.error(error);
+      logoutButton.disabled=false;
+      logoutButton.textContent='Uitloggen';
+      toast('Uitloggen mislukt. Probeer opnieuw.');
+    }
+  };
   try{
     profile=await data.loadProfile(sb,user.id);
     if(!profile){

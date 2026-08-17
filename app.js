@@ -168,9 +168,10 @@ $('#hcpInput').addEventListener('input',()=>{if($('#teeSelect').value)updateRoun
 function makeDraft(){
   const tee=tees.find(t=>t.id===$('#teeSelect').value); if(!tee)return null;
   const ch=courseHandicapFromRanges(ranges,Number($('#hcpInput').value))??fallbackCourseHandicap(tee,Number($('#hcpInput').value));
-  const current=JSON.parse(localStorage.getItem(localKey)||'{}');
   const playedStrokeIndices=holes.map(h=>h.stroke_index);
-  return {clientRoundId:current.clientRoundId||crypto.randomUUID(),courseId:tee.course_id,teeId:tee.id,holesPlayed:Number($('#holesSelect').value),loop:tee.loop||'full',variant:tee.course_variant,handicap:Number($('#hcpInput').value),courseHandicap:ch,holes:holes.map(h=>({id:h.id,hole:h.hole_number,par:h.par,si:h.stroke_index,score:current.scores?.[h.hole_number]||0,putts:current.extra?.[h.hole_number]?.putts||'',penalty:current.extra?.[h.hole_number]?.penalty||'',fairway:current.extra?.[h.hole_number]?.fairway||'',gir:current.extra?.[h.hole_number]?.gir||'',note:current.extra?.[h.hole_number]?.note||'',playedStrokeIndices}))};
+  // Een nieuwe ronde moet altijd schoon beginnen. Oude localStorage-drafts mogen
+  // nooit scores/statistieken meenemen naar een nieuwe ronde.
+  return {clientRoundId:crypto.randomUUID(),courseId:tee.course_id,teeId:tee.id,holesPlayed:Number($('#holesSelect').value),loop:tee.loop||'full',variant:tee.course_variant,handicap:Number($('#hcpInput').value),courseHandicap:ch,holes:holes.map(h=>({id:h.id,hole:h.hole_number,par:h.par,si:h.stroke_index,score:0,putts:'',penalty:'',fairway:'',gir:'',note:'',playedStrokeIndices}))};
 }
 function renderScorecard(){
   if(!activeRound)return;
@@ -341,6 +342,9 @@ async function startNewRound(){
 }
 
 $('#startRound').onclick=async()=>{
+  // Veiligheidsnet: ook als de gebruiker rechtstreeks vanuit Play een nieuwe
+  // ronde start, mag een achtergebleven draft nooit worden overgenomen.
+  localStorage.removeItem(localKey);
   const draft=makeDraft();
   if(!draft){toast('Kies eerst baan en tee.');return}
   if(draft.holes.length!==draft.holesPlayed){toast(`Deze configuratie levert ${draft.holes.length} holes op, maar ${draft.holesPlayed} is gekozen.`);return}

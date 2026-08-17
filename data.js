@@ -119,3 +119,9 @@ export async function saveRound(sb,payload){
   const {data,error}=await sb.rpc('save_round_v1',payload);
   if(error) throw error; return data;
 }
+
+export async function deleteRound(sb,roundId){
+  const {data,error}=await sb.rpc('delete_round_v1',{p_round_id:roundId});
+  if(error) throw error;
+  return Boolean(data);
+}

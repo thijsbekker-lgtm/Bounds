@@ -66,3 +66,8 @@ Open daarna `http://localhost:8080`.
 - Existing hole scores and optional stats are overlaid onto that full card.
 - Empty holes remain visible and editable instead of disappearing.
 - 18-hole rounds on physical 9-hole courses are reconstructed consistently with the live round setup.
+
+## v1.12 fix
+- Opgeslagen rondes kunnen vanuit Historie definitief worden verwijderd.
+- Verwijderen loopt via de beveiligde Supabase RPC `delete_round_v1`; alleen de eigenaar kan zijn eigen ronde verwijderen.
+- Bijbehorende spelers, hole-scores, notities en shares worden door de bestaande cascade-relaties mee verwijderd.

@@ -59,3 +59,10 @@ Open daarna `http://localhost:8080`.
 - Fix round save payload: empty score values are normalized to NULL before Supabase sync.
 - Optional stats remain nullable and are normalized to valid integer ranges.
 - No database constraint changes.
+
+
+## v1.11 — edit saved rounds
+- Saved round editing reconstructs the complete 9/18-hole scorecard from the course/tee definition.
+- Existing hole scores and optional stats are overlaid onto that full card.
+- Empty holes remain visible and editable instead of disappearing.
+- 18-hole rounds on physical 9-hole courses are reconstructed consistently with the live round setup.

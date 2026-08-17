@@ -36,12 +36,46 @@ export async function loadHistory(sb,userId){
   if(error) throw error; return data||[];
 }
 
+async function loadRoundTee(sb,teeId){
+  const {data,error}=await sb.from('course_tees').select('id,course_id,tee_name,gender,holes,loop,course_rating,slope_rating,par,course_variant,layout_key,played_holes,physical_holes,physical_par,rating_holes,rating_par,length_m,qualifying_holes,qualifying_par').eq('id',teeId).maybeSingle();
+  if(error) throw error;
+  return data||null;
+}
+
+async function loadPlayableHolesForRound(sb,tee){
+  let hs=await loadHoles(sb,tee.id);
+  if(hs.length) return hs;
+
+  // 18-hole round on a physical 9-hole course: reconstruct the full played card
+  // from the matching 9-hole tee, exactly like the live round setup does.
+  if(Number(tee.holes)===18 && Number(tee.physical_holes)===9){
+    const physicalTees=await loadTees(sb,tee.course_id,9,tee.course_variant);
+    const source=physicalTees.find(t=>t.tee_name===tee.tee_name && t.gender===tee.gender)
+      || physicalTees.find(t=>t.tee_name===tee.tee_name);
+    if(source){
+      const physical=await loadHoles(sb,source.id);
+      if(physical.length===9){
+        return [
+          ...physical.map(h=>({...h,played_hole_number:h.hole_number})),
+          ...physical.map(h=>({...h,id:`${h.id}-2`,hole_number:h.hole_number+9,played_hole_number:h.hole_number+9,stroke_index:Number(h.stroke_index)+1}))
+        ];
+      }
+    }
+  }
+  return [];
+}
+
 export async function loadRoundDetail(sb,userId,roundId){
   const {data,error}=await sb.from('rounds').select('id,client_round_id,owner_id,course_id,tee_id,holes_played,loop,played_at,status,course:courses(name,location),players:round_players!inner(id,user_id,handicap_index_at_round,course_handicap,final_score,stableford,is_owner)').eq('id',roundId).eq('owner_id',userId).eq('round_players.user_id',userId).maybeSingle();
   if(error) throw error;
   if(!data) return null;
   const player=data.players?.[0];
   if(!player) return null;
+
+  const tee=await loadRoundTee(sb,data.tee_id);
+  if(!tee) throw new Error('Tee van deze ronde niet gevonden.');
+  const courseHoles=await loadPlayableHolesForRound(sb,tee);
+
   const {data:hs,error:he}=await sb.from('hole_scores').select('id,course_hole_id,score,stableford,putts,penalty,fairway,gir,played_hole_number,course_hole:course_holes(hole_number,par,stroke_index,meters,loop)').eq('round_player_id',player.id).order('played_hole_number').order('course_hole_id');
   if(he) throw he;
   const notes={};
@@ -51,13 +85,29 @@ export async function loadRoundDetail(sb,userId,roundId){
     if(ne) throw ne;
     (ns||[]).forEach(n=>{notes[n.hole_score_id]=n.note||''});
   }
-  return {...data,player,holes:(hs||[]).map(h=>({
-    hole:h.course_hole?.hole_number ?? h.played_hole_number,
-    par:h.course_hole?.par ?? 0,
-    si:h.course_hole?.stroke_index ?? 0,
-    score:h.score||0, sf:h.stableford, putts:h.putts||'', penalty:h.penalty||'',
-    fairway:h.fairway||'', gir:h.gir||'', note:notes[h.id]||''
-  }))};
+
+  // IMPORTANT: render the complete course scorecard, then overlay whatever
+  // was actually saved. A partially played/saved round must never collapse
+  // to only the holes that currently have a row in hole_scores.
+  const savedByPlayedHole=new Map((hs||[]).map(h=>[Number(h.played_hole_number ?? h.course_hole?.hole_number),h]));
+  const holes=courseHoles.slice(0,Number(data.holes_played)).map(h=>{
+    const playedHole=Number(h.played_hole_number ?? h.hole_number);
+    const saved=savedByPlayedHole.get(playedHole);
+    return {
+      hole:playedHole,
+      par:Number(h.par)||0,
+      si:Number(h.stroke_index)||0,
+      score:saved?.score ?? 0,
+      sf:saved?.stableford ?? null,
+      putts:saved?.putts ?? '',
+      penalty:saved?.penalty ?? '',
+      fairway:saved?.fairway ?? '',
+      gir:saved?.gir ?? '',
+      note:saved ? (notes[saved.id]||'') : ''
+    };
+  });
+
+  return {...data,player,tee,holes};
 }
 
 export async function loadCourseHistory(sb,userId){

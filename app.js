@@ -3,69 +3,14 @@ import * as data from './data.js';
 
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+import {createBoundsSupabase} from './supabase-rest.js';
+
 let sb=null;
-let supabaseLoading=null;
-
-function loadSupabaseScript(src){
-  return new Promise((resolve,reject)=>{
-    const existing=[...document.scripts].find(s=>s.src===src);
-    if(existing){
-      if(window.supabase?.createClient) return resolve();
-      existing.addEventListener('load',()=>resolve(),{once:true});
-      existing.addEventListener('error',()=>reject(new Error('Supabase script kon niet worden geladen.')),{once:true});
-      return;
-    }
-    const script=document.createElement('script');
-    script.src=src;
-    script.async=false;
-    script.onload=()=>resolve();
-    script.onerror=()=>reject(new Error('Supabase script kon niet worden geladen.'));
-    document.head.appendChild(script);
-  });
-}
-
 async function initSupabase(){
   if(sb) return sb;
-
-  if(window.supabase?.createClient){
-    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-    });
-    return sb;
-  }
-
-  if(!supabaseLoading){
-    supabaseLoading=(async()=>{
-      const sources=[
-        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-        'https://unpkg.com/@supabase/supabase-js@2'
-      ];
-
-      let lastError=null;
-      for(const src of sources){
-        try{
-          await loadSupabaseScript(src);
-          if(window.supabase?.createClient){
-            sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-              auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-            });
-            return sb;
-          }
-        }catch(e){
-          lastError=e;
-        }
-      }
-
-      throw new Error(
-        'De BOUNDS loginservice kon niet worden geladen. Controleer internetverbinding of browserblokkering.'
-        +(lastError?.message ? ' '+lastError.message : '')
-      );
-    })();
-  }
-
-  return supabaseLoading;
+  sb=createBoundsSupabase(SUPABASE_URL,SUPABASE_KEY);
+  return sb;
 }
-
 async function waitForSupabase(){
   const client=await initSupabase();
   if(!client?.auth) throw new Error('Supabase Auth kon niet worden geladen.');
@@ -614,7 +559,6 @@ async function renderGame(){
 $('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class="muted">Nog geen rondes opgeslagen.</div>';
 $$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));
 $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});
-}
 async function openRound(roundId){
   try{const r=await data.loadRoundDetail(sb,user.id,roundId);if(!r){toast('Ronde niet gevonden.');return}openStatsHoles.clear(); activeRound={clientRoundId:r.client_round_id||crypto.randomUUID(),courseId:r.course_id,teeId:r.tee_id,holesPlayed:Number(r.holes_played),loop:r.loop||'full',handicap:Number(r.player.handicap_index_at_round),courseHandicap:Number(r.player.course_handicap),holes:r.holes};$('#hcpInput').value=activeRound.handicap;$('#courseSelect').value=activeRound.courseId;await loadCourseConfiguration();$('#holesSelect').value=String(activeRound.holesPlayed);await loadCourseConfiguration();$('#variantSelect').value=tees.find(t=>t.id===activeRound.teeId)?.course_variant||'';await loadTeeOptions();$('#teeSelect').value=activeRound.teeId;await updateRoundConfig();$('#roundSetup').classList.add('hidden');$('#scoreArea').classList.remove('hidden');$('#roundStatus').classList.remove('hidden');$('#scoreSubtitle').textContent=`${r.course?.name||'Baan'} · ${r.holes_played} holes · ${dateLabel(r.played_at)}`;renderScorecard();persistDraft();showTab('play');}catch(e){console.error(e);toast('Ronde kon niet worden geopend.')}}
 

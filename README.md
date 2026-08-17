@@ -1,4 +1,4 @@
-# BOUNDS v1 — Foundation v1.2 v1.2
+# BOUNDS v1 — Foundation v1.3
 
 Deze versie is bewust opnieuw opgebouwd als schone basis en niet als uitbreiding van het oude monolithische HTML-prototype.
 
@@ -40,3 +40,4 @@ Open daarna `http://localhost:8080`.
 - Stroke Index voor de tweede lus wordt afgeleid als even SI (odd → even).
 - Course Handicap valt terug op de course-rating/slope formule wanneer er geen range-record beschikbaar is.
 - Scorekaart controleert dat het aantal geladen holes exact overeenkomt met de gekozen ronde.
+\n## v1.3 fix\n- Loginvelden worden expliciet focusable en niet-disabled gemaakt.\n- Auth-view/form krijgen een expliciete interactielaag zodat geen bovenliggende UI de velden kan blokkeren.\n- Supabase CDN-script gebruikt `defer` zodat een trage CDN-load de pagina niet onnodig blokkeert.\n- Auth boot/logout is robuuster gemaakt; uitloggen toont weer het login-scherm zonder volledige reload.\n

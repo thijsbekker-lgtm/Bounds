@@ -22,15 +22,31 @@ function showTab(tab){
 }
 
 async function boot(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(session) await enterApp(session.user); else $('#authView').classList.remove('hidden');
-  sb.auth.onAuthStateChange((_e,s)=>{ if(s?.user && !user) enterApp(s.user); if(!s) location.reload(); });
+  $('#authView').classList.remove('hidden');
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) await enterApp(session.user);
+  }catch(e){
+    console.error(e);
+    setMessage('BOUNDS kan de login niet initialiseren. Vernieuw de pagina en probeer opnieuw.');
+  }
+  sb.auth.onAuthStateChange((_e,s)=>{
+    if(s?.user && !user) enterApp(s.user);
+    if(!s && user){
+      user=null; profile=null;
+      $('#appShell').classList.add('hidden');
+      $('#authView').classList.remove('hidden');
+      $('#sessionArea').innerHTML='';
+      setMessage('');
+    }
+  });
 }
 
 async function enterApp(u){
   user=u; $('#authView').classList.add('hidden'); $('#appShell').classList.remove('hidden');
   $('#sessionArea').innerHTML=`<button class="ghost" id="accountButton">${esc(u.email||'Account')}</button>`;
-  $('#accountButton').onclick=()=>sb.auth.signOut();
+  const accountButton=$('#accountButton');
+  if(accountButton) accountButton.onclick=()=>sb.auth.signOut();
   try{
     profile=await data.loadProfile(sb,user.id);
     if(!profile){
@@ -196,6 +212,10 @@ async function renderCourses(){const h=await data.loadCourseHistory(sb,user.id);
 async function openCourseDetail(id){const c=courses.find(x=>x.id===id);if(!c)return;const rs=(await data.loadCourseHistory(sb,user.id)).filter(r=>r.course_id===id);const all=await data.loadTees(sb,id,18).catch(()=>[]);const nine=await data.loadTees(sb,id,9).catch(()=>[]);const allTees=[...all,...nine];const vars=[...new Set(allTees.map(t=>t.course_variant).filter(Boolean))];$('#courseCatalog').innerHTML=`<div class="course-detail"><button class="text-button" id="backCourses">← Alle banen</button><div class="eyebrow">COURSE</div><h3>${esc(c.name)}</h3><div class="muted">${esc(c.location||'Nederland')} · ${esc(c.country||'NL')}</div><div class="course-facts"><div><b>${vars.length?vars.map(variantLabel).join(' · '):'—'}</b><span>Layouts</span></div><div><b>${rs.length}</b><span>Jouw rondes</span></div><div><b>${rs.length?Math.min(...rs.flatMap(r=>r.players||[]).map(p=>Number(p.final_score)).filter(Number.isFinite)):'—'}</b><span>Beste score</span></div></div><div class="section-title">Jouw historie</div>${rs.length?rs.slice(0,10).map(r=>`<button class="round-item round-button" data-round="${r.id}"><div><b>${dateLabel(r.played_at)}</b><small>${r.holes_played} holes · ${r.loop||'full'}</small></div><div><b>${r.players?.[0]?.final_score||'—'}</b><small>${r.players?.[0]?.stableford||'—'} SF</small></div></button>`).join(''):'<div class="muted">Nog geen rondes op deze baan.</div>'}</div>`;$('#backCourses').onclick=renderCourses;$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round))}
 
 $$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$$('[data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
+['#authEmail','#authPassword'].forEach(sel=>{
+  const el=$(sel);
+  if(el){el.disabled=false;el.readOnly=false;el.tabIndex=0;el.style.pointerEvents='auto';}
+});
 $('#authMode').onclick=()=>{authRegister=!authRegister;$('#authSubmit').textContent=authRegister?'Account maken':'Inloggen';$('#authMode').textContent=authRegister?'Al een account? Inloggen':'Nog geen account? Registreren';setMessage('')};
 $('#authForm').onsubmit=async e=>{e.preventDefault();setMessage('');const email=$('#authEmail').value.trim(),password=$('#authPassword').value;try{if(authRegister){const {data,error}=await sb.auth.signUp({email,password});if(error)throw error;if(data.session)toast('Account aangemaakt.');else setMessage('Account aangemaakt. Controleer je e-mail als verificatie actief is.')}else{const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error}}catch(err){setMessage(err.message||'Inloggen mislukt.')}};
 boot();

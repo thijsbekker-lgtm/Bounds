@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#f5f5f7" />
   <title>BOUNDS — Your game. Your people. Your courses.</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=1.15.3" />
 </head>
 <body>
   <div id="app">
@@ -94,7 +94,39 @@
     </div>
   </div>
   <div id="toast" class="toast"></div>
-  <script type="module" src="app.js?v=1.15.1"></script>
-  <script type="module" src="draft-restore.js?v=1.15.1"></script>
+
+  <script>
+  (()=>{
+    const URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
+    const KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+    const SESSION_KEY='bounds_supabase_session';
+    const form=document.getElementById('authForm');
+    const message=document.getElementById('authMessage');
+    const button=document.getElementById('authSubmit');
+    const mode=document.getElementById('authMode');
+    if(!form||!message||!button||!mode)return;
+    let register=false;
+    mode.addEventListener('click',()=>{register=!register;button.textContent=register?'Account maken':'Inloggen';mode.textContent=register?'Al een account? Inloggen':'Nog geen account? Registreren';message.textContent='';});
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();e.stopImmediatePropagation();message.textContent='';
+      const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;
+      if(!email||!password){message.textContent='Vul e-mail en wachtwoord in.';return;}
+      button.disabled=true;button.textContent=register?'Account maken…':'Inloggen…';
+      try{
+        const endpoint=register?`${URL}/auth/v1/signup`:`${URL}/auth/v1/token?grant_type=password`;
+        const res=await fetch(endpoint,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+        const data=await res.json().catch(()=>({}));
+        if(!res.ok)throw new Error(data.msg||data.message||data.error_description||data.error||'Login mislukt.');
+        if(data.access_token){data.expires_at=Math.floor(Date.now()/1000)+Number(data.expires_in||3600);localStorage.setItem(SESSION_KEY,JSON.stringify(data));location.reload();return;}
+        message.textContent='Account aangemaakt. Controleer je e-mail als verificatie actief is.';
+      }catch(err){
+        const msg=String(err?.message||'Inloggen mislukt.');
+        message.textContent=/invalid login credentials/i.test(msg)?'Inloggen mislukt. Controleer e-mailadres en wachtwoord.':/email not confirmed/i.test(msg)?'Bevestig eerst je e-mailadres via de bevestigingsmail.':msg;
+      }finally{button.disabled=false;button.textContent=register?'Account maken':'Inloggen';}
+    },true);
+  })();
+  </script>
+  <script type="module" src="app.js?v=1.15.3"></script>
+  <script type="module" src="draft-restore.js?v=1.15.3"></script>
 </body>
 </html>

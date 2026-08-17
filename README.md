@@ -1,3 +1,7 @@
+## v1.14.3 — login fix
+
+Supabase Auth loading now uses a robust browser script loader with jsDelivr + unpkg fallback, and login errors are shown clearly instead of appearing to do nothing.
+
 # BOUNDS v1 — Foundation v1.10 v1.4
 
 Deze versie is bewust opnieuw opgebouwd als schone basis en niet als uitbreiding van het oude monolithische HTML-prototype.

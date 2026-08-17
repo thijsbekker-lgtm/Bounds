@@ -5,27 +5,70 @@ const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
 let sb=null;
 let supabaseLoading=null;
+
+function loadSupabaseScript(src){
+  return new Promise((resolve,reject)=>{
+    const existing=[...document.scripts].find(s=>s.src===src);
+    if(existing){
+      if(window.supabase?.createClient) return resolve();
+      existing.addEventListener('load',()=>resolve(),{once:true});
+      existing.addEventListener('error',()=>reject(new Error('Supabase script kon niet worden geladen.')),{once:true});
+      return;
+    }
+    const script=document.createElement('script');
+    script.src=src;
+    script.async=false;
+    script.onload=()=>resolve();
+    script.onerror=()=>reject(new Error('Supabase script kon niet worden geladen.'));
+    document.head.appendChild(script);
+  });
+}
+
 async function initSupabase(){
   if(sb) return sb;
+
   if(window.supabase?.createClient){
-    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+    });
     return sb;
   }
+
   if(!supabaseLoading){
-    supabaseLoading=import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
-      .then(mod=>{
-        const createClient=mod.createClient;
-        if(!createClient) throw new Error('Supabase createClient ontbreekt.');
-        window.supabase={createClient};
-        sb=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-        return sb;
-      });
+    supabaseLoading=(async()=>{
+      const sources=[
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+        'https://unpkg.com/@supabase/supabase-js@2'
+      ];
+
+      let lastError=null;
+      for(const src of sources){
+        try{
+          await loadSupabaseScript(src);
+          if(window.supabase?.createClient){
+            sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+              auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+            });
+            return sb;
+          }
+        }catch(e){
+          lastError=e;
+        }
+      }
+
+      throw new Error(
+        'De BOUNDS loginservice kon niet worden geladen. Controleer internetverbinding of browserblokkering.'
+        +(lastError?.message ? ' '+lastError.message : '')
+      );
+    })();
   }
+
   return supabaseLoading;
 }
+
 async function waitForSupabase(){
   const client=await initSupabase();
-  if(!client) throw new Error('Supabase library kon niet worden geladen.');
+  if(!client?.auth) throw new Error('Supabase Auth kon niet worden geladen.');
   return client;
 }
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -49,8 +92,10 @@ function showTab(tab){
 async function boot(){
   $('#authView').classList.remove('hidden');
   wireAuthForm();
+  setMessage('Loginservice laden…');
   try{
     await waitForSupabase();
+    setMessage('');
     const {data:{session},error}=await sb.auth.getSession();
     if(error) throw error;
     if(session) await enterApp(session.user);
@@ -609,7 +654,13 @@ function wireAuthForm(){
       }
     }catch(err){
       console.error('Auth error',err);
-      setMessage(err.message||'Inloggen mislukt.');
+      const msg=String(err?.message||'Inloggen mislukt.');
+      const friendly=/invalid login credentials/i.test(msg)
+        ? 'Inloggen mislukt. Controleer e-mailadres en wachtwoord.'
+        : /email not confirmed/i.test(msg)
+          ? 'Bevestig eerst je e-mailadres via de bevestigingsmail.'
+          : msg;
+      setMessage(friendly);
     }finally{
       button.disabled=false;
     }

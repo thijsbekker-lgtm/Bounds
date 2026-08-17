@@ -19,11 +19,18 @@ export function createBoundsSupabase(url, anonKey){
   async function request(base, path='', options={}){
     const session = readSession();
     const headers = {
+      // Publishable keys belong in `apikey`. They are not JWTs and must not be
+      // sent as `Authorization: Bearer <publishable-key>`.
       apikey: anonKey,
-      Authorization: `Bearer ${session?.access_token || anonKey}`,
       ...(options.body ? {'Content-Type':'application/json'} : {}),
       ...(options.headers || {})
     };
+    // Only attach Authorization when we actually have a user JWT.
+    // This is especially important for password sign-in/sign-up requests.
+    if(session?.access_token && !options.skipSessionAuth){
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+
     const res = await fetch(`${base}${path}`, { ...options, headers });
     const text = await res.text();
     let body = null;
@@ -80,7 +87,7 @@ export function createBoundsSupabase(url, anonKey){
       if(!session) return result({session:null});
       if(session.expires_at && Date.now()/1000 > Number(session.expires_at)-30 && session.refresh_token){
         try{
-          const refreshed=await request(AUTH,`/token?grant_type=refresh_token`,{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});
+          const refreshed=await request(AUTH,`/token?grant_type=refresh_token`,{method:'POST',skipSessionAuth:true,body:JSON.stringify({refresh_token:session.refresh_token})});
           session={...session,...refreshed,expires_at:Math.floor(Date.now()/1000)+Number(refreshed.expires_in||3600)};
           writeSession(session);
         }catch(e){
@@ -92,14 +99,14 @@ export function createBoundsSupabase(url, anonKey){
     onAuthStateChange(callback){ listeners.add(callback); return {data:{subscription:{unsubscribe:()=>listeners.delete(callback)}}}; },
     async signInWithPassword({email,password}){
       try{
-        const data=await request(AUTH,'/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});
+        const data=await request(AUTH,'/token?grant_type=password',{method:'POST',skipSessionAuth:true,body:JSON.stringify({email,password})});
         const session={...data,expires_at:Math.floor(Date.now()/1000)+Number(data.expires_in||3600)};
         writeSession(session); emit('SIGNED_IN',session); return result({session,user:data.user});
       }catch(error){ return result({session:null},error); }
     },
     async signUp({email,password}){
       try{
-        const data=await request(AUTH,'/signup',{method:'POST',body:JSON.stringify({email,password})});
+        const data=await request(AUTH,'/signup',{method:'POST',skipSessionAuth:true,body:JSON.stringify({email,password})});
         let session=null;
         if(data?.access_token){ session={...data,expires_at:Math.floor(Date.now()/1000)+Number(data.expires_in||3600)}; writeSession(session); emit('SIGNED_IN',session); }
         return result({session,user:data?.user||null});

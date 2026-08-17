@@ -1,4 +1,4 @@
-# BOUNDS v1 — Foundation
+# BOUNDS v1 — Foundation v1.2 v1.2
 
 Deze versie is bewust opnieuw opgebouwd als schone basis en niet als uitbreiding van het oude monolithische HTML-prototype.
 
@@ -15,9 +15,9 @@ Social/Find a Golfer/challenges zijn bewust niet in deze foundation opgenomen.
 ## Architectuur
 - `index.html` — UI shell
 - `styles.css` — BOUNDS visual system
-- `js/domain.js` — pure golfberekeningen
-- `js/data.js` — Supabase data access
-- `js/app.js` — UI orchestration
+- `domain.js` — pure golfberekeningen
+- `data.js` — Supabase data access
+- `app.js` — UI orchestration
 
 ## Supabase
 De frontend gebruikt de bestaande BOUNDS Supabase-projectconfiguratie met een publishable key. De publishable key is geschikt voor browsergebruik; de service-role key wordt nergens gebruikt.
@@ -31,3 +31,12 @@ Open lokaal via een eenvoudige static server, bijvoorbeeld:
 `python3 -m http.server 8080`
 
 Open daarna `http://localhost:8080`.
+
+
+## v1.2 fix
+- Rondekeuze (9/18 holes) is onafhankelijk van course variant.
+- `main` wordt als `Main Course` weergegeven, niet als `18 holes`.
+- 18-hole configuraties van een fysiek 9-hole baanlayout kunnen de 9 fysieke holes veilig twee keer spelen.
+- Stroke Index voor de tweede lus wordt afgeleid als even SI (odd → even).
+- Course Handicap valt terug op de course-rating/slope formule wanneer er geen range-record beschikbaar is.
+- Scorekaart controleert dat het aantal geladen holes exact overeenkomt met de gekozen ronde.

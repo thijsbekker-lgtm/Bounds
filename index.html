@@ -61,13 +61,13 @@
           <div class="card" id="roundSetup">
             <div class="grid">
               <label>Golfbaan<select id="courseSelect"></select></label>
-              <label>Ronde<select id="holesSelect"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
+              <label>Aantal holes<select id="holesSelect"><option value="9">9 holes</option><option value="18">18 holes</option></select></label>
               <label id="variantWrap">Variant<select id="variantSelect"></select></label>
               <label id="loopWrap">Lus<select id="loopSelect"><option value="first">1e 9</option><option value="second">2e 9</option><option value="full">Hele baan</option></select></label>
               <label>Tee<select id="teeSelect"></select></label>
               <label>Handicap Index<input id="hcpInput" type="number" min="-10" max="54" step="0.1" /></label>
             </div>
-            <div class="stats"><div><small>Baanhcp</small><b id="courseHcp">—</b></div><div><small>CR / Slope</small><b id="crsr">—</b></div><div><small>Par</small><b id="coursePar">—</b></div></div>
+            <div class="stats"><div><small>Baanhcp</small><b id="courseHcp">—</b></div><div><small>CR / Slope</small><b id="crsr">—</b></div><div><small>Par</small><b id="coursePar">—</b></div></div><div id="configNote" class="muted config-note"></div>
             <button class="primary full" id="startRound">Start ronde</button>
           </div>
 

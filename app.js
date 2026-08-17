@@ -47,6 +47,7 @@ function fillCourses(){
   $('#courseSelect').innerHTML='<option value="">Kies een baan…</option>'+courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   $('#courseSelect').onchange=loadCourseConfiguration; $('#holesSelect').onchange=loadCourseConfiguration; $('#variantSelect').onchange=loadTeeOptions; $('#loopSelect').onchange=loadTeeOptions; $('#teeSelect').onchange=updateRoundConfig;
   $('#variantWrap').classList.add('hidden'); $('#loopWrap').classList.add('hidden');
+  $('#configNote').textContent='';
 }
 
 async function loadCourseConfiguration(){
@@ -63,7 +64,7 @@ async function loadCourseConfiguration(){
   }
   await loadTeeOptions();
 }
-function variantLabel(v){return ({main:'18 holes',par3:'Par 3',par34:'14 holes / qualifying 9'}[v]||v)}
+function variantLabel(v){return ({main:'Main Course',par3:'Par 3',par34:'14 holes / qualifying 9'}[v]||v)}
 
 async function loadTeeOptions(){
   const cid=$('#courseSelect').value, hp=Number($('#holesSelect').value); if(!cid)return;
@@ -90,17 +91,66 @@ async function loadTeeOptions(){
   if(unique[0]){ $('#teeSelect').value=unique[0].id; await updateRoundConfig(); }
 }
 
+async function loadPlayableHoles(tee){
+  let hs=await data.loadHoles(sb,tee.id);
+  if(hs.length) return hs;
+
+  // Some 18-hole records represent a physical 9-hole course played twice.
+  // If the 18-hole tee has no dedicated hole rows, derive the playable card
+  // from the matching 9-hole tee: first loop keeps the odd SI values, second
+  // loop uses the corresponding even SI values.
+  if(Number(tee.holes)===18 && Number(tee.physical_holes)===9){
+    const physicalTees=await data.loadTees(sb,tee.course_id,9,tee.course_variant);
+    const source=physicalTees.find(t=>t.tee_name===tee.tee_name && t.gender===tee.gender) || physicalTees.find(t=>t.tee_name===tee.tee_name);
+    if(source){
+      const physical=await data.loadHoles(sb,source.id);
+      if(physical.length===9){
+        return [
+          ...physical.map(h=>({...h,played_hole_number:h.hole_number})),
+          ...physical.map(h=>({...h,id:`${h.id}-2`,hole_number:h.hole_number+9,played_hole_number:h.hole_number+9,stroke_index:Number(h.stroke_index)+1}))
+        ];
+      }
+    }
+  }
+  return [];
+}
+
+function fallbackCourseHandicap(tee, handicap){
+  const h=Number(handicap);
+  const cr=Number(tee.course_rating);
+  const sr=Number(tee.slope_rating);
+  const par=Number(tee.par);
+  if(!Number.isFinite(h)||!Number.isFinite(cr)||!Number.isFinite(sr)||!Number.isFinite(par)) return null;
+  const raw=Number(tee.holes)===9
+    ? h*sr/226 + (cr-par)/2
+    : h*sr/113 + (cr-par);
+  return Number(tee.holes)===18 ? Math.round(raw) : Math.floor(raw);
+}
+
 async function updateRoundConfig(){
   const tee=tees.find(t=>t.id===$('#teeSelect').value); if(!tee)return;
-  ranges=await data.loadRanges(sb,tee.id); holes=await data.loadHoles(sb,tee.id);
-  const ch=courseHandicapFromRanges(ranges,Number($('#hcpInput').value));
-  $('#courseHcp').textContent=ch??'—'; $('#crsr').textContent=`${fmt(tee.course_rating)} / ${tee.slope_rating}`; $('#coursePar').textContent=tee.par;
+  ranges=await data.loadRanges(sb,tee.id);
+  holes=await loadPlayableHoles(tee);
+  const hcp=Number($('#hcpInput').value);
+  const ch=courseHandicapFromRanges(ranges,hcp);
+  const resolvedCh=ch??fallbackCourseHandicap(tee,hcp);
+  $('#courseHcp').textContent=resolvedCh??'—';
+  $('#crsr').textContent=`${fmt(tee.course_rating)} / ${tee.slope_rating}`;
+  $('#coursePar').textContent=tee.par;
+  const physical=Number(tee.physical_holes||0);
+  if(Number(tee.holes)===18 && physical===9 && holes.length===18){
+    $('#configNote').textContent='Deze baan heeft 9 fysieke holes. De 18-holes ronde speelt dezelfde lus twee keer; de tweede lus gebruikt de even stroke-indexen.';
+  }else if(Number(tee.holes)===9 && physical===9){
+    $('#configNote').textContent='9-hole ronde · officiële 9-hole course rating en slope.';
+  }else{
+    $('#configNote').textContent='';
+  }
 }
 $('#hcpInput').addEventListener('input',()=>{if($('#teeSelect').value)updateRoundConfig()});
 
 function makeDraft(){
   const tee=tees.find(t=>t.id===$('#teeSelect').value); if(!tee)return null;
-  const ch=courseHandicapFromRanges(ranges,Number($('#hcpInput').value));
+  const ch=courseHandicapFromRanges(ranges,Number($('#hcpInput').value))??fallbackCourseHandicap(tee,Number($('#hcpInput').value));
   const current=JSON.parse(localStorage.getItem(localKey)||'{}');
   const playedStrokeIndices=holes.map(h=>h.stroke_index);
   return {clientRoundId:current.clientRoundId||crypto.randomUUID(),courseId:tee.course_id,teeId:tee.id,holesPlayed:Number($('#holesSelect').value),loop:tee.loop||'full',variant:tee.course_variant,handicap:Number($('#hcpInput').value),courseHandicap:ch,holes:holes.map(h=>({id:h.id,hole:h.hole_number,par:h.par,si:h.stroke_index,score:current.scores?.[h.hole_number]||0,putts:current.extra?.[h.hole_number]?.putts||'',penalty:current.extra?.[h.hole_number]?.penalty||'',fairway:current.extra?.[h.hole_number]?.fairway||'',gir:current.extra?.[h.hole_number]?.gir||'',note:current.extra?.[h.hole_number]?.note||'',playedStrokeIndices}))};
@@ -118,7 +168,19 @@ async function restoreDraft(){
   try{const d=JSON.parse(raw); if(!d?.clientRoundId)return; $('#roundStatus').classList.remove('hidden');toast('Je onafgemaakte ronde is bewaard.');}catch{localStorage.removeItem(localKey)}
 }
 
-$('#startRound').onclick=async()=>{const draft=makeDraft();if(!draft){toast('Kies eerst baan en tee.');return}activeRound=draft;$('#roundSetup').classList.add('hidden');$('#scoreArea').classList.remove('hidden');$('#roundStatus').classList.remove('hidden');$('#scoreSubtitle').textContent=`${courses.find(c=>c.id===draft.courseId)?.name||''} · ${draft.holesPlayed} holes${draft.variant&&draft.variant!=='main'?' · '+variantLabel(draft.variant):''}`;renderScorecard();persistDraft()};
+$('#startRound').onclick=async()=>{
+  const draft=makeDraft();
+  if(!draft){toast('Kies eerst baan en tee.');return}
+  if(draft.holes.length!==draft.holesPlayed){toast(`Deze configuratie levert ${draft.holes.length} holes op, maar ${draft.holesPlayed} is gekozen.`);return}
+  activeRound=draft;
+  $('#roundSetup').classList.add('hidden');
+  $('#scoreArea').classList.remove('hidden');
+  $('#roundStatus').classList.remove('hidden');
+  $('#roundStatus').textContent='🟢 Ronde bezig';
+  $('#scoreSubtitle').textContent=`${courses.find(c=>c.id===draft.courseId)?.name||''} · ${draft.holesPlayed} holes · ${variantLabel(draft.variant)}`;
+  renderScorecard();
+  persistDraft();
+};
 $('#toggleAllStats').onclick=()=>$$('.stats-panel').forEach(p=>p.classList.toggle('open'));
 $('#saveRound').onclick=async()=>{if(!activeRound)return;const totals=roundTotals(activeRound.holes);if(!totals.score){toast('Vul eerst minimaal één score in.');return}const payload={p_client_round_id:activeRound.clientRoundId,p_course_id:activeRound.courseId,p_tee_id:activeRound.teeId,p_holes_played:activeRound.holesPlayed,p_loop:activeRound.loop,p_played_at:new Date().toISOString(),p_handicap:activeRound.handicap,p_course_handicap:activeRound.courseHandicap,p_final_score:totals.score,p_stableford:totals.stableford,p_holes:activeRound.holes.map(h=>({hole:h.hole,score:h.score,sf:h.sf,putts:h.putts,penalty:h.penalty,fairway:h.fairway,gir:h.gir,note:h.note}))};try{await data.saveRound(sb,payload);localStorage.removeItem(localKey);activeRound=null;$('#scoreArea').classList.add('hidden');$('#roundSetup').classList.remove('hidden');$('#roundStatus').classList.add('hidden');toast('Ronde opgeslagen.');await refreshDashboard();showTab('game')}catch(e){console.error(e);toast('Opslaan mislukt: '+(e.message||'controleer je login'));}};
 

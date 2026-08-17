@@ -1017,6 +1017,19 @@ function buildEnhancedRound(){
   r.players=players.slice();
   r.holes=r.holes.map(x=>({...x,extra:getExtra(x.hole)}));
   r.analysis=calculateStatsForRound(r);
+  const _cloudCourse = (typeof selectedDbCourse==='function') ? selectedDbCourse() : null;
+  const _cloudTee = (typeof selectedDbTee==='function') ? selectedDbTee() : null;
+  r.cloud = {
+    courseId: _cloudCourse?.id || null,
+    courseName: _cloudCourse?.name || r.course || '',
+    teeId: _cloudTee?.id || null,
+    teeName: _cloudTee?.tee_name || '',
+    gender: _cloudTee?.gender || getProfile().handicapTable || 'men',
+    courseVariant: _cloudTee?.course_variant || '',
+    holes: Number(r.round?.match(/\\d+/)?.[0] || _cloudTee?.holes || r.holes?.length || 9),
+    loop: _cloudTee?.loop || (r.loop||''),
+    clientRoundId: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  };
   return r;
 }
 window.currentRoundData=buildEnhancedRound;
@@ -2089,7 +2102,7 @@ async function initBoundsCourses294(){
 }
 initBoundsCourses294();
 </script>\n<script>
-/* BOUNDS v2.9.11 — Nearby by driving route
+/* BOUNDS v2.9.12 — Nearby by driving route
    - Nearby is defined as <= 25 km driving distance.
    - Uses road routing, not straight-line/Haversine distance.
    - Shows driving distance and estimated driving time.
@@ -2296,7 +2309,7 @@ setTimeout(() => {
 </script>
 
 <script>
-/* BOUNDS v2.9.11 — Nearby UI wiring + correct course hole labels */
+/* BOUNDS v2.9.12 — Nearby UI wiring + correct course hole labels */
 
 function courseSummary296(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2362,7 +2375,7 @@ function courseVariantLabel297(v){
 </script>
 
 <script>
-/* BOUNDS v2.9.11 — physical course layout is distinct from rating length */
+/* BOUNDS v2.9.12 — physical course layout is distinct from rating length */
 
 function physicalCourseLabel298(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2406,7 +2419,7 @@ if(typeof _renderNearby298 === 'function' && !_renderNearby298.__bounds298){
 </script>
 
 <script>
-/* BOUNDS v2.9.11 — use physical holes for Play and Course Detail */
+/* BOUNDS v2.9.12 — use physical holes for Play and Course Detail */
 
 function updateRoundSelectors294(){
   if(!DB_READY)return;
@@ -2507,7 +2520,7 @@ function openDbCourseDetail(id){
 </script>
 
 <script>
-/* BOUNDS v2.9.11 — Crimpenerhout is physically 9 holes but playable over 9 or 18 holes.
+/* BOUNDS v2.9.12 — Crimpenerhout is physically 9 holes but playable over 9 or 18 holes.
    The 18-hole tee records carry the official 18-hole CR/Slope/Par.
    Hole data for the 18-hole round is the physical 9-hole layout played twice. */
 
@@ -2645,7 +2658,7 @@ function openDbCourseDetail(id){
 </script>
 
 <script>
-/* BOUNDS v2.9.11 — Supabase Auth
+/* BOUNDS v2.9.12 — Supabase Auth
    Authentication is explicit in Profile > Account.
    Passwords are handled only by Supabase Auth; BOUNDS never stores them locally.
 */
@@ -2791,5 +2804,426 @@ async function boundsResetPassword(){
 }
 
 setTimeout(initAuth_2911,200);
+</script>
+
+<script>
+/* BOUNDS v2.9.12 — account-backed profile + round synchronization
+   Local storage remains the immediate UI cache.
+   Supabase is the durable source of truth for authenticated users.
+*/
+
+let boundsCloudSyncBusy2912=false;
+
+function boundsCurrentUser2912(){
+  return boundsAuthSession?.user || window.boundsSession?.user || null;
+}
+
+function profilePayload2912(uid, p){
+  return {
+    id: uid,
+    display_name: p.name || 'Golfer',
+    handicap_index: Number(p.hcp)||0,
+    target_handicap: Number(p.goal)||null,
+    handicap_table: p.handicapTable || 'men',
+    home_course_id: p.homeCourse || null,
+    favorite_course_id: p.favoriteCourse || null,
+    updated_at: new Date().toISOString()
+  };
+}
+
+async function syncProfile2912(uid){
+  const local=getProfile();
+  const {data:remote,error}=await boundsSupabase
+    .from('profiles')
+    .select('id,display_name,handicap_index,target_handicap,handicap_table,home_course_id,favorite_course_id,updated_at')
+    .eq('id',uid).maybeSingle();
+
+  if(error) throw error;
+
+  /* Preserve locally selected course preferences if the cloud profile does
+     not have them yet. This is important for first login after the course work. */
+  const merged={
+    ...local,
+    name: remote?.display_name || local.name,
+    hcp: remote?.handicap_index != null ? Number(remote.handicap_index) : local.hcp,
+    goal: remote?.target_handicap != null ? Number(remote.target_handicap) : local.goal,
+    handicapTable: remote?.handicap_table || local.handicapTable || 'men',
+    homeCourse: remote?.home_course_id || local.homeCourse || '',
+    favoriteCourse: remote?.favorite_course_id || local.favoriteCourse || ''
+  };
+
+  localStorage.setItem('bounds_profile',JSON.stringify(merged));
+
+  const payload=profilePayload2912(uid,merged);
+  const {error:upsertError}=await boundsSupabase
+    .from('profiles').upsert(payload,{onConflict:'id'});
+  if(upsertError) throw upsertError;
+
+  /* Keep user_courses consistent with the profile selections. */
+  if(merged.homeCourse || merged.favoriteCourse){
+    const ids=[...new Set([merged.homeCourse,merged.favoriteCourse].filter(Boolean))];
+    for(const courseId of ids){
+      const {data:existing}=await boundsSupabase
+        .from('user_courses').select('id,is_member,is_home_course,is_favorite')
+        .eq('user_id',uid).eq('course_id',courseId).maybeSingle();
+
+      const row={
+        user_id:uid,
+        course_id:courseId,
+        is_member:existing?.is_member||false,
+        is_home_course:courseId===merged.homeCourse,
+        is_favorite:courseId===merged.favoriteCourse,
+        updated_at:new Date().toISOString()
+      };
+      if(existing?.id) row.id=existing.id;
+      const {error:e}=await boundsSupabase.from('user_courses').upsert(row,{onConflict:'user_id,course_id'});
+      if(e) console.warn('user_courses sync:',e.message);
+    }
+  }
+
+  if(typeof loadProfile294==='function') loadProfile294();
+  if(typeof renderHome==='function') renderHome();
+  if(typeof renderCoursePreferences==='function') renderCoursePreferences();
+}
+
+function cloudCourseForRound2912(data){
+  const c=DB_COURSES.find(c =>
+    c.id===data?.cloud?.courseId ||
+    c.name===data?.cloud?.courseName ||
+    c.name===String(data?.course||'').replace(/\s*[–-]\s*Par 3.*$/i,'').trim()
+  );
+  return c||null;
+}
+
+function cloudVariantForRound2912(data,c){
+  if(data?.cloud?.courseVariant) return data.cloud.courseVariant;
+  const text=String(data?.course||'').toLowerCase();
+  if(text.includes('par 3/4') || text.includes('par3/4')) return 'par34';
+  if(text.includes('par 3')) return 'par3';
+  return 'main';
+}
+
+function cloudLoopForRound2912(data){
+  const raw=String(data?.cloud?.loop||data?.loop||'').toLowerCase();
+  if(raw.includes('second') || raw.includes('2e')) return 'second';
+  if(raw.includes('first') || raw.includes('1e')) return 'first';
+  return 'full';
+}
+
+function cloudHolesPlayed2912(data){
+  const n=Number(data?.cloud?.holes || String(data?.round||'').match(/\d+/)?.[0] || data?.holes?.length || 9);
+  return n===18?'18':'9';
+}
+
+function courseHoleForPlayedNumber2912(teeId, playedNumber){
+  const rows=DB_HOLES.filter(h=>h.tee_id===teeId).sort((a,b)=>a.hole_number-b.hole_number);
+  let physical=playedNumber;
+  if(rows.length===9 && playedNumber>9) physical=((playedNumber-1)%9)+1;
+  return rows.find(h=>Number(h.hole_number)===Number(physical))||null;
+}
+
+async function findTeeForRound2912(data,c){
+  if(!c)return null;
+  if(data?.cloud?.teeId){
+    const exact=DB_TEES.find(t=>t.id===data.cloud.teeId);
+    if(exact)return exact;
+  }
+  const variant=cloudVariantForRound2912(data,c);
+  const holes=Number(cloudHolesPlayed2912(data));
+  const loop=cloudLoopForRound2912(data);
+  const gender=getProfile().handicapTable||'men';
+  const teeName=data?.cloud?.teeName||getProfile().tee||'Geel';
+
+  let candidates=DB_TEES.filter(t =>
+    t.course_id===c.id &&
+    t.course_variant===variant &&
+    Number(t.holes)===holes &&
+    t.loop===loop &&
+    (t.gender===gender || !t.gender) &&
+    t.tee_name===teeName
+  );
+  if(!candidates.length){
+    candidates=DB_TEES.filter(t =>
+      t.course_id===c.id && t.course_variant===variant &&
+      Number(t.holes)===holes && t.loop===loop &&
+      (t.gender===gender || !t.gender)
+    );
+  }
+  return candidates[0]||null;
+}
+
+async function uploadRound2912(data){
+  const user=boundsCurrentUser2912();
+  if(!user || !DB_READY || !data?.holes?.some(h=>h.score)) return {ok:false,reason:'not-ready'};
+
+  const c=cloudCourseForRound2912(data);
+  const tee=await findTeeForRound2912(data,c);
+  if(!c || !tee) return {ok:false,reason:'course-or-tee-not-found'};
+
+  const clientId=data.cloud?.clientRoundId ||
+    `${user.id}:${data.date||''}:${data.time||''}:${c.id}:${tee.id}:${data.total||0}`;
+
+  const {data:existing,error:findError}=await boundsSupabase
+    .from('rounds').select('id').eq('owner_id',user.id).eq('client_round_id',clientId).maybeSingle();
+  if(findError) throw findError;
+
+  let roundId=existing?.id||null;
+
+  const playedAt=new Date().toISOString();
+  const roundPayload={
+    owner_id:user.id,
+    course_id:c.id,
+    tee_id:tee.id,
+    holes_played:cloudHolesPlayed2912(data),
+    loop:tee.loop||null,
+    played_at:playedAt,
+    status:'completed',
+    client_round_id:clientId,
+    updated_at:new Date().toISOString()
+  };
+
+  if(roundId){
+    const {error:e}=await boundsSupabase.from('rounds').update(roundPayload).eq('id',roundId);
+    if(e)throw e;
+  }else{
+    const {data:r,error:e}=await boundsSupabase.from('rounds').insert(roundPayload).select('id').single();
+    if(e)throw e;
+    roundId=r.id;
+  }
+
+  let {data:rp,error:rpError}=await boundsSupabase
+    .from('round_players').select('id')
+    .eq('round_id',roundId).eq('user_id',user.id).maybeSingle();
+  if(rpError)throw rpError;
+
+  const rpPayload={
+    round_id:roundId,
+    user_id:user.id,
+    handicap_index_at_round:Number(data.handicap)||Number(getProfile().hcp)||0,
+    course_handicap:Number(data.courseHcp)||0,
+    final_score:Number(data.total)||null,
+    stableford:Number(data.sft)||null,
+    is_owner:true
+  };
+
+  if(rp?.id){
+    const {error:e}=await boundsSupabase.from('round_players').update(rpPayload).eq('id',rp.id);
+    if(e)throw e;
+  }else{
+    const {data:newRp,error:e}=await boundsSupabase.from('round_players').insert(rpPayload).select('id').single();
+    if(e)throw e;
+    rp={id:newRp.id};
+  }
+
+  /* Replace the hole scores for this player/round. This makes editing a round
+     deterministic and also supports the same physical hole being played twice. */
+  await boundsSupabase.from('hole_scores').delete().eq('round_player_id',rp.id);
+
+  const scoreRows=[];
+  for(let i=0;i<data.holes.length;i++){
+    const h=data.holes[i];
+    if(!h?.score) continue;
+    const playedNumber=i+1;
+    const ch=courseHoleForPlayedNumber2912(tee.id,playedNumber);
+    if(!ch) continue;
+    const extra=h.extra||{};
+    scoreRows.push({
+      round_player_id:rp.id,
+      course_hole_id:ch.id,
+      played_hole_number:playedNumber,
+      score:Number(h.score),
+      stableford:h.sf==null?null:Number(h.sf),
+      putts:extra.putts?Number(extra.putts):null,
+      penalty:extra.penalty?Number(extra.penalty):null,
+      fairway:extra.fairway==='yes'||extra.fairway==='no'?extra.fairway:null,
+      gir:extra.gir==='yes'||extra.gir==='no'?extra.gir:null,
+      updated_at:new Date().toISOString()
+    });
+  }
+
+  if(scoreRows.length){
+    const {error:e}=await boundsSupabase.from('hole_scores').insert(scoreRows);
+    if(e)throw e;
+  }
+
+  return {ok:true,roundId};
+}
+
+async function pullCloudRounds2912(userId){
+  const {data,error}=await boundsSupabase
+    .from('rounds')
+    .select(`
+      id,course_id,tee_id,holes_played,loop,played_at,status,client_round_id,
+      course:courses(name,location),
+      tee:course_tees(tee_name,gender,course_variant,holes,loop,course_rating,slope_rating,par),
+      player:round_players!inner(id,user_id,handicap_index_at_round,course_handicap,final_score,stableford),
+      scores:round_players!inner(id,hole_scores(played_hole_number,score,stableford,putts,penalty,fairway,gir,course_hole_id,course_hole:course_holes(hole_number,par,stroke_index)))
+    `)
+    .eq('owner_id',userId)
+    .order('played_at',{ascending:false});
+
+  if(error) throw error;
+
+  return (data||[]).map(r=>{
+    const rp=(r.player||[])[0]||null;
+    const scoreRows=(r.scores||[]).find(x=>x.id===rp?.id)?.hole_scores||[];
+    const holes=scoreRows.sort((a,b)=>a.played_hole_number-b.played_hole_number).map(x=>({
+      hole:x.played_hole_number,
+      par:x.course_hole?.par||0,
+      si:x.course_hole?.stroke_index||0,
+      score:x.score||0,
+      sf:x.stableford,
+      strokes:0,
+      extra:{
+        putts:x.putts||'',
+        penalty:x.penalty||'',
+        fairway:x.fairway||'',
+        gir:x.gir||'',
+        note:''
+      }
+    }));
+
+    return {
+      date:new Date(r.played_at).toLocaleDateString('nl-NL'),
+      time:new Date(r.played_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),
+      course:r.course?.name||'Onbekende baan',
+      round:`${r.holes_played} holes`,
+      loop:r.loop==='first'?'1e 9':r.loop==='second'?'2e 9':'18 holes',
+      handicap:Number(rp?.handicap_index_at_round||0),
+      courseHcp:Number(rp?.course_handicap||0),
+      total:Number(rp?.final_score||holes.reduce((a,h)=>a+h.score,0)),
+      sft:Number(rp?.stableford||holes.reduce((a,h)=>a+(h.sf||0),0)),
+      holes,
+      cloud:{
+        courseId:r.course_id,
+        courseName:r.course?.name||'',
+        teeId:r.tee_id,
+        teeName:r.tee?.tee_name||'',
+        gender:r.tee?.gender||'',
+        courseVariant:r.tee?.course_variant||'',
+        holes:Number(r.holes_played),
+        loop:r.loop||'full',
+        clientRoundId:r.client_round_id||r.id,
+        cloudRoundId:r.id
+      }
+    };
+  });
+}
+
+function mergeRoundHistory2912(local,remote){
+  const map=new Map();
+  [...local,...remote].forEach(r=>{
+    const id=r.cloud?.clientRoundId;
+    const key=id || `${r.date}|${r.time}|${r.course}|${r.round}|${r.total}`;
+    if(!map.has(key)) map.set(key,r);
+  });
+  return [...map.values()].sort((a,b)=>{
+    const ad=a.cloud?.cloudRoundId?0:1;
+    const bd=b.cloud?.cloudRoundId?0:1;
+    return ad-bd;
+  }).slice(0,100);
+}
+
+async function syncRounds2912(userId){
+  if(!DB_READY)return;
+
+  let local=getHistory();
+
+  /* Upload local rounds that have not yet reached the cloud. */
+  for(const r of local){
+    if(r.cloud?.cloudRoundId) continue;
+    try{
+      const result=await uploadRound2912(r);
+      if(result.ok){
+        r.cloud=r.cloud||{};
+        r.cloud.cloudRoundId=result.roundId;
+        if(!r.cloud.clientRoundId){
+          r.cloud.clientRoundId=`${userId}:${r.date||''}:${r.time||''}:${r.course||''}:${r.total||0}`;
+        }
+      }
+    }catch(e){
+      console.warn('Round sync skipped:',e.message);
+    }
+  }
+
+  localStorage.setItem('golf_history',JSON.stringify(local));
+
+  const remote=await pullCloudRounds2912(userId);
+  const merged=mergeRoundHistory2912(local,remote);
+  localStorage.setItem('golf_history',JSON.stringify(merged));
+
+  if(typeof renderHistory==='function')renderHistory();
+  if(typeof renderRecords==='function')renderRecords();
+  if(typeof renderDashboard==='function')renderDashboard();
+  if(typeof renderCourseHistory==='function')renderCourseHistory();
+  if(typeof renderMyGame==='function')renderMyGame();
+}
+
+async function syncAll2912(){
+  const user=boundsCurrentUser2912();
+  if(!user || boundsCloudSyncBusy2912)return;
+  boundsCloudSyncBusy2912=true;
+  try{
+    await syncProfile2912(user.id);
+    await syncRounds2912(user.id);
+  }catch(e){
+    console.warn('BOUNDS cloud sync:',e.message);
+  }finally{
+    boundsCloudSyncBusy2912=false;
+  }
+}
+
+/* Save profile: local first, then cloud. */
+const _saveProfile2912=window.saveProfile;
+window.saveProfile=async function(){
+  _saveProfile2912();
+  const user=boundsCurrentUser2912();
+  if(user){
+    try{
+      await syncProfile2912(user.id);
+    }catch(e){
+      console.warn('Profile sync:',e.message);
+      alert('Profiel lokaal opgeslagen, maar synchroniseren met je account is niet gelukt.');
+    }
+  }
+};
+
+/* Save round: preserve the existing UI flow, then sync the latest local round. */
+const _saveRound2912=window.saveRound;
+window.saveRound=async function(){
+  _saveRound2912();
+  const user=boundsCurrentUser2912();
+  if(!user)return;
+
+  const local=getHistory();
+  const latest=local[0];
+  if(!latest)return;
+
+  try{
+    const result=await uploadRound2912(latest);
+    if(result.ok){
+      latest.cloud=latest.cloud||{};
+      latest.cloud.cloudRoundId=result.roundId;
+      localStorage.setItem('golf_history',JSON.stringify(local));
+    }
+  }catch(e){
+    console.warn('Round sync:',e.message);
+  }
+};
+
+/* When authentication succeeds, make the account the durable data source. */
+const _renderAuth2912=window.renderAuth_2911;
+window.renderAuth_2911=function(session){
+  _renderAuth2912(session);
+  if(session?.user){
+    setTimeout(syncAll2912,300);
+  }
+};
+
+/* If the page loads with an existing session, the auth listener fires; this
+   extra check covers a cached session race. */
+setTimeout(()=>{
+  if(boundsCurrentUser2912())syncAll2912();
+},1000);
 </script>
 </html>

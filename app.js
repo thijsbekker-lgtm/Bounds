@@ -136,6 +136,20 @@ async function loadTeeOptions(){
 
 async function loadPlayableHoles(tee){
   let hs=await data.loadHoles(sb,tee.id);
+
+  // Almkreek Par 3/4 has 14 physical holes, but only holes 6–14 are the
+  // qualifying 9-hole layout.
+  if(Number(tee.physical_holes)===14 && tee.course_variant==='par34'){
+    const qualifying=String(tee.qualifying_holes||'')
+      .split(',')
+      .map(x=>Number(x.trim()))
+      .filter(Number.isFinite);
+    if(qualifying.length===9 && hs.length){
+      const wanted=new Set(qualifying);
+      return hs.filter(h=>wanted.has(Number(h.hole_number)));
+    }
+  }
+
   if(hs.length) return hs;
 
   // Some 18-hole records represent a physical 9-hole course played twice.
@@ -181,7 +195,9 @@ async function updateRoundConfig(){
   $('#crsr').textContent=`${fmt(tee.course_rating)} / ${tee.slope_rating}`;
   $('#coursePar').textContent=tee.par;
   const physical=Number(tee.physical_holes||0);
-  if(Number(tee.holes)===18 && physical===9 && holes.length===18){
+  if(Number(tee.physical_holes)===14 && tee.course_variant==='par34' && holes.length===9){
+    $('#configNote').textContent='Almkreek · qualifying 9 holes · holes 6–14.';
+  }else if(Number(tee.holes)===18 && physical===9 && holes.length===18){
     $('#configNote').textContent='Deze baan heeft 9 fysieke holes. De 18-holes ronde speelt dezelfde lus twee keer; de tweede lus gebruikt de even stroke-indexen.';
   }else if(Number(tee.holes)===9 && physical===9){
     $('#configNote').textContent='9-hole ronde · officiële 9-hole course rating en slope.';
@@ -374,7 +390,10 @@ $('#startRound').onclick=async()=>{
   localStorage.removeItem(localKey);
   const draft=makeDraft();
   if(!draft){toast('Kies eerst baan en tee.');return}
-  if(draft.holes.length!==draft.holesPlayed){toast(`Deze configuratie levert ${draft.holes.length} holes op, maar ${draft.holesPlayed} is gekozen.`);return}
+  if(draft.holes.length!==draft.holesPlayed){
+    toast(`Deze configuratie levert ${draft.holes.length} speelbare holes op, maar ${draft.holesPlayed} is gekozen.`);
+    return;
+  }
   activeRound=draft;
   openStatsHoles.clear();
   $('#roundSetup').classList.add('hidden');

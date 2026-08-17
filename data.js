@@ -44,6 +44,19 @@ async function loadRoundTee(sb,teeId){
 
 async function loadPlayableHolesForRound(sb,tee){
   let hs=await loadHoles(sb,tee.id);
+
+  // Almkreek Par 3/4: 14 physical holes, but qualifying 9 is holes 6–14.
+  if(Number(tee.physical_holes)===14 && tee.course_variant==='par34'){
+    const qualifying=String(tee.qualifying_holes||'')
+      .split(',')
+      .map(x=>Number(x.trim()))
+      .filter(Number.isFinite);
+    if(qualifying.length===9 && hs.length){
+      const wanted=new Set(qualifying);
+      return hs.filter(h=>wanted.has(Number(h.hole_number)));
+    }
+  }
+
   if(hs.length) return hs;
 
   // 18-hole round on a physical 9-hole course: reconstruct the full played card

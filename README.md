@@ -71,3 +71,10 @@ Open daarna `http://localhost:8080`.
 - Opgeslagen rondes kunnen vanuit Historie definitief worden verwijderd.
 - Verwijderen loopt via de beveiligde Supabase RPC `delete_round_v1`; alleen de eigenaar kan zijn eigen ronde verwijderen.
 - Bijbehorende spelers, hole-scores, notities en shares worden door de bestaande cascade-relaties mee verwijderd.
+
+
+## v1.13
+- Fix Golfpark Almkreek Par 3/4 qualifying 9-hole layout.
+- The scorecard now uses physical holes 6–14 (9 playable holes) instead of all 14 physical holes.
+- Saved-round loading applies the same qualifying-hole mapping.
+- No database schema changes.

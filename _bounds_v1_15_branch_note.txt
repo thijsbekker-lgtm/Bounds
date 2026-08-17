@@ -1,1 +1,0 @@
-Temporary marker for v1.15 Core Hardening branch; this file will be removed after the branch is prepared.

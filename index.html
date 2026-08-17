@@ -364,9 +364,30 @@
    <label>Favorite Course<select id="profileFavoriteCourse"><option value="">Geen</option></select></label>
   </div>
  </div>
- <div class="card">
-  <div class="section-title">Account</div>
-  <p class="muted">Account, privacy en social settings blijven hier gecentreerd. Sociale zichtbaarheid is opt-in.</p>
+ <div class="card" id="accountCard">
+  <div class="section-title">Account <span id="authStatusBadge">Niet ingelogd</span></div>
+  <div id="authSignedOut">
+    <p class="muted">Log in om je BOUNDS-profiel, rondes en instellingen aan je account te koppelen.</p>
+    <label>E-mailadres
+      <input id="authEmail" type="email" autocomplete="email" placeholder="jij@voorbeeld.nl">
+    </label>
+    <label style="margin-top:10px">Wachtwoord
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimaal 6 tekens">
+    </label>
+    <div id="authMessage" class="muted" style="margin-top:10px;min-height:18px"></div>
+    <div class="action-grid">
+      <button class="primary" type="button" onclick="boundsLogin()">Inloggen</button>
+      <button class="secondary" type="button" onclick="boundsSignUp()">Account aanmaken</button>
+    </div>
+    <button class="ghost" type="button" style="width:100%" onclick="boundsResetPassword()">Wachtwoord vergeten?</button>
+  </div>
+  <div id="authSignedIn" style="display:none">
+    <p class="muted">Ingelogd als</p>
+    <div id="authUserEmail" style="font-size:16px;font-weight:700;margin:4px 0 14px"></div>
+    <p class="muted">Je account is gekoppeld aan je BOUNDS-profiel.</p>
+    <button class="secondary" type="button" style="width:100%" onclick="boundsLogout()">Uitloggen</button>
+    <div id="authSignedInMessage" class="muted" style="margin-top:10px;min-height:18px"></div>
+  </div>
  </div>
 </section>
 </main>
@@ -2068,7 +2089,7 @@ async function initBoundsCourses294(){
 }
 initBoundsCourses294();
 </script>\n<script>
-/* BOUNDS v2.9.10 — Nearby by driving route
+/* BOUNDS v2.9.11 — Nearby by driving route
    - Nearby is defined as <= 25 km driving distance.
    - Uses road routing, not straight-line/Haversine distance.
    - Shows driving distance and estimated driving time.
@@ -2275,7 +2296,7 @@ setTimeout(() => {
 </script>
 
 <script>
-/* BOUNDS v2.9.10 — Nearby UI wiring + correct course hole labels */
+/* BOUNDS v2.9.11 — Nearby UI wiring + correct course hole labels */
 
 function courseSummary296(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2341,7 +2362,7 @@ function courseVariantLabel297(v){
 </script>
 
 <script>
-/* BOUNDS v2.9.10 — physical course layout is distinct from rating length */
+/* BOUNDS v2.9.11 — physical course layout is distinct from rating length */
 
 function physicalCourseLabel298(c){
   const tees = DB_TEES.filter(t => t.course_id === c.id);
@@ -2385,7 +2406,7 @@ if(typeof _renderNearby298 === 'function' && !_renderNearby298.__bounds298){
 </script>
 
 <script>
-/* BOUNDS v2.9.10 — use physical holes for Play and Course Detail */
+/* BOUNDS v2.9.11 — use physical holes for Play and Course Detail */
 
 function updateRoundSelectors294(){
   if(!DB_READY)return;
@@ -2486,7 +2507,7 @@ function openDbCourseDetail(id){
 </script>
 
 <script>
-/* BOUNDS v2.9.10 — Crimpenerhout is physically 9 holes but playable over 9 or 18 holes.
+/* BOUNDS v2.9.11 — Crimpenerhout is physically 9 holes but playable over 9 or 18 holes.
    The 18-hole tee records carry the official 18-hole CR/Slope/Par.
    Hole data for the 18-hole round is the physical 9-hole layout played twice. */
 
@@ -2621,5 +2642,154 @@ function openDbCourseDetail(id){
 
   card.scrollIntoView({behavior:'smooth',block:'start'});
 }
+</script>
+
+<script>
+/* BOUNDS v2.9.11 — Supabase Auth
+   Authentication is explicit in Profile > Account.
+   Passwords are handled only by Supabase Auth; BOUNDS never stores them locally.
+*/
+
+let boundsAuthSession = null;
+window.boundsSession = null;
+window.boundsSupabase = boundsSupabase;
+
+function setAuthMessage_2911(message, signedIn=false){
+  const el=document.getElementById(signedIn?'authSignedInMessage':'authMessage');
+  if(el) el.textContent=message||'';
+}
+
+function renderAuth_2911(session){
+  boundsAuthSession=session||null;
+  window.boundsSession=session||null;
+
+  const out=document.getElementById('authSignedOut');
+  const inn=document.getElementById('authSignedIn');
+  const badge=document.getElementById('authStatusBadge');
+  const email=document.getElementById('authUserEmail');
+
+  if(!out||!inn)return;
+
+  if(session?.user){
+    out.style.display='none';
+    inn.style.display='block';
+    if(badge){
+      badge.textContent='Ingelogd';
+      badge.style.background='#eaf5ed';
+      badge.style.color='#2b7a43';
+    }
+    if(email) email.textContent=session.user.email||'Account';
+    setAuthMessage_2911('',true);
+  }else{
+    out.style.display='block';
+    inn.style.display='none';
+    if(badge){
+      badge.textContent='Niet ingelogd';
+      badge.style.background='#f0f0f2';
+      badge.style.color='#666';
+    }
+  }
+}
+
+async function initAuth_2911(){
+  try{
+    const {data,error}=await boundsSupabase.auth.getSession();
+    if(error) throw error;
+    renderAuth_2911(data?.session||null);
+
+    boundsSupabase.auth.onAuthStateChange((_event,session)=>{
+      renderAuth_2911(session);
+    });
+  }catch(e){
+    console.warn('BOUNDS Auth init:',e);
+    setAuthMessage_2911('Accountservice kon niet worden geladen.');
+  }
+}
+
+async function boundsLogin(){
+  const email=(document.getElementById('authEmail')?.value||'').trim();
+  const password=document.getElementById('authPassword')?.value||'';
+
+  if(!email || !password){
+    setAuthMessage_2911('Vul je e-mailadres en wachtwoord in.');
+    return;
+  }
+
+  setAuthMessage_2911('Inloggen…');
+
+  const {data,error}=await boundsSupabase.auth.signInWithPassword({email,password});
+  if(error){
+    setAuthMessage_2911(error.message==='Invalid login credentials'
+      ? 'E-mailadres of wachtwoord klopt niet.'
+      : error.message);
+    return;
+  }
+
+  renderAuth_2911(data.session);
+  setAuthMessage_2911('Ingelogd.');
+}
+
+async function boundsSignUp(){
+  const email=(document.getElementById('authEmail')?.value||'').trim();
+  const password=document.getElementById('authPassword')?.value||'';
+
+  if(!email || !password){
+    setAuthMessage_2911('Vul je e-mailadres en wachtwoord in.');
+    return;
+  }
+  if(password.length<6){
+    setAuthMessage_2911('Gebruik minimaal 6 tekens voor je wachtwoord.');
+    return;
+  }
+
+  setAuthMessage_2911('Account aanmaken…');
+
+  const {data,error}=await boundsSupabase.auth.signUp({
+    email,
+    password,
+    options:{emailRedirectTo:window.location.origin+window.location.pathname}
+  });
+
+  if(error){
+    setAuthMessage_2911(error.message);
+    return;
+  }
+
+  if(data.session){
+    renderAuth_2911(data.session);
+    setAuthMessage_2911('Account aangemaakt en ingelogd.');
+  }else{
+    setAuthMessage_2911('Account aangemaakt. Controleer je e-mail om je account te bevestigen.');
+  }
+}
+
+async function boundsLogout(){
+  setAuthMessage_2911('Uitloggen…',true);
+  const {error}=await boundsSupabase.auth.signOut();
+  if(error){
+    setAuthMessage_2911(error.message,true);
+    return;
+  }
+  renderAuth_2911(null);
+  setAuthMessage_2911('Je bent uitgelogd.',true);
+}
+
+async function boundsResetPassword(){
+  const email=(document.getElementById('authEmail')?.value||'').trim();
+  if(!email){
+    setAuthMessage_2911('Vul eerst je e-mailadres in.');
+    return;
+  }
+
+  setAuthMessage_2911('Resetlink versturen…');
+  const {error}=await boundsSupabase.auth.resetPasswordForEmail(email,{
+    redirectTo:window.location.origin+window.location.pathname
+  });
+
+  if(error) setAuthMessage_2911(error.message);
+  else setAuthMessage_2911('Resetlink verstuurd. Controleer je e-mail.');
+}
+
+setTimeout(initAuth_2911,200);
 </script>
 </html>

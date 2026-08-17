@@ -50,7 +50,7 @@
               <div><b id="homeRounds">0</b><span>Rondes</span></div>
               <div><b id="homeBest">—</b><span>Beste score</span></div>
             </div>
-            <button class="primary" data-go="play">＋ Start een ronde</button>
+            <button class="primary" data-new-round>＋ Start een ronde</button>
           </div>
           <div class="card" id="homeLastRound"></div>
           <div class="card" id="homeOpportunity"></div>
@@ -72,10 +72,10 @@
           </div>
 
           <div id="scoreArea" class="card hidden">
-            <div class="score-head"><div><b>Scorekaart</b><small id="scoreSubtitle"></small></div><button class="ghost" id="toggleAllStats">＋ Stats</button></div>
+            <div class="score-head"><div><b>Scorekaart</b><small id="scoreSubtitle"></small></div><button class="secondary small-action" id="cancelRoundTop" type="button">Ronde afbreken</button></div>
             <div id="scoreRows"></div>
             <div class="total-row"><span>Totaal</span><b id="totalScore">0</b><b id="totalSf">0 SF</b></div>
-            <button class="primary full" id="saveRound">Ronde opslaan</button>
+            <div class="round-actions"><button class="primary full" id="saveRound">Ronde opslaan</button><button class="secondary full" id="cancelRound" type="button">Ronde afbreken</button></div>
           </div>
         </section>
 

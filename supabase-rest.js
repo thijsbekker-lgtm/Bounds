@@ -3,9 +3,13 @@
 // state being split between the CDN client and a separate REST fallback.
 export function createBoundsSupabase(url, anonKey){
   const REST=`${url}/rest/v1`, AUTH=`${url}/auth/v1`, KEY='bounds_supabase_session';
+  const SYNC_KEY='bounds_v1_sync_queue';
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}};
   const write=s=>s?localStorage.setItem(KEY,JSON.stringify(s)):localStorage.removeItem(KEY);
+  const readQueue=()=>{try{const q=JSON.parse(localStorage.getItem(SYNC_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}};
+  const writeQueue=q=>localStorage.setItem(SYNC_KEY,JSON.stringify(q));
   const result=(data,error=null)=>({data,error});
+  const networkError=e=>!navigator.onLine||e?.name==='TypeError'||/Failed to fetch|NetworkError|Load failed|network/i.test(String(e?.message||''));
 
   async function request(base,path='',options={}){
     const session=read();
@@ -16,6 +20,27 @@ export function createBoundsSupabase(url, anonKey){
     let body=null;try{body=text?JSON.parse(text):null}catch{body=text}
     if(!res.ok){const e=new Error(body?.msg||body?.message||body?.error_description||body?.error||text||`HTTP ${res.status}`);e.status=res.status;e.code=body?.code;throw e}
     return body;
+  }
+
+  async function flushQueue(){
+    const queue=readQueue();
+    if(!queue.length||!navigator.onLine)return;
+    const remaining=[];
+    for(const item of queue){
+      try{
+        await request(REST,`/rpc/${item.name}`,{method:'POST',body:JSON.stringify(item.payload)});
+      }catch(e){
+        if(networkError(e)){remaining.push(item);break;}
+        console.error('BOUNDS sync item rejected',e);
+      }
+    }
+    const processed=queue.length-remaining.length;
+    if(processed>0){
+      const rest=remaining.concat(queue.slice(processed+remaining.length));
+      writeQueue(rest);
+    }else if(remaining.length!==queue.length){
+      writeQueue(remaining);
+    }
   }
 
   class Query{
@@ -63,5 +88,23 @@ export function createBoundsSupabase(url, anonKey){
     async signUp({email,password}){try{const d=await request(AUTH,'/signup',{method:'POST',skipSessionAuth:true,body:JSON.stringify({email,password})});let s=null;if(d?.access_token){s={...d,expires_at:Math.floor(Date.now()/1000)+Number(d.expires_in||3600)};write(s);listeners.forEach(f=>f('SIGNED_IN',s))}return result({session:s,user:d?.user||null})}catch(e){return result({session:null},e)}},
     async signOut(){const s=read();try{if(s?.access_token)await request(AUTH,'/logout',{method:'POST')}catch{}write(null);listeners.forEach(f=>f('SIGNED_OUT',null));return result(null)}
   };
-  return {auth,from:t=>new Query(t),rpc:async(name,payload={})=>{try{return result(await request(REST,`/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)}))}catch(e){return result(null,e)}}};
+
+  window.addEventListener('online',()=>flushQueue());
+  setTimeout(()=>flushQueue(),0);
+
+  return {auth,from:t=>new Query(t),rpc:async(name,payload={})=>{
+    try{return result(await request(REST,`/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)}))}
+    catch(e){
+      if(name==='save_round_v2'&&networkError(e)){
+        const queue=readQueue();
+        const clientRoundId=payload?.p_client_round_id;
+        const existing=clientRoundId?queue.findIndex(x=>x.name===name&&x.payload?.p_client_round_id===clientRoundId):-1;
+        const item={name,payload,queued_at:new Date().toISOString()};
+        if(existing>=0)queue[existing]=item;else queue.push(item);
+        writeQueue(queue);
+        return result({queued:true,client_round_id:clientRoundId||null});
+      }
+      return result(null,e);
+    }
+  }};
 }

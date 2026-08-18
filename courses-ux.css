@@ -1,0 +1,40 @@
+/* Courses UX — visual layer only. Does not change course data or behavior. */
+#page-courses .section-head{margin-bottom:14px}
+#page-courses .card{padding:18px 18px 12px}
+#page-courses #courseCatalog{display:flex;flex-direction:column;gap:8px}
+#page-courses .course-item{
+  position:relative;
+  width:100%;
+  min-height:76px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto 18px;
+  align-items:center;
+  gap:14px;
+  padding:14px 4px;
+  border:0;
+  border-bottom:1px solid var(--line);
+  border-radius:0;
+  background:transparent;
+  color:var(--ink);
+  text-align:left;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .18s ease, transform .12s ease;
+}
+#page-courses .course-item:last-child{border-bottom:0}
+#page-courses .course-item:active{background:#f7f7f8;transform:scale(.995)}
+#page-courses .course-main{min-width:0}
+#page-courses .course-main b{display:block;font-size:17px;line-height:1.2;letter-spacing:-.2px}
+#page-courses .course-main small{display:block;margin-top:5px;color:var(--muted);font-size:12px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-courses .course-performance{text-align:right;min-width:74px}
+#page-courses .course-performance b{display:block;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+#page-courses .course-performance small{display:block;margin-top:5px;color:var(--muted);font-size:11px;white-space:nowrap}
+#page-courses .course-chevron{color:#a0a5aa;font-size:25px;line-height:1;font-weight:300;text-align:right}
+#page-courses .course-item:focus-visible{outline:3px solid #007aff33;outline-offset:2px;border-radius:12px}
+@media(max-width:600px){
+  #page-courses .card{padding:14px 14px 8px}
+  #page-courses .course-item{grid-template-columns:minmax(0,1fr) auto 16px;gap:10px;min-height:72px;padding:13px 2px}
+  #page-courses .course-main b{font-size:16px}
+  #page-courses .course-performance{min-width:68px}
+  #page-courses .course-performance b{font-size:20px}
+}

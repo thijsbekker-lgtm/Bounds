@@ -1,4 +1,4 @@
-import {createBoundsSupabase} from './supabase-rest.js?v=1.16.0';
+import {createBoundsSupabase} from './supabase-rest.js?v=1.16.1';
 
 const URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
@@ -39,6 +39,7 @@ document.head.appendChild(style);
 
 function fmt(n,d=1){return Number.isFinite(Number(n))?Number(n).toFixed(d).replace('.',','):'—'}
 function dateLabel(v){return new Date(v).toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}
+function filledNumber(v){if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null}
 
 async function load(){
   if(running)return;
@@ -69,22 +70,24 @@ async function load(){
     holes.forEach(h=>{const par=Number(h.course_hole?.par),score=Number(h.score);if(byPar[par]&&Number.isFinite(score))byPar[par].push(score-par)});
     const summaries=Object.entries(byPar).map(([p,v])=>({par:Number(p),n:v.length,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null}));
     const measured=summaries.filter(x=>x.avg!==null);
-    const worst=measured.slice().sort((a,b)=>b.avg-a.avg)[0];
+    const reliable=measured.filter(x=>x.n>=8);
+    const worst=(reliable.length?reliable:measured).slice().sort((a,b)=>b.avg-a.avg)[0];
+    const weakestIsPreliminary=Boolean(worst&&worst.n<8);
 
-    const putts=holes.map(h=>Number(h.putts)).filter(Number.isFinite);
+    const putts=holes.map(h=>filledNumber(h.putts)).filter(v=>v!==null);
     const gir=holes.map(h=>h.gir).filter(v=>v==='yes'||v==='no');
-    const fairways=holes.filter(h=>[4,5].includes(Number(h.course_hole?.par))).map(h=>h.fairway).filter(v=>v==='yes'||v==='no');
-    const penalties=holes.map(h=>Number(h.penalty)).filter(Number.isFinite);
+    const fairways=holes.filter(h=>[4,5].includes(Number(h.course_hole?.par))).map(h=>h.fairway).filter(v=>['yes','no','hit','miss'].includes(v));
+    const penalties=holes.map(h=>filledNumber(h.penalty)).filter(v=>v!==null);
     const avgPutts=putts.length?putts.reduce((a,b)=>a+b,0)/putts.length:null;
     const girPct=gir.length?100*gir.filter(v=>v==='yes').length/gir.length:null;
-    const fwPct=fairways.length?100*fairways.filter(v=>v==='yes').length/fairways.length:null;
+    const fwPct=fairways.length?100*fairways.filter(v=>v==='yes'||v==='hit').length/fairways.length:null;
     const penaltyTotal=penalties.reduce((a,b)=>a+b,0);
 
     const insights=$('#insights');
     if(!insights){running=false;return;}
 
     const parHtml=summaries.map(x=>`<div class="par-row ${worst&&x.par===worst.par?'worst':''}"><div><b>Par ${x.par}</b><div class="muted">${x.n?`${x.n} holes met scoredata`:'Nog geen scoredata'}</div></div><div class="par-score">${x.avg===null?'—':`${x.avg>=0?'+':''}${fmt(x.avg)} / hole`}<span>${x.avg===null?'':'t.o.v. par'}</span></div></div>`).join('');
-    const callout=worst?`<div class="insight-callout"><div class="kicker">Grootste kans</div><b>Par ${worst.par}</b><span>Hier verlies je gemiddeld ${fmt(Math.abs(worst.avg))} slag per hole ten opzichte van par, gebaseerd op ${worst.n} holes.</span></div>`:`<div class="insight-callout"><div class="kicker">Nog te weinig data</div><b>Speel een paar rondes</b><span>Daarna kan BOUNDS betrouwbaar aangeven op welk par-type je de meeste slagen laat liggen.</span></div>`;
+    const callout=worst?`<div class="insight-callout"><div class="kicker">${weakestIsPreliminary?'Voorlopige kans':'Grootste kans'}</div><b>Par ${worst.par}</b><span>Hier verlies je gemiddeld ${fmt(Math.abs(worst.avg))} slag per hole ten opzichte van par, gebaseerd op ${worst.n} holes.${weakestIsPreliminary?' Dit is nog te weinig data voor een harde conclusie.':''}</span></div>`:`<div class="insight-callout"><div class="kicker">Nog te weinig data</div><b>Speel een paar rondes</b><span>Daarna kan BOUNDS betrouwbaar aangeven op welk par-type je de meeste slagen laat liggen.</span></div>`;
     const metric=(label,value,sub)=>`<div class="metric-card"><small>${label}</small><b>${value}</b><span>${sub}</span></div>`;
     const metrics=[
       avgPutts!==null?metric('Putts',fmt(avgPutts),'Gemiddeld per hole met putts ingevuld.'):null,

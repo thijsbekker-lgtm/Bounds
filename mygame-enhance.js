@@ -70,8 +70,11 @@ async function load(){
     holes.forEach(h=>{const par=Number(h.course_hole?.par),score=Number(h.score);if(byPar[par]&&Number.isFinite(score))byPar[par].push(score-par)});
     const summaries=Object.entries(byPar).map(([p,v])=>({par:Number(p),n:v.length,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null}));
     const measured=summaries.filter(x=>x.avg!==null);
-    const reliable=measured.filter(x=>x.n>=8);
-    const worst=(reliable.length?reliable:measured).slice().sort((a,b)=>b.avg-a.avg)[0];
+    // The largest score loss should remain visible even with a small sample.
+    // Sample size affects the wording, not which par-type currently has the
+    // largest measured loss. This prevents a 5-hole Par 5 sample from being
+    // silently replaced by Par 3/4 just because those have more observations.
+    const worst=measured.slice().sort((a,b)=>b.avg-a.avg)[0];
     const weakestIsPreliminary=Boolean(worst&&worst.n<8);
 
     const putts=holes.map(h=>filledNumber(h.putts)).filter(v=>v!==null);

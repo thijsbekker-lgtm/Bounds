@@ -9,7 +9,12 @@ export function createBoundsSupabase(url, anonKey){
   const readQueue=()=>{try{const q=JSON.parse(localStorage.getItem(SYNC_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}};
   const writeQueue=q=>localStorage.setItem(SYNC_KEY,JSON.stringify(q));
   const result=(data,error=null)=>({data,error});
-  const networkError=e=>!navigator.onLine||e?.name==='TypeError'||/Failed to fetch|NetworkError|Load failed|network/i.test(String(e?.message||''));
+  const networkError=e=>{
+    const msg=String(e?.message||'');
+    return !navigator.onLine || e?.name==='TypeError' || e?.name==='AbortError' || e?.name==='TimeoutError'
+      || e?.status===408 || e?.status===504
+      || /Failed to fetch|NetworkError|Load failed|network|timed? ?out|timeout|aborted/i.test(msg);
+  };
 
   async function request(base,path='',options={}){
     const session=read();
@@ -25,22 +30,18 @@ export function createBoundsSupabase(url, anonKey){
   async function flushQueue(){
     const queue=readQueue();
     if(!queue.length||!navigator.onLine)return;
-    const remaining=[];
-    for(const item of queue){
+    let firstUnprocessed=queue.length;
+    for(let i=0;i<queue.length;i++){
+      const item=queue[i];
       try{
         await request(REST,`/rpc/${item.name}`,{method:'POST',body:JSON.stringify(item.payload)});
       }catch(e){
-        if(networkError(e)){remaining.push(item);break;}
+        if(networkError(e)){firstUnprocessed=i;break;}
         console.error('BOUNDS sync item rejected',e);
       }
     }
-    const processed=queue.length-remaining.length;
-    if(processed>0){
-      const rest=remaining.concat(queue.slice(processed+remaining.length));
-      writeQueue(rest);
-    }else if(remaining.length!==queue.length){
-      writeQueue(remaining);
-    }
+    if(firstUnprocessed<queue.length) writeQueue(queue.slice(firstUnprocessed));
+    else writeQueue([]);
   }
 
   class Query{

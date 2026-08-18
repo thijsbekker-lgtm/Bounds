@@ -9,6 +9,8 @@ let running=false;
 
 const style=document.createElement('style');
 style.textContent=`
+#page-game #insights{visibility:hidden;min-height:120px}
+#page-game #insights.ready{visibility:visible}
 #page-game .game-insight-head{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:14px}
 #page-game .game-insight-head h3{margin:0;font-size:1.15rem}
 #page-game .game-insight-head p{margin:4px 0 0}
@@ -46,10 +48,11 @@ async function load(){
   const page=$('#page-game');
   if(!page || !page.classList.contains('active'))return;
   running=true;
+  const insights=$('#insights');
   try{
     const {data:{session}}=await sb.auth.getSession();
     const user=session?.user;
-    if(!user)return;
+    if(!user){if(insights)insights.classList.add('ready');return;}
 
     const {data:rounds,error:re}=await sb.from('rounds').select('id,played_at,holes_played,course:courses(name),players:round_players!inner(id,user_id,final_score,stableford)').eq('owner_id',user.id).eq('round_players.user_id',user.id).order('played_at',{ascending:false}).limit(100);
     if(re)throw re;
@@ -63,17 +66,13 @@ async function load(){
     }
 
     const signature=JSON.stringify({rounds:rows.map(r=>[r.id,r.played_at,r.players?.[0]?.final_score,r.players?.[0]?.stableford]),holes:holes.length});
-    if(signature===lastSignature){running=false;return;}
+    if(signature===lastSignature){if(insights)insights.classList.add('ready');return;}
     lastSignature=signature;
 
     const byPar={3:[],4:[],5:[]};
     holes.forEach(h=>{const par=Number(h.course_hole?.par),score=Number(h.score);if(byPar[par]&&Number.isFinite(score))byPar[par].push(score-par)});
     const summaries=Object.entries(byPar).map(([p,v])=>({par:Number(p),n:v.length,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null}));
     const measured=summaries.filter(x=>x.avg!==null);
-    // The largest score loss should remain visible even with a small sample.
-    // Sample size affects the wording, not which par-type currently has the
-    // largest measured loss. This prevents a 5-hole Par 5 sample from being
-    // silently replaced by Par 3/4 just because those have more observations.
     const worst=measured.slice().sort((a,b)=>b.avg-a.avg)[0];
     const weakestIsPreliminary=Boolean(worst&&worst.n<8);
 
@@ -86,8 +85,7 @@ async function load(){
     const fwPct=fairways.length?100*fairways.filter(v=>v==='yes'||v==='hit').length/fairways.length:null;
     const penaltyTotal=penalties.reduce((a,b)=>a+b,0);
 
-    const insights=$('#insights');
-    if(!insights){running=false;return;}
+    if(!insights)return;
 
     const parHtml=summaries.map(x=>`<div class="par-row ${worst&&x.par===worst.par?'worst':''}"><div><b>Par ${x.par}</b><div class="muted">${x.n?`${x.n} holes met scoredata`:'Nog geen scoredata'}</div></div><div class="par-score">${x.avg===null?'—':`${x.avg>=0?'+':''}${fmt(x.avg)} / hole`}<span>${x.avg===null?'':'t.o.v. par'}</span></div></div>`).join('');
     const callout=worst?`<div class="insight-callout"><div class="kicker">${weakestIsPreliminary?'Voorlopige kans':'Grootste kans'}</div><b>Par ${worst.par}</b><span>Hier verlies je gemiddeld ${fmt(Math.abs(worst.avg))} slag per hole ten opzichte van par, gebaseerd op ${worst.n} holes.${weakestIsPreliminary?' Dit is nog te weinig data voor een harde conclusie.':''}</span></div>`:`<div class="insight-callout"><div class="kicker">Nog te weinig data</div><b>Speel een paar rondes</b><span>Daarna kan BOUNDS betrouwbaar aangeven op welk par-type je de meeste slagen laat liggen.</span></div>`;
@@ -102,9 +100,12 @@ async function load(){
     const recentHtml=latest.length?`<div class="section-title" style="margin-top:20px">Laatste scores</div><div class="recent-scores">${latest.map(r=>{const p=r.players?.[0]||{};return `<div class="recent-score"><div><b>${r.course?.name||'Baan'}</b><small>${dateLabel(r.played_at)} · ${r.holes_played} holes</small></div><div class="score-right"><b>${p.final_score??'—'}</b><small>${p.stableford??'—'} SF</small></div></div>`}).join('')}</div>`:'';
 
     insights.innerHTML=`<div class="game-insight-head"><div><h3>Waar verlies je slagen?</h3><p class="muted">Score ten opzichte van par, alleen op holes waarvan de score is opgeslagen.</p></div></div><div class="par-insights">${parHtml}</div>${callout}<div class="metric-grid">${metrics}</div>${recentHtml}<div class="data-note">De inzichten worden automatisch beter naarmate je meer hole-statistieken invult.</div>`;
-  }catch(e){console.error('BOUNDS My Game enhance',e)}
-  finally{running=false}
+    insights.classList.add('ready');
+  }catch(e){
+    console.error('BOUNDS My Game enhance',e);
+    if(insights)insights.classList.add('ready');
+  }finally{running=false}
 }
 
-window.addEventListener('load',()=>{setTimeout(load,700);setInterval(load,4000)});
-document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="game"]'))setTimeout(load,300)});
+window.addEventListener('load',()=>{setTimeout(load,0);setInterval(load,4000)});
+document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="game"]'))setTimeout(load,0)});

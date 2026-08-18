@@ -1,15 +1,12 @@
 name: One-time login boot repair
 on:
   push:
-    branches: [fix/login-boot]
   workflow_dispatch:
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: fix/login-boot
       - name: Remove renderGame scope error
         run: |
           python - <<'PY'
@@ -36,4 +33,4 @@ $$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteS
           git add app.js
           git diff --cached --quiet && exit 0
           git commit -m "fix: restore app boot after renderGame scope error"
-          git push origin HEAD:fix/login-boot
+          git push

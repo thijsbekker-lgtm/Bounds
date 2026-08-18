@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f5f7" />
+  <title>BOUNDS — Your game. Your people. Your courses.</title>
+  <link rel="stylesheet" href="styles.css?v=1.16.2" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div><div class="brand">BOUNDS</div><div class="tagline">Your game. Your people. Your courses.</div></div>
+      <div id="sessionArea"></div>
+    </header>
+    <section id="authView" class="view auth-view"><div class="auth-card card"><div class="eyebrow">WELCOME TO BOUNDS</div><h1>Your golf.<br><span>In one place.</span></h1><p class="muted">Play rounds, understand your game and build your golf history.</p><form id="authForm"><label>Email<input id="authEmail" type="email" required autocomplete="email" /></label><label>Password<input id="authPassword" type="password" required minlength="6" autocomplete="current-password" /></label><button class="primary full" type="submit" id="authSubmit">Inloggen</button><button class="text-button" type="button" id="authMode">Nog geen account? Registreren</button><div id="authMessage" class="message"></div></form></div></section>
+    <div id="appShell" class="hidden">
+      <nav class="tabs"><button class="tab active" data-tab="home">⌂<span>Home</span></button><button class="tab" data-tab="play">⛳<span>Play</span></button><button class="tab" data-tab="game">📊<span>My Game</span></button><button class="tab" data-tab="courses">🏌️<span>Courses</span></button></nav>
+      <main class="content">
+        <section id="page-home" class="page active"><div class="hero-card card"><div class="eyebrow">YOUR GAME</div><h2 id="homeGreeting">Welkom bij BOUNDS</h2><div class="hero-stats"><div><b id="homeHcp">—</b><span>HCP</span></div><div><b id="homeRounds">0</b><span>Rondes</span></div><div><b id="homeBest">—</b><span>Beste score</span></div></div><button class="primary" data-new-round>＋ Start een ronde</button></div><div class="card" id="homeLastRound"></div><div class="card" id="homeOpportunity"></div></section>
+        <section id="page-play" class="page"><div class="section-head"><div><div class="eyebrow">PLAY</div><h2 id="playTitle">Nieuwe ronde</h2></div><span id="roundStatus" class="status hidden">🟢 Ronde bezig</span></div><div class="card" id="roundSetup"><div class="grid"><label>Golfbaan<select id="courseSelect"></select></label><label>Aantal holes<select id="holesSelect"><option value="9">9 holes</option><option value="18">18 holes</option></select></label><label id="variantWrap">Variant<select id="variantSelect"></select></label><label id="loopWrap">Lus<select id="loopSelect"><option value="first">1e 9</option><option value="second">2e 9</option><option value="full">Hele baan</option></select></label><label>Tee<select id="teeSelect"></select></label><label>Handicap Index<input id="hcpInput" type="number" min="-10" max="54" step="0.1" /></label></div><div class="stats"><div><small>Baanhcp</small><b id="courseHcp">—</b></div><div><small>CR / Slope</small><b id="crsr">—</b></div><div><small>Par</small><b id="coursePar">—</b></div></div><div id="configNote" class="muted config-note"></div><button class="primary full" id="startRound">Start ronde</button></div><div id="scoreArea" class="card hidden"><div class="score-head"><div><b>Scorekaart</b><small id="scoreSubtitle"></small></div><button class="secondary small-action" id="cancelRoundTop" type="button">Ronde afbreken</button></div><div id="scoreRows"></div><div class="total-row"><span>Totaal</span><b id="totalScore">0</b><b id="totalSf">0 SF</b></div><div class="round-actions"><button class="primary full" id="saveRound">Ronde opslaan</button><button class="secondary full" id="cancelRound" type="button">Ronde afbreken</button></div></div></section>
+        <section id="page-game" class="page"><div class="section-head"><div><div class="eyebrow">MY GAME</div><h2>Waar sta je?</h2></div></div><div class="card"><div class="game-grid"><div><b id="gameHcp">—</b><span>Handicap</span></div><div><b id="gameRounds">0</b><span>Rondes</span></div><div><b id="gameAvg">—</b><span>Gem. score</span></div><div><b id="gameBestSf">—</b><span>Beste Stableford</span></div></div></div><div class="card"><div class="section-title">Waar verlies je slagen?</div><div id="insights"></div></div><div class="card"><div class="section-title">Historie</div><div id="history"></div></div></section>
+        <section id="page-courses" class="page"><div class="section-head"><div><div class="eyebrow">YOUR COURSES</div><h2>Banen</h2></div></div><div class="card"><div id="courseCatalog"></div></div></section>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="app.js?v=1.16.5"></script>
+  <script type="module" src="draft-restore.js?v=1.16.5"></script>
+  <script src="save-edit-fix.js?v=1.16.5"></script>
+  <script type="module" src="mygame-enhance.js?v=1.16.5"></script>
+</body>
+</html>

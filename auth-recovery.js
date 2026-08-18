@@ -1,6 +1,9 @@
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+const SESSION_KEY='bounds_supabase_session';
 
+// Static GitHub Pages auth fallback. Keep one storage mechanism only: the
+// REST adapter used by app.js. This prevents CDN client/session mismatches.
 async function recoverAuthSubmit(event){
   const form=event.target;
   if(!(form instanceof HTMLFormElement) || form.id!=='authForm') return;
@@ -35,19 +38,7 @@ async function recoverAuthSubmit(event){
     }
 
     const session={...body,expires_at:body.expires_at||Math.floor(Date.now()/1000)+Number(body.expires_in||3600)};
-    if(globalThis.supabase?.createClient){
-      const client=globalThis.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-      const {error}=await client.auth.setSession({
-        access_token:session.access_token,
-        refresh_token:session.refresh_token,
-        expires_in:Number(session.expires_in||3600),
-        expires_at:Number(session.expires_at)
-      });
-      if(error)throw error;
-    }else{
-      localStorage.setItem('bounds_supabase_session',JSON.stringify(session));
-    }
-
+    localStorage.setItem(SESSION_KEY,JSON.stringify(session));
     if(message)message.textContent='Inloggen gelukt. BOUNDS wordt geladen…';
     setTimeout(()=>window.location.replace(`${window.location.pathname}?auth=${Date.now()}`),150);
   }catch(error){
@@ -57,7 +48,7 @@ async function recoverAuthSubmit(event){
       ? 'Inloggen mislukt. Controleer e-mailadres en wachtwoord.'
       : /email not confirmed/i.test(raw)
         ? 'Bevestig eerst je e-mailadres via de bevestigingsmail.'
-        : raw;
+        : `Inloggen mislukt: ${raw}`;
     if(message)message.textContent=friendly;
     if(button){button.disabled=false;button.textContent=registering?'Account maken':'Inloggen';}
   }

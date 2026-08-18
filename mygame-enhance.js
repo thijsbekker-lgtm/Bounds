@@ -43,7 +43,7 @@ function fmt(n,d=1){return Number.isFinite(Number(n))?Number(n).toFixed(d).repla
 function dateLabel(v){return new Date(v).toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}
 function filledNumber(v){if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null}
 
-async function load(){
+async function load(force=false){
   if(running)return;
   const page=$('#page-game');
   if(!page || !page.classList.contains('active'))return;
@@ -66,7 +66,7 @@ async function load(){
     }
 
     const signature=JSON.stringify({rounds:rows.map(r=>[r.id,r.played_at,r.players?.[0]?.final_score,r.players?.[0]?.stableford]),holes:holes.length});
-    if(signature===lastSignature){if(insights)insights.classList.add('ready');return;}
+    if(!force && signature===lastSignature){if(insights)insights.classList.add('ready');return;}
     lastSignature=signature;
 
     const byPar={3:[],4:[],5:[]};
@@ -107,5 +107,20 @@ async function load(){
   }finally{running=false}
 }
 
-window.addEventListener('load',()=>{setTimeout(load,0);setInterval(load,4000)});
-document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="game"]'))setTimeout(load,0)});
+function protectInsights(){
+  const insights=$('#insights');
+  if(!insights || insights.dataset.protected==='1')return;
+  insights.dataset.protected='1';
+  const observer=new MutationObserver(()=>{
+    if(!insights.isConnected || !$('#page-game')?.classList.contains('active'))return;
+    if(insights.querySelector('.game-insight-head'))return;
+    load(true);
+  });
+  observer.observe(insights,{childList:true,subtree:true});
+}
+
+window.addEventListener('load',()=>{
+  setTimeout(()=>{protectInsights();load()},0);
+  setInterval(()=>load(),4000);
+});
+document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="game"]'))setTimeout(()=>{protectInsights();load()},0)});

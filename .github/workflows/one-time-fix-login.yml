@@ -1,0 +1,36 @@
+name: One-time login boot repair
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove renderGame scope error
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app.js')
+          s = p.read_text()
+          bad = '''$('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''): '<div class="muted">Nog geen rondes opgeslagen.</div>';
+$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));
+$$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});
+'''
+          if bad not in s:
+              bad = '''$('#history').innerHTML=history.length?history.map(roundHistoryItem).join(''):'<div class="muted">Nog geen rondes opgeslagen.</div>';
+$$('[data-round]').forEach(b=>b.onclick=()=>openRound(b.dataset.round));
+$$('[data-delete-round]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteSavedRound(b.dataset.deleteRound)});
+'''
+          if bad not in s:
+              raise SystemExit('target block not found')
+          p.write_text(s.replace(bad, '', 1))
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: restore app boot after renderGame scope error"
+          git push

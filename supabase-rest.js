@@ -1,11 +1,7 @@
 // BOUNDS Supabase adapter.
-// Prefer the official Supabase browser client. The small REST fallback remains
-// available if a content blocker prevents the CDN from loading.
+// Use the small REST adapter consistently on GitHub Pages. This avoids
+// differences between CDN/browser-client storage and the static app boot.
 export function createBoundsSupabase(url, anonKey){
-  if(globalThis.supabase?.createClient){
-    return globalThis.supabase.createClient(url, anonKey);
-  }
-
   const REST=`${url}/rest/v1`, AUTH=`${url}/auth/v1`, KEY='bounds_supabase_session';
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}};
   const write=s=>s?localStorage.setItem(KEY,JSON.stringify(s)):localStorage.removeItem(KEY);

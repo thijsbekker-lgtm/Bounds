@@ -1,4 +1,5 @@
 name: Repair login boot on PR
+# v2: trigger repair on PR synchronize
 on:
   pull_request:
     types: [opened, synchronize]

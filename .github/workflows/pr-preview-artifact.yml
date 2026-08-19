@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   preview:
@@ -15,15 +14,14 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
 
-      - name: Package static preview
+      - name: Package preview
         run: |
-          mkdir -p preview
-          cp -R . preview/site
-          rm -rf preview/site/.git preview/site/.github
+          mkdir -p preview/site
+          tar --exclude='./.git' --exclude='./.github' --exclude='./preview' -cf - . | tar -xf - -C preview/site
           cat > preview/README.txt <<'EOF'
 BOUNDS PR PREVIEW
 
-This archive contains the exact feature-branch site.
+This is the feature-branch site for PR testing.
 It is NOT the live BOUNDS site.
 
 To test locally with Python:

@@ -51,3 +51,7 @@ window.wireAuthForm=function wireAuthForm(){
     }
   });
 };
+
+// Auth is deliberately self-wiring so a failure in any later app module
+// cannot disable the login form.
+window.wireAuthForm();

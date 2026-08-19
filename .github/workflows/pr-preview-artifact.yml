@@ -1,0 +1,43 @@
+name: PR preview artifact
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Package static preview
+        run: |
+          mkdir -p preview
+          cp -R . preview/site
+          rm -rf preview/site/.git preview/site/.github
+          cat > preview/README.txt <<'EOF'
+BOUNDS PR PREVIEW
+
+This archive contains the exact feature-branch site.
+It is NOT the live BOUNDS site.
+
+To test locally with Python:
+  cd site
+  python -m http.server 8000
+Then open:
+  http://localhost:8000/
+
+Do not merge this PR until the scorecard and login have been tested.
+EOF
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bounds-scorecard-preview
+          path: preview
+          retention-days: 7

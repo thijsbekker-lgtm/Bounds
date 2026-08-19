@@ -14,27 +14,14 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
 
-      - name: Prepare preview instructions
+      - name: Build preview archive
         run: |
-          cat > BOUNDS-PR-PREVIEW.txt <<'EOF'
-BOUNDS PR PREVIEW
-
-This folder is the feature-branch site for PR testing.
-It is NOT the live BOUNDS site.
-
-To test locally with Python:
-  python -m http.server 8000
-Then open:
-  http://localhost:8000/
-
-Do not merge this PR until the scorecard and login have been tested.
-EOF
+          git archive --format=zip --output=bounds-scorecard-preview.zip HEAD
 
       - name: Upload feature-branch site
         uses: actions/upload-artifact@v4
         with:
           name: bounds-scorecard-preview
-          path: .
-          include-hidden-files: false
+          path: bounds-scorecard-preview.zip
           retention-days: 7
           if-no-files-found: error

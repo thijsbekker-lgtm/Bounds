@@ -1,0 +1,27 @@
+name: PR preview artifact
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Build preview archive
+        run: |
+          git archive --format=zip --output=bounds-scorecard-preview.zip HEAD
+
+      - name: Upload feature-branch site
+        uses: actions/upload-artifact@v4
+        with:
+          name: bounds-scorecard-preview
+          path: bounds-scorecard-preview.zip
+          retention-days: 7
+          if-no-files-found: error

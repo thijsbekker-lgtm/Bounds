@@ -14,18 +14,15 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
 
-      - name: Package preview
+      - name: Prepare preview instructions
         run: |
-          mkdir -p preview/site
-          tar --exclude='./.git' --exclude='./.github' --exclude='./preview' -cf - . | tar -xf - -C preview/site
-          cat > preview/README.txt <<'EOF'
+          cat > BOUNDS-PR-PREVIEW.txt <<'EOF'
 BOUNDS PR PREVIEW
 
-This is the feature-branch site for PR testing.
+This folder is the feature-branch site for PR testing.
 It is NOT the live BOUNDS site.
 
 To test locally with Python:
-  cd site
   python -m http.server 8000
 Then open:
   http://localhost:8000/
@@ -33,9 +30,11 @@ Then open:
 Do not merge this PR until the scorecard and login have been tested.
 EOF
 
-      - name: Upload preview artifact
+      - name: Upload feature-branch site
         uses: actions/upload-artifact@v4
         with:
           name: bounds-scorecard-preview
-          path: preview
+          path: .
+          include-hidden-files: false
           retention-days: 7
+          if-no-files-found: error

@@ -2,6 +2,16 @@ const BOUNDS_AUTH_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const BOUNDS_AUTH_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
 const BOUNDS_SESSION_KEY='bounds_supabase_session';
 
+// Keep authentication on the official Supabase JS v2 client.
+// The rest of BOUNDS intentionally keeps using the existing REST adapter;
+// we bridge the successful v2 session into its existing session key.
+import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/+esm').then(({createClient})=>{
+  const supabase=createClient(BOUNDS_AUTH_URL,BOUNDS_AUTH_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  window.__BOUNDS_SUPABASE_AUTH__=supabase;
+}).catch(error=>{
+  console.error('BOUNDS Supabase JS v2 load error',error);
+});
+
 window.wireAuthForm=function wireAuthForm(){
   const form=document.getElementById('authForm');
   const mode=document.getElementById('authMode');
@@ -29,18 +39,28 @@ window.wireAuthForm=function wireAuthForm(){
     button.textContent=registering?'Account maken…':'Inloggen…';
     if(message)message.textContent=registering?'Account aanmaken…':'Inloggen…';
     try{
-      const endpoint=registering?'/signup':'/token?grant_type=password';
-      const response=await fetch(`${BOUNDS_AUTH_URL}/auth/v1${endpoint}`,{method:'POST',headers:{apikey:BOUNDS_AUTH_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-      const text=await response.text();
-      let data={};try{data=text?JSON.parse(text):{}}catch{data={message:text}};
-      if(!response.ok)throw new Error(data.error_description||data.msg||data.message||data.error||`HTTP ${response.status}`);
-      if(!data.access_token){
-        if(message)message.textContent='Account aangemaakt. Controleer je e-mail en bevestig je account.';
-        registering=false;button.disabled=false;button.textContent='Inloggen';return;
+      let client=window.__BOUNDS_SUPABASE_AUTH__;
+      if(!client){
+        const mod=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/+esm');
+        client=mod.createClient(BOUNDS_AUTH_URL,BOUNDS_AUTH_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+        window.__BOUNDS_SUPABASE_AUTH__=client;
       }
-      const session={...data,expires_at:data.expires_at||Math.floor(Date.now()/1000)+Number(data.expires_in||3600)};
-      localStorage.setItem(BOUNDS_SESSION_KEY,JSON.stringify(session));
-      if(message)message.textContent='Inloggen gelukt…';
+      let data,error;
+      if(registering){
+        ({data,error}=await client.auth.signUp({email,password}));
+        if(error)throw error;
+        if(!data?.session){
+          if(message)message.textContent='Account aangemaakt. Controleer je e-mail en bevestig je account.';
+          registering=false;button.disabled=false;button.textContent='Inloggen';return;
+        }
+      }else{
+        ({data,error}=await client.auth.signInWithPassword({email,password}));
+        if(error)throw error;
+        if(!data?.session?.access_token)throw new Error('Supabase gaf geen geldige sessie terug.');
+      }
+      const session=data.session;
+      const bridgedSession={...session,expires_at:session.expires_at||Math.floor(Date.now()/1000)+Number(session.expires_in||3600)};
+      localStorage.setItem(BOUNDS_SESSION_KEY,JSON.stringify(bridgedSession));
       window.location.reload();
     }catch(error){
       console.error('BOUNDS login error',error);

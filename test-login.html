@@ -11,9 +11,12 @@
   <button id="login">Inloggen</button>
 
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/+esm';
 
-    const supabase = createClient('https://JOUW-PROJECT.supabase.co', 'JOUW-ANON-KEY');
+    const supabase = createClient(
+      'https://ynlncjnjnbujzfjsfdwb.supabase.co',
+      'sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v'
+    );
 
     document.getElementById('login').addEventListener('click', async () => {
       const { error } = await supabase.auth.signInWithPassword({

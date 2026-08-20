@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Supabase Login Test</title>
+</head>
+<body>
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Wachtwoord">
+  <button id="login">Inloggen</button>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabase = createClient('https://JOUW-PROJECT.supabase.co', 'JOUW-ANON-KEY');
+
+    document.getElementById('login').addEventListener('click', async () => {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      });
+
+      alert(error ? error.message : 'Inloggen gelukt');
+    });
+  </script>
+</body>
+</html>

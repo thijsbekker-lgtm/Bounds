@@ -6,17 +6,6 @@ const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;'
 const icon = name => window.boundsIcon ? window.boundsIcon(name, 18) : '';
 const sb = createBoundsSupabase(SUPABASE_URL, SUPABASE_KEY);
 
-const fallbackContent = {
-  'De Kroonprins': {
-    description: 'Een afwisselende golfbaan waar de hoofdbaan en de par-3 baan ieder hun eigen karakter hebben. Kies de layout die je speelt en bekijk daarna de bijbehorende tee-configuratie.',
-    facilities: [['flag','Golfbaan','Hoofdbaan + Par 3'],['range','Driving range','Oefenen voor je ronde'],['cart','Trolley','Beschikbaar'],['shop','Golfshop','Proshop']]
-  },
-  'Crimpenerhout': {
-    description: 'Een waterrijke golfbaan met bunkers, ontworpen door Bruno Steensels. De baan vraagt om nauwkeurig spel en een goede keuze vanaf de tee.',
-    facilities: [['flag','Golfbaan','Hoofdbaan + Par 3'],['water','Water','Waterrijk karakter'],['bunker','Bunkers','Strategisch in de baan'],['range','Driving range','Oefenfaciliteit'],['cart','Trolley / handicart','Beschikbaar'],['shop','Golfshop','Proshop']]
-  }
-};
-
 function injectCourseDetailStyles() {
   if (document.getElementById('bounds-course-detail-v2-style')) return;
   const style = document.createElement('style');
@@ -40,6 +29,12 @@ function injectCourseDetailStyles() {
       color:#3f444a;
       font-size:14px;
       line-height:1.7;
+    }
+    #page-courses .course-source-note {
+      margin-top:11px;
+      color:#9a9ea3;
+      font-size:9px;
+      line-height:1.4;
     }
     #page-courses .course-facilities-v1 { padding:20px; }
     #page-courses .course-facilities {
@@ -114,8 +109,12 @@ async function enrich(detail) {
   const holeToggle = detail.querySelector('.course-hole-toggle');
   if (!title || !holeToggle) return;
   const name = title.textContent.trim();
-  const content = fallbackContent[name];
+  const content = window.COURSE_SOURCE_DATA_V1?.[name];
   if (!content) return;
+
+  const sourceNote = content.verifiedWith
+    ? `Bron: ${content.source} · gecontroleerd met ${content.verifiedWith}`
+    : `Bron: ${content.source}`;
 
   const block = document.createElement('div');
   block.className = 'course-content-v1';
@@ -123,6 +122,7 @@ async function enrich(detail) {
     <section class="course-detail-card course-about-v1">
       <div class="eyebrow">OVER DE BAAN</div>
       <p>${esc(content.description)}</p>
+      <div class="course-source-note">${esc(sourceNote)}</div>
     </section>
     <section class="course-detail-card course-facilities-v1">
       <div class="eyebrow">FACILITEITEN</div>

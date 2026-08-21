@@ -24,7 +24,12 @@ const SL_SESSION='bounds_supabase_session';
     const rows=await rest(`profiles?select=region,woonplaats,home_course_id&id=eq.${encodeURIComponent(s.user.id)}&limit=1`);
     profile=rows?.[0]||{};
     const saved=await rest(`golfer_availability?select=location_mode,radius_km,course_id&user_id=eq.${encodeURIComponent(s.user.id)}&status=eq.active&available_date=gte.${encodeURIComponent(today())}&order=available_date.asc,start_time.asc&limit=1`)||[];
-    if(saved[0]){mode=saved[0].location_mode||'area';radius=Number(saved[0].radius_km)||25;const course=document.getElementById('sfAvailCourse');if(course&&saved[0].course_id)course.value=saved[0].course_id}
+    if(saved[0]){
+      mode=saved[0].location_mode||'area';
+      radius=Number(saved[0].radius_km)||25;
+      const course=document.getElementById('sfAvailCourse');
+      if(course&&saved[0].course_id)course.value=saved[0].course_id;
+    }
   }
 
   function build(){
@@ -48,10 +53,10 @@ const SL_SESSION='bounds_supabase_session';
           <span class="sf-location-option-icon">⌖</span><span class="sf-location-option-copy"><strong>In mijn omgeving</strong><small>${esc(regionText())} · binnen ${radius} km</small></span>
         </button>
         <button type="button" class="sf-location-option" data-location-mode="course">
-          <span class="sf-location-option-icon">⚑</span><span class="sf-location-option-copy"><strong>Een specifieke baan</strong><small>Kies waar je wilt spelen</small></span>
+          <span class="sf-location-option-icon">⚑</span><span class="sf-location-option-copy"><strong>Een bepaalde baan</strong><small>Kies waar je wilt spelen</small></span>
         </button>
         <button type="button" class="sf-location-option" data-location-mode="flexible">
-          <span class="sf-location-option-icon">↗</span><span class="sf-location-option-copy"><strong>Ik ben flexibel</strong><small>Geen vaste locatie</small></span>
+          <span class="sf-location-option-icon">↗</span><span class="sf-location-option-copy"><strong>Maakt me niet uit</strong><small>Ik ben flexibel met de locatie</small></span>
         </button>
       </div>
       <div class="sf-location-detail" data-location-detail="area">
@@ -61,7 +66,7 @@ const SL_SESSION='bounds_supabase_session';
       <div class="sf-location-detail sf-location-hidden" data-location-detail="course">
         <span class="sf-location-course-label">Golfbaan</span>
       </div>
-      <div class="sf-location-detail sf-location-hidden" data-location-detail="flexible"><div class="sf-location-flexible">BOUNDS zoekt dan vooral op datum, tijd, ronde en speelvoorkeur. Locatie is niet leidend.</div></div>`;
+      <div class="sf-location-detail sf-location-hidden" data-location-detail="flexible"><div class="sf-location-flexible">Dan kijkt BOUNDS vooral naar datum, tijd, holes en speelstijl. Locatie is niet leidend.</div></div>`;
     form.insertBefore(block,form.querySelector('#sfAvailMinHcp')?.closest('label')||null);
     const courseDetail=block.querySelector('[data-location-detail="course"]');
     course.classList.add('sf-location-course-select');
@@ -116,7 +121,6 @@ const SL_SESSION='bounds_supabase_session';
     const panel=document.querySelector('.social-flight-panel');if(!panel)return false;
     if(!build())return false;
     try{await loadContext()}catch(err){console.warn('BOUNDS location context',err)}
-    const form=panel.querySelector('.social-flight-card .social-flight-form');form?._locationUxReady;
     const block=panel.querySelector('.sf-location-block');
     const sync=block?._sync;if(sync)sync();
     const button=document.getElementById('sfSaveAvailability');

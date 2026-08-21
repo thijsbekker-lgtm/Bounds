@@ -1,7 +1,7 @@
 import { createBoundsSupabase } from './supabase-rest.js?v=1.16.6';
 
 const SUPABASE_URL = 'https://ynlncjnjnbujzfjsfdwb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+const SUPABASE_KEY = atob('c2JfcHVibGlzaGFibGVfSEFvajM5dUpZcFZERGdKdXVKY3RPQV9LSEl1TDI3dg==');
 const FAVORITES_KEY = 'bounds_courses_favorites_v1';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -51,6 +51,36 @@ function courseStats(courseId) {
     best: scores.length ? Math.min(...scores) : null,
     average: scores.length ? scores.reduce((a,b) => a + b, 0) / scores.length : null
   };
+}
+
+function normalizeVariant(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw || raw === 'main' || raw === 'normal' || raw === 'hoofdbaan') return 'main';
+  if (raw === 'par3' || raw === 'par 3' || raw === 'par-3' || raw.includes('par3') || raw.includes('par 3')) return 'par3';
+  return raw;
+}
+
+function variantLabel(value) {
+  return normalizeVariant(value) === 'par3' ? 'Par 3' : 'Hoofdbaan';
+}
+
+function preferredTeeRows(tees, holes, variant) {
+  const rows = tees.filter(t => Number(t.holes) === Number(holes) && normalizeVariant(t.course_variant) === normalizeVariant(variant));
+  const seen = new Set();
+  return rows.filter(row => {
+    const key = String(row.tee_name || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function availableVariants(tees, holes) {
+  const seen = new Set();
+  return tees
+    .filter(t => Number(t.holes) === Number(holes))
+    .map(t => normalizeVariant(t.course_variant))
+    .filter(v => !seen.has(v) && seen.add(v));
 }
 
 async function loadData() {
@@ -215,42 +245,83 @@ async function openDetail(id) {
     const result = await sb.from('course_tees').select('id,tee_name,gender,holes,course_rating,slope_rating,par,course_variant').eq('course_id', id).order('holes').order('tee_name');
     if (!result.error) tees = result.data || [];
   } catch {}
-  const has9 = tees.some(t => Number(t.holes) === 9);
-  const has18 = tees.some(t => Number(t.holes) === 18);
-  const variants = [...new Set(tees.map(t => t.course_variant).filter(Boolean))];
+
+  const holeOptions = [...new Set(tees.map(t => Number(t.holes)).filter(h => h === 9 || h === 18))].sort((a,b) => a-b);
+  let selectedHoles = holeOptions.includes(18) ? 18 : (holeOptions[0] || 9);
+  let variants = availableVariants(tees, selectedHoles);
+  let selectedVariant = variants.includes('main') ? 'main' : (variants[0] || 'main');
+  let teeRows = preferredTeeRows(tees, selectedHoles, selectedVariant);
+  let selectedTeeName = teeRows[0]?.tee_name || null;
 
   const page = $('#page-courses');
-  page.innerHTML = `
-    <div class="course-detail-v1">
-      <div class="course-detail-top"><button id="backCoursesV1" class="course-back" type="button">‹ Courses</button><div><button class="course-detail-icon" type="button" data-detail-favorite>${favorites().has(String(id)) ? '♥' : '♡'}</button><button class="course-detail-icon" type="button">↗</button></div></div>
-      <div class="course-hero ${courseImageClass(0)}"><span>⚑</span></div>
-      <div class="course-detail-title"><div class="eyebrow">COURSE</div><h2>${esc(course.name)}</h2><p>${esc(course.location || 'Nederland')}</p></div>
-      <div class="course-hole-toggle"><div class="${has9 ? 'selected' : ''}"><b>${has9 ? '✓' : '—'}</b><span>9 holes</span></div><div class="${has18 ? 'selected' : ''}"><b>${has18 ? '✓' : '—'}</b><span>18 holes</span></div></div>
-      <div class="course-detail-card"><div class="eyebrow">OVER DE BAAN</div><p>${variants.length ? `Beschikbare layouts: ${variants.map(v => esc(v)).join(' · ')}.` : 'Baaninformatie en teegegevens worden hier weergegeven zodra deze beschikbaar zijn.'}</p></div>
-      <div class="course-detail-section"><div class="courses-section-head"><b>JOUW HISTORIE</b><button type="button" id="historyCount">Bekijk alles</button></div>${stats.rounds.length ? stats.rounds.slice(0,6).map(r => `<button class="course-history-row" data-detail-round="${esc(r.id)}" type="button"><span>▦</span><span><b>${dateLabel(r.played_at)}</b><small>${r.holes_played} holes</small></span><strong>${r.players?.[0]?.final_score ?? '—'}</strong><span class="score-pill">${r.players?.[0]?.final_score ?? '—'}</span><span>›</span></button>`).join('') : '<div class="courses-empty">Nog geen rondes op deze baan.</div>'}</div>
-      <div class="course-summary"><span>Gemiddeld <b>${stats.average != null ? fmt(stats.average.toFixed(1)) : '—'}</b></span><span>·</span><span>Beste <b>${stats.best ?? '—'}</b></span></div>
-      <button id="startCourseRound" class="primary full course-start-button" type="button">Start ronde op ${esc(course.name)}</button>
-    </div>`;
 
-  $('#backCoursesV1').onclick = () => { renderShell(); renderLists(); };
-  $('[data-detail-favorite]').onclick = () => {
-    const set = favorites();
-    const key = String(id);
-    if (set.has(key)) set.delete(key); else set.add(key);
-    saveFavorites(set);
-    $('[data-detail-favorite]').textContent = set.has(key) ? '♥' : '♡';
+  const renderDetail = () => {
+    variants = availableVariants(tees, selectedHoles);
+    if (!variants.includes(selectedVariant)) selectedVariant = variants.includes('main') ? 'main' : (variants[0] || 'main');
+    teeRows = preferredTeeRows(tees, selectedHoles, selectedVariant);
+    if (!teeRows.some(t => String(t.tee_name) === String(selectedTeeName))) selectedTeeName = teeRows[0]?.tee_name || null;
+    const selectedTee = teeRows.find(t => String(t.tee_name) === String(selectedTeeName)) || teeRows[0] || null;
+
+    page.innerHTML = `
+      <div class="course-detail-v1">
+        <div class="course-detail-top"><button id="backCoursesV1" class="course-back" type="button">‹ Courses</button><div><button class="course-detail-icon" type="button" data-detail-favorite>${favorites().has(String(id)) ? '♥' : '♡'}</button><button class="course-detail-icon" type="button">↗</button></div></div>
+        <div class="course-hero ${courseImageClass(0)}"><span>⚑</span></div>
+        <div class="course-detail-title"><div class="eyebrow">COURSE</div><h2>${esc(course.name)}</h2><p>${esc(course.location || 'Nederland')}</p></div>
+        <div class="course-hole-toggle">
+          ${holeOptions.map(h => `<button type="button" class="${Number(h) === Number(selectedHoles) ? 'selected' : ''}" data-detail-holes="${h}"><b>${Number(h) === Number(selectedHoles) ? '✓' : '○'}</b><span>${h} holes</span></button>`).join('')}
+        </div>
+        ${variants.length > 1 ? `<div class="course-layout-toggle"><div class="eyebrow">LAYOUT</div><div class="course-layout-options">${variants.map(v => `<button type="button" class="course-layout-option ${normalizeVariant(v) === normalizeVariant(selectedVariant) ? 'selected' : ''}" data-detail-variant="${esc(v)}">${esc(variantLabel(v))}</button>`).join('')}</div></div>` : ''}
+        <div class="course-detail-card">
+          <div class="eyebrow">TEE & BAANGEGEVENS</div>
+          <div class="course-tee-options">${teeRows.length ? teeRows.map(t => `<button type="button" class="course-tee-option ${String(t.tee_name) === String(selectedTeeName) ? 'selected' : ''}" data-detail-tee="${esc(t.tee_name)}">${esc(t.tee_name)}</button>`).join('') : '<span class="courses-empty">Geen teegegevens beschikbaar.</span>'}</div>
+          <div class="course-tee-stats">
+            <div><small>CR</small><b>${selectedTee ? fmt(selectedTee.course_rating) : '—'}</b></div>
+            <div><small>Slope</small><b>${selectedTee ? fmt(selectedTee.slope_rating) : '—'}</b></div>
+            <div><small>Par</small><b>${selectedTee ? fmt(selectedTee.par) : '—'}</b></div>
+          </div>
+          <p>${selectedTee ? `${Number(selectedHoles)} holes · ${variantLabel(selectedVariant)} · ${esc(selectedTee.tee_name)}` : 'Kies een beschikbare tee.'}</p>
+        </div>
+        <div class="course-detail-section"><div class="courses-section-head"><b>JOUW HISTORIE</b><button type="button" id="historyCount">Bekijk alles</button></div>${stats.rounds.length ? stats.rounds.slice(0,6).map(r => `<button class="course-history-row" data-detail-round="${esc(r.id)}" type="button"><span>▦</span><span><b>${dateLabel(r.played_at)}</b><small>${r.holes_played} holes</small></span><strong>${r.players?.[0]?.final_score ?? '—'}</strong><span class="score-pill">${r.players?.[0]?.final_score ?? '—'}</span><span>›</span></button>`).join('') : '<div class="courses-empty">Nog geen rondes op deze baan.</div>'}</div>
+        <div class="course-summary"><span>Gemiddeld <b>${stats.average != null ? fmt(stats.average.toFixed(1)) : '—'}</b></span><span>·</span><span>Beste <b>${stats.best ?? '—'}</b></span></div>
+        <button id="startCourseRound" class="primary full course-start-button" type="button">Start ronde op ${esc(course.name)}</button>
+      </div>`;
+
+    $('#backCoursesV1').onclick = () => { renderShell(); renderLists(); };
+    $('[data-detail-favorite]').onclick = () => {
+      const set = favorites();
+      const key = String(id);
+      if (set.has(key)) set.delete(key); else set.add(key);
+      saveFavorites(set);
+      $('[data-detail-favorite]').textContent = set.has(key) ? '♥' : '♡';
+    };
+    $$('[data-detail-holes]').forEach(button => button.onclick = () => {
+      selectedHoles = Number(button.dataset.detailHoles);
+      selectedTeeName = null;
+      renderDetail();
+    });
+    $$('[data-detail-variant]').forEach(button => button.onclick = () => {
+      selectedVariant = button.dataset.detailVariant;
+      selectedTeeName = null;
+      renderDetail();
+    });
+    $$('[data-detail-tee]').forEach(button => button.onclick = () => {
+      selectedTeeName = button.dataset.detailTee;
+      renderDetail();
+    });
+    $('#startCourseRound').onclick = () => startRoundOnCourse(id, selectedHoles);
+    $$('.course-history-row').forEach(button => button.onclick = () => {
+      const playTab = $('[data-tab="play"]');
+      playTab?.click();
+      setTimeout(() => {
+        const courseSelect = $('#courseSelect');
+        if (!courseSelect) return;
+        courseSelect.value = String(course.id);
+        courseSelect.dispatchEvent(new Event('change'));
+      }, 50);
+    });
   };
-  $('#startCourseRound').onclick = () => startRoundOnCourse(id, has18 ? 18 : 9);
-  $$('.course-history-row').forEach(button => button.onclick = () => {
-    const playTab = $('[data-tab="play"]');
-    playTab?.click();
-    setTimeout(() => {
-      const courseSelect = $('#courseSelect');
-      if (!courseSelect) return;
-      courseSelect.value = String(course.id);
-      courseSelect.dispatchEvent(new Event('change'));
-    }, 50);
-  });
+
+  renderDetail();
 }
 
 function startRoundOnCourse(courseId, holes) {

@@ -3,17 +3,18 @@ import { createBoundsSupabase } from './supabase-rest.js?v=1.16.6';
 const SUPABASE_URL = 'https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY = atob('c2JfcHVibGlzaGFibGVfSEFvajM5dUpZcFZERGdKdXVKY3RPQV9LSEl1TDI3dg==');
 const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+const icon = name => window.boundsIcon ? window.boundsIcon(name, 18) : '';
 
 const sb = createBoundsSupabase(SUPABASE_URL, SUPABASE_KEY);
 
 const fallbackContent = {
   'De Kroonprins': {
     description: 'Een afwisselende golfbaan waar de hoofdbaan en de par-3 baan ieder hun eigen karakter hebben. Kies de layout die je speelt en bekijk daarna de bijbehorende tee-configuratie.',
-    facilities: [['⛳','Golfbaan','Hoofdbaan + Par 3'],['🏌','Driving range','Oefenen voor je ronde'],['🛒','Trolley','Beschikbaar'],['🛍','Golfshop','Proshop']]
+    facilities: [['flag','Golfbaan','Hoofdbaan + Par 3'],['range','Driving range','Oefenen voor je ronde'],['cart','Trolley','Beschikbaar'],['shop','Golfshop','Proshop']]
   },
   'Crimpenerhout': {
     description: 'Een waterrijke golfbaan met bunkers, ontworpen door Bruno Steensels. De baan vraagt om nauwkeurig spel en een goede keuze vanaf de tee.',
-    facilities: [['⛳','Golfbaan','Hoofdbaan + Par 3'],['🌊','Water','Waterrijk karakter'],['🏖','Bunkers','Strategisch in de baan'],['🏌','Driving range','Oefenfaciliteit'],['🛒','Trolley / handicart','Beschikbaar'],['🛍','Golfshop','Proshop']]
+    facilities: [['flag','Golfbaan','Hoofdbaan + Par 3'],['water','Water','Waterrijk karakter'],['bunker','Bunkers','Strategisch in de baan'],['range','Driving range','Oefenfaciliteit'],['cart','Trolley / handicart','Beschikbaar'],['shop','Golfshop','Proshop']]
   }
 };
 
@@ -47,7 +48,7 @@ async function enrich(detail) {
     </section>
     <section class="course-detail-card course-facilities-v1">
       <div class="eyebrow">FACILITEITEN</div>
-      <div class="course-facilities">${content.facilities.map(([icon,label,meta]) => `<div class="course-facility"><span class="course-facility-icon">${icon}</span><span><b>${esc(label)}</b><small>${esc(meta)}</small></span></div>`).join('')}</div>
+      <div class="course-facilities">${content.facilities.map(([iconName,label,meta]) => `<div class="course-facility"><span class="course-facility-icon">${icon(iconName)}</span><span><b>${esc(label)}</b><small>${esc(meta)}</small></span></div>`).join('')}</div>
     </section>
     <section class="course-detail-card course-history-card course-history-v1">
       <div class="eyebrow">JOUW BANENHISTORIE</div>

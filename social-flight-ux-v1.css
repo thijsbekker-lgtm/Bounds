@@ -18,4 +18,13 @@
 #page-social .social-flight-section-title{margin-top:4px}
 #page-social .social-flight-section-title h3{font-size:1rem;margin:0}
 #page-social .social-flight-section-title span{font-size:.78rem;color:#7a817a}
-@media(max-width:700px){#page-social .social-flight-grid{grid-template-columns:1fr}#page-social .social-flight-card{padding:20px}}
+
+/* Visibility is controlled by the UX script, not focus state. This is important on iPad/Safari. */
+#page-social .social-flight-card .social-flight-form[hidden],
+#page-social .social-flight-card .social-flight-actions[hidden],
+#page-social .social-flight-card .social-flight-note[hidden]{display:none!important}
+#page-social .social-flight-card.sf-expanded .social-flight-form:not([hidden]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:none;overflow:visible;opacity:1;pointer-events:auto}
+#page-social .social-flight-card.sf-expanded .social-flight-actions:not([hidden]){display:flex;max-height:none;overflow:visible;opacity:1;pointer-events:auto;margin-top:14px}
+#page-social .social-flight-card.sf-expanded .social-flight-note:not([hidden]){display:block;max-height:none;overflow:visible;opacity:1;pointer-events:auto;margin-top:8px}
+
+@media(max-width:700px){#page-social .social-flight-grid{grid-template-columns:1fr}#page-social .social-flight-card{padding:20px}#page-social .social-flight-card.sf-expanded .social-flight-form{grid-template-columns:1fr}}

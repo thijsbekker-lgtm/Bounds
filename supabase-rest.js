@@ -1,3 +1,4 @@
+// Pages cache refresh: keep legacy versioned imports pointed at this current adapter.
 // BOUNDS Supabase adapter.
 // Use one deterministic browser adapter on GitHub Pages. This avoids auth
 // state being split between the CDN client and a separate REST fallback.

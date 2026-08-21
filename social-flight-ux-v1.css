@@ -2,6 +2,7 @@
 #page-social .social-flight-panel{display:grid;gap:24px}
 #page-social .social-flight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 #page-social .social-flight-card{border:1px solid #e6eae6;border-radius:20px;background:#fff;padding:22px}
+#page-social .social-flight-card [hidden]{display:none!important}
 #page-social .social-flight-card .sf-choice{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 #page-social .social-flight-card .sf-choice-copy{min-width:0}
 #page-social .social-flight-card .sf-choice h3{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em}

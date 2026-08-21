@@ -1,5 +1,6 @@
 /* BOUNDS Icon System V1 — quiet, precise, monochrome line icons. */
 .nav-icon{display:grid;place-items:center;width:24px;height:24px;color:#7a7e84;line-height:0}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;line-height:1}
 .tab.active .nav-icon{color:#2c8d4d}
 .bounds-icon{display:block;flex:none}
 .course-shortcut>span{display:grid;place-items:center}

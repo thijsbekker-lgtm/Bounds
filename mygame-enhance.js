@@ -1,4 +1,4 @@
-import {createBoundsSupabase} from './supabase-rest.js?v=1.16.1';
+import {createBoundsSupabase} from './supabase-rest.js?v=1.16.6';
 
 const URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';

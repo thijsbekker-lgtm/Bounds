@@ -60,12 +60,34 @@ const COURSE_SOURCE_DATA_V1 = {
   },
   'De Pan': {
     source: 'U.G.C. De Pan',
-    sourceUrl: 'https://ugc-depan.nl/golfbaan/baangegevens',
+    sourceUrl: 'https://ugc-depan.nl/en/golfcourse/course-details',
     verifiedWith: 'Golf.nl',
     verifiedUrl: 'https://www.golf.nl/banen-en-clubs/waar-kan-ik-golfen/4/de-pan',
+    scorecardUrl: 'https://ugc-depan.nl/media/regels/ScoreCardDePan-2021.pdf',
     lastVerified: '2026-08-21',
-    courseFormat: { mainHoles: 18, par3Holes: 0, additionalLayouts: [] },
+    courseFormat: {
+      mainHoles: 18,
+      par3Holes: 0,
+      additionalLayouts: ['1e negen', '2e negen']
+    },
     description: 'Een natuurrijke heidebaan in Bosch en Duin, ontworpen door Harry S. Colt. De baan kenmerkt zich door gevarieerde holes, hoogteverschillen, bos en heide en een compact ontwerp.',
+    nineHoleRatings: {
+      men: {
+        first: { white: [36.1,131], yellow: [34.9,126], blue: [33.8,122], red: [32.6,114], orange: [32.6,114] },
+        second: { white: [35.8,150], yellow: [35.1,137], blue: [34.2,130], red: [33.0,122], orange: [32.5,112] }
+      },
+      women: {
+        first: { yellow: [39.1,153], blue: [37.9,147], red: [36.3,138], orange: [36.1,135] },
+        second: { yellow: [38.8,151], blue: [37.4,149], red: [36.3,140], orange: [35.7,130] }
+      }
+    },
+    scorecard: {
+      source: 'scorecard supplied in BOUNDS project',
+      parFirstNine: 36,
+      parSecondNine: 36,
+      strokeIndexFirstNine: [15,5,17,3,11,1,9,13,7],
+      strokeIndexSecondNine: [6,10,16,2,8,18,4,14,12]
+    },
     facilities: [
       ['range', 'Driving range', 'Aanwezig'],
       ['range', 'Chipping green', 'Inclusief bunker'],

@@ -145,3 +145,22 @@ async function enrich(detail) {
 }
 
 window.enrichCourseDetailV1 = enrich;
+
+function watchCourseDetail() {
+  const run = () => {
+    const detail = document.querySelector('#page-courses .course-detail-v1');
+    if (detail) enrich(detail);
+  };
+
+  run();
+  const page = document.getElementById('page-courses');
+  if (!page) {
+    setTimeout(watchCourseDetail, 100);
+    return;
+  }
+
+  const observer = new MutationObserver(() => run());
+  observer.observe(page, {childList:true, subtree:true});
+}
+
+watchCourseDetail();

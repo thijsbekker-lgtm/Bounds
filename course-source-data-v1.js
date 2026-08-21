@@ -57,6 +57,25 @@ const COURSE_SOURCE_DATA_V1 = {
       ['buggy', 'Buggy', 'Verhuur'],
       ['charge', 'Laadpalen', 'Beschikbaar']
     ]
+  },
+  'De Pan': {
+    source: 'U.G.C. De Pan',
+    sourceUrl: 'https://ugc-depan.nl/golfbaan/baangegevens',
+    verifiedWith: 'Golf.nl',
+    verifiedUrl: 'https://www.golf.nl/banen-en-clubs/waar-kan-ik-golfen/4/de-pan',
+    lastVerified: '2026-08-21',
+    courseFormat: { mainHoles: 18, par3Holes: 0, additionalLayouts: [] },
+    description: 'Een natuurrijke heidebaan in Bosch en Duin, ontworpen door Harry S. Colt. De baan kenmerkt zich door gevarieerde holes, hoogteverschillen, bos en heide en een compact ontwerp.',
+    facilities: [
+      ['range', 'Driving range', 'Aanwezig'],
+      ['range', 'Chipping green', 'Inclusief bunker'],
+      ['putting', 'Putting green', 'Aanwezig'],
+      ['shortgame', 'Pitch & putt', '4 oefenholes'],
+      ['shop', 'Golfshop', 'Aanwezig'],
+      ['restaurant', 'Horeca', 'Aanwezig'],
+      ['school', 'Golfschool', 'Aanwezig']
+    ],
+    sourceConflicts: []
   }
 };
 

@@ -1,1 +1,0 @@
-console.log('BOUNDS social progressive UX v2');

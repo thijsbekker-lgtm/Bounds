@@ -1,10 +1,10 @@
-// BOUNDS profile preferences v9 — handicap, tee selection/color, playing style and home course.
+// BOUNDS profile preferences v10 — handicap, tee selection/color, playing style and home course.
 (function(){
   const $=s=>document.querySelector(s);
   const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
   const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
   const SESSION_KEY='bounds_supabase_session';
-  let courses=[];let userCourses=[];let profileReady=false;
+  let courses=[];let userCourses=[];let profileReady=false;let booted=false;
   function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
   function prefKey(id){return `bounds_profile_preferences_${id}`}
   function readLocal(id){try{return JSON.parse(localStorage.getItem(prefKey(id))||'{}')}catch{return {}}}
@@ -17,13 +17,14 @@
   }
   function renderLoading(){const host=$('#profilePreferences');if(host&&!host.innerHTML.trim())host.innerHTML='<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw golfvoorkeuren</h3><div class="muted">Profiel laden…</div></div>'}
   async function loadContext(){
-    const s=getSession();if(!s?.access_token||!s?.user?.id)return null;
+    const s=getSession();
+    if(!s?.access_token||!s?.user?.id)return false;
     window.boundsUser=s.user;
     const rows=await request(`/profiles?select=id,display_name,handicap_index,target_handicap,region,woonplaats,avatar_url,home_course_id,favorite_course_id,tee_gender_preference,tee_color_preference,playing_style&id=eq.${encodeURIComponent(s.user.id)}&limit=1`);
     window.boundsProfile=rows?.[0]||{};
     courses=await request('/courses?select=id,name,location&order=name')||[];
     try{userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(s.user.id)}`)||[]}catch(e){userCourses=[]}
-    profileReady=true;return window.boundsProfile;
+    profileReady=true;return true;
   }
   function render(){
     const host=$('#profilePreferences');if(!host||!profileReady)return;
@@ -60,10 +61,17 @@
     };
   }
   async function boot(){
+    if(booted&&profileReady)return;
     renderLoading();
-    try{await loadContext();if(!profileReady)return;render();document.dispatchEvent(new CustomEvent('bounds:profile-loaded',{detail:window.boundsProfile}))}
-    catch(e){console.error('BOUNDS profile preferences error',e);const host=$('#profilePreferences');if(host)host.innerHTML='<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw golfvoorkeuren</h3><div class="muted">Profielgegevens konden niet worden geladen.</div></div>'}
+    try{if(await loadContext()){booted=true;render();document.dispatchEvent(new CustomEvent('bounds:profile-loaded',{detail:window.boundsProfile}));return true}}catch(e){console.warn('BOUNDS profile preferences retry',e)}
+    return false;
   }
   window.renderBoundsProfilePreferences=render;
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  const start=()=>{
+    let tries=0;
+    const tick=async()=>{tries++;if(await boot()||tries>=40)return;setTimeout(tick,300)};
+    tick();
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+  document.addEventListener('bounds:profile-refresh',()=>{booted=false;start()});
 })();

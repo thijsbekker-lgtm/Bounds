@@ -1,5 +1,6 @@
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
+const SOCIAL_SESSION_KEY='bounds_supabase_session';
 
 let socialClient=null;
 let socialUser=null;
@@ -18,11 +19,29 @@ function socialToast(message){
   setTimeout(()=>toast.classList.remove('show'),2200);
 }
 
+function readSocialSession(){
+  try{return JSON.parse(localStorage.getItem(SOCIAL_SESSION_KEY)||'null')}catch{return null}
+}
+
 async function getSocialClient(){
   if(socialClient)return socialClient;
   const mod=await import('./supabase-rest.js?v=1.16.6');
   socialClient=mod.createBoundsSupabase(SUPABASE_URL,SUPABASE_KEY);
   return socialClient;
+}
+
+async function socialPatchFriendship(id,status){
+  const session=readSocialSession();
+  if(!session?.access_token)throw new Error('Geen geldige sessie.');
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/friendships?id=eq.${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Prefer:'return=minimal'},
+    body:JSON.stringify({status})
+  });
+  if(!response.ok){
+    const text=await response.text();
+    throw new Error(text||`HTTP ${response.status}`);
+  }
 }
 
 async function loadSocialData(){
@@ -90,21 +109,19 @@ function friendMeta(profile){
 }
 
 function renderSocialPeople(){
-  const section=document.querySelector('#page-social .social-section.people-section');
   const grid=document.querySelector('#page-social .social-people');
-  if(!section||!grid)return;
+  if(!grid)return;
   const people=[socialProfile,...socialFriends].filter(Boolean).slice(0,8);
   if(!people.length){
     grid.innerHTML='<div class="social-empty">Nog geen golfers om te tonen.</div>';
     return;
   }
-  grid.innerHTML=people.map((p,index)=>`<div class="social-person" data-person-id="${escSocial(p.id)}"><span class="social-avatar">${escSocial(initialSocial(p.display_name))}</span><strong>${escSocial(p.id===socialUser?.id?'Jij':p.display_name||'Golfer')}</strong><small>${escSocial(p.id===socialUser?.id?'Jouw profiel':friendMeta(p))}</small></div>`).join('');
+  grid.innerHTML=people.map(p=>`<div class="social-person" data-person-id="${escSocial(p.id)}"><span class="social-avatar">${escSocial(initialSocial(p.display_name))}</span><strong>${escSocial(p.id===socialUser?.id?'Jij':p.display_name||'Golfer')}</strong><small>${escSocial(p.id===socialUser?.id?'Jouw profiel':friendMeta(p))}</small></div>`).join('');
 }
 
 function renderSocialRequests(){
-  const section=document.querySelector('#page-social .requests-section');
   const list=document.querySelector('#page-social .social-request-list');
-  if(!section||!list)return;
+  if(!list)return;
   if(!socialIncomingRequests.length){
     list.innerHTML='<div class="social-empty">Geen openstaande verzoeken.</div>';
     return;
@@ -113,17 +130,19 @@ function renderSocialRequests(){
 }
 
 async function acceptSocialRequest(id){
-  const client=await getSocialClient();
-  const {error}=await client.from('friendships').update({status:'accepted'}).eq('id',id);
-  if(error){console.error(error);socialToast('Verzoek accepteren mislukt.');return;}
-  await refreshSocialOverview();
+  try{
+    await socialPatchFriendship(id,'accepted');
+    await refreshSocialOverview();
+    socialToast('Vriend toegevoegd.');
+  }catch(error){console.error(error);socialToast('Verzoek accepteren mislukt.');}
 }
 
 async function declineSocialRequest(id){
-  const client=await getSocialClient();
-  const {error}=await client.from('friendships').update({status:'declined'}).eq('id',id);
-  if(error){console.error(error);socialToast('Verzoek weigeren mislukt.');return;}
-  await refreshSocialOverview();
+  try{
+    await socialPatchFriendship(id,'declined');
+    await refreshSocialOverview();
+    socialToast('Verzoek geweigerd.');
+  }catch(error){console.error(error);socialToast('Verzoek weigeren mislukt.');}
 }
 
 function setSocialView(view){
@@ -170,9 +189,7 @@ function refreshSocialOverview(){
   });
 }
 
-function goToMainTab(tab){
-  document.querySelector(`.tabs .tab[data-tab="${tab}"]`)?.click();
-}
+function goToMainTab(tab){document.querySelector(`.tabs .tab[data-tab="${tab}"]`)?.click();}
 
 function initSocialV1(){
   const socialTab=document.querySelector('.tab[data-tab="social"]');

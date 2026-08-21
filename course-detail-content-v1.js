@@ -4,7 +4,6 @@ const SUPABASE_URL = 'https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY = atob('c2JfcHVibGlzaGFibGVfSEFvajM5dUpZcFZERGdKdXVKY3RPQV9LSEl1TDI3dg==');
 const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 const icon = name => window.boundsIcon ? window.boundsIcon(name, 18) : '';
-
 const sb = createBoundsSupabase(SUPABASE_URL, SUPABASE_KEY);
 
 const fallbackContent = {
@@ -66,8 +65,4 @@ async function enrich(detail) {
   target.innerHTML = `<div class="course-history-summary"><div><b>${history.count}</b><small>Rondes</small></div><div><b>${history.best ?? '—'}</b><small>Beste score</small></div><div><b>${history.average != null ? history.average.toFixed(1).replace('.', ',') : '—'}</b><small>Gemiddeld</small></div></div>`;
 }
 
-const observer = new MutationObserver(() => {
-  const detail = document.querySelector('#page-courses .course-detail-v1');
-  if (detail) enrich(detail);
-});
-observer.observe(document.body, {subtree:true, childList:true});
+window.enrichCourseDetailV1 = enrich;

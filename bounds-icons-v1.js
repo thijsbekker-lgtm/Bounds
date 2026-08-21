@@ -2,12 +2,12 @@
 (function(){
   const paths = {
     home:'<path d="M3.5 10.5 12 3.8l8.5 6.7"/><path d="M5.5 9.5v9h13v-9"/><path d="M9.5 18.5v-5h5v5"/>',
-    play:'<path d="M7 20V5.5"/><path d="M7 5.5h8.5l-2.2 3 2.2 3H7"/><path d="M4.5 20h5"/>',
-    game:'<path d="M4 19.5V12"/><path d="M10 19.5V8"/><path d="M16 19.5V4.5"/><path d="M3 19.5h15.5"/>',
+    play:'<path d="M6.5 20V4"/><path d="M6.5 4h9.5l-2.4 3 2.4 3H6.5"/><path d="M4 20h5"/>',
+    game:'<path d="M4 19.5h16"/><path d="M5.5 16.5 10 12l3.2 2.5L19 8"/><path d="M16.5 8H19v2.5"/>',
     courses:'<path d="M6 20V4"/><path d="M6 4h10l-2.4 3L16 10H6"/><path d="M3.5 20h5"/>',
     flag:'<path d="M6 20V4"/><path d="M6 4h10l-2.4 3L16 10H6"/>',
     location:'<path d="M12 21s7-6.1 7-12A7 7 0 0 0 5 9c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.2"/>',
-    water:'<path d="M3 9c1.5-1.3 3-1.3 4.5 0s3 1.3 4.5 0 3-1.3 4.5 0 3 1.3 4.5 0"/><path d="M3 14c1.5-1.3 3-1.3 4.5 0s3 1.3 4.5 0 3 1.3 4.5 0 3 1.3 4.5 0"/>',
+    water:'<path d="M3 9c1.5-1.3 3-1.3 4.5 0s3 1.3 4.5 0 3-1.3 4.5 0 3 1.3 4.5 0"/><path d="M3 14c1.5-1.3 3-1.3 4.5 0s3 1.3 4.5 0 3-1.3 4.5 0 3 1.3 4.5 0"/>',
     bunker:'<path d="M4 17c2.5-5 5.2-7.5 8-7.5s5.5 2.5 8 7.5"/><path d="M6 17.5h12"/><path d="M8 13.5h8"/>',
     range:'<path d="M5 19.5c1.5-5 4.3-9 9-12"/><path d="m14 7 3.5-.5-1.2 3.3"/><path d="M5 19.5h5"/>',
     cart:'<path d="M3 5h2l1.7 9h10.8l2-7H6"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/>',

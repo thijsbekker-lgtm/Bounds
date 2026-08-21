@@ -59,4 +59,5 @@ const BOUNDS_SOCIAL_PRIVACY_SESSION='bounds_supabase_session';
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 
+const sfStyle=document.createElement('link');sfStyle.rel='stylesheet';sfStyle.href='social-flights-v1.css?v=1.0.0';document.head.appendChild(sfStyle);
 import('./social-flights-v1.js?v=1.0.0').catch(error=>console.error('BOUNDS social flights load error',error));

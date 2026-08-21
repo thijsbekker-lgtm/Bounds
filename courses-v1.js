@@ -77,10 +77,12 @@ function preferredTeeRows(tees, holes, variant) {
 
 function availableVariants(tees, holes) {
   const seen = new Set();
+  const order = {main: 0, par3: 1};
   return tees
     .filter(t => Number(t.holes) === Number(holes))
     .map(t => normalizeVariant(t.course_variant))
-    .filter(v => !seen.has(v) && seen.add(v));
+    .filter(v => !seen.has(v) && seen.add(v))
+    .sort((a,b) => (order[a] ?? 99) - (order[b] ?? 99) || a.localeCompare(b));
 }
 
 async function loadData() {
@@ -283,7 +285,7 @@ async function openDetail(id) {
         </div>
         <div class="course-detail-section"><div class="courses-section-head"><b>JOUW HISTORIE</b><button type="button" id="historyCount">Bekijk alles</button></div>${stats.rounds.length ? stats.rounds.slice(0,6).map(r => `<button class="course-history-row" data-detail-round="${esc(r.id)}" type="button"><span>▦</span><span><b>${dateLabel(r.played_at)}</b><small>${r.holes_played} holes</small></span><strong>${r.players?.[0]?.final_score ?? '—'}</strong><span class="score-pill">${r.players?.[0]?.final_score ?? '—'}</span><span>›</span></button>`).join('') : '<div class="courses-empty">Nog geen rondes op deze baan.</div>'}</div>
         <div class="course-summary"><span>Gemiddeld <b>${stats.average != null ? fmt(stats.average.toFixed(1)) : '—'}</b></span><span>·</span><span>Beste <b>${stats.best ?? '—'}</b></span></div>
-        <button id="startCourseRound" class="primary full course-start-button" type="button">Start ronde op ${esc(course.name)}</button>
+        <button id="startCourseRound" class="primary full course-start-button" type="button">Start ronde op ${esc(course.name)} · ${Number(selectedHoles)} holes</button>
       </div>`;
 
     $('#backCoursesV1').onclick = () => { renderShell(); renderLists(); };

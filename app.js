@@ -3,7 +3,7 @@ import * as data from './data.js';
 
 const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
 const SUPABASE_KEY='sb_publishable_HAoj39uJYpVDDgJuuJctOA_KHIuL27v';
-import {createBoundsSupabase} from './supabase-rest.js?v=1.15.17';
+import {createBoundsSupabase} from './supabase-rest.js?v=1.16.6';
 
 let sb=null;
 async function initSupabase(){
@@ -24,7 +24,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show'
 function setMessage(msg=''){ $('#authMessage').textContent=msg; }
 function fmt(n){return Number.isFinite(Number(n))?String(Number(n)).replace('.',','):'—'}
 function dateLabel(v){return new Date(v).toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}
-function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function esc(v){return String(v??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]))}
 
 function showTab(tab){
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));

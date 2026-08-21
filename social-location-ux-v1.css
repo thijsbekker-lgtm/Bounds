@@ -19,4 +19,6 @@
 .sf-location-course-select{width:100%}
 .sf-location-flexible{font-size:13px;line-height:1.45;color:#68736d}
 .sf-location-hidden{display:none!important}
+.social-matching-section:not(.social-location-matching){display:none}
+.social-location-matching .social-matching-subtitle{color:#7a847e}
 @media(max-width:720px){.sf-location-options{grid-template-columns:1fr}.sf-location-option{min-height:auto}}

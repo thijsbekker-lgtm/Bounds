@@ -66,3 +66,10 @@ async function enrich(detail) {
 }
 
 window.enrichCourseDetailV1 = enrich;
+
+function checkForCourseDetail(){
+  const detail = document.querySelector('#page-courses .course-detail-v1');
+  if (detail) enrich(detail);
+  window.setTimeout(checkForCourseDetail, 750);
+}
+checkForCourseDetail();

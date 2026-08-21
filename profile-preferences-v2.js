@@ -1,4 +1,4 @@
-// BOUNDS profile preferences v4 — handicap, tee preferences and home course.
+// BOUNDS profile preferences v5 — handicap, tee preferences and home course.
 (function(){
   const $=s=>document.querySelector(s);
   const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
@@ -12,17 +12,12 @@
     try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}
     catch{return null;}
   }
-
   function userPreferenceKey(userId){return `bounds_profile_preferences_${userId}`;}
-
   function readTeePreferences(userId){
     try{return JSON.parse(localStorage.getItem(userPreferenceKey(userId))||'{}');}
     catch{return {};}
   }
-
-  function writeTeePreferences(userId,value){
-    localStorage.setItem(userPreferenceKey(userId),JSON.stringify(value));
-  }
+  function writeTeePreferences(userId,value){localStorage.setItem(userPreferenceKey(userId),JSON.stringify(value));}
 
   async function request(path,options={}){
     const s=getSession();
@@ -40,13 +35,11 @@
     const s=getSession();
     if(!s?.access_token||!s?.user?.id)return null;
     window.boundsUser=s.user;
-
     const [profileData,courseData,relationData]=await Promise.all([
       request(`/profiles?select=id,display_name,handicap_index,target_handicap,region,woonplaats,avatar_url&id=eq.${encodeURIComponent(s.user.id)}&limit=1`),
       request('/courses?select=id,name,location&order=name'),
       request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(s.user.id)}`)
     ]);
-
     window.boundsProfile=profileData?.[0]||window.boundsProfile||{};
     courses=courseData||[];
     userCourses=relationData||[];
@@ -76,34 +69,33 @@
       try{
         const h=Number($('#profileHcpInput').value);
         if(!Number.isFinite(h)||h<-10||h>54)throw new Error('Voer een handicap index van -10 tot 54 in.');
-        const userId=window.boundsUser?.id||getSession()?.user?.id;
-        if(!userId)throw new Error('Gebruikerssessie ontbreekt.');
+        const currentUserId=window.boundsUser?.id||getSession()?.user?.id;
+        if(!currentUserId)throw new Error('Gebruikerssessie ontbreekt.');
 
-        const profilePayload={handicap_index:h};
-        const profileData=await request(`/profiles?id=eq.${encodeURIComponent(userId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(profilePayload)});
+        const profileData=await request(`/profiles?id=eq.${encodeURIComponent(currentUserId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({handicap_index:h})});
         if(!profileData?.[0])throw new Error('Profiel kon niet worden opgeslagen.');
 
         const homeId=$('#profileHomeCourse').value||null;
-        const ids=new Set(userCourses.map(r=>r.course_id));
-        if(homeId)ids.add(homeId);
-        const rows=[...ids].map(courseId=>{
-          const existing=userCourses.find(r=>String(r.course_id)===String(courseId));
-          return {user_id:userId,course_id:courseId,is_member:!!existing?.is_member,is_home_course:String(courseId)===String(homeId),is_favorite:!!existing?.is_favorite};
-        });
-        const selected=rows.filter(r=>r.is_member||r.is_home_course||r.is_favorite);
+        const existingByCourse=new Map(userCourses.map(r=>[String(r.course_id),r]));
 
+        // Update existing relations in place. This avoids inserting a second
+        // (user_id, course_id) row and therefore respects the unique constraint.
         for(const existing of userCourses){
-          if(!selected.some(r=>String(r.course_id)===String(existing.course_id))){
-            await request(`/user_courses?id=eq.${encodeURIComponent(existing.id)}`,{method:'DELETE'});
+          const shouldBeHome=homeId!==null && String(existing.course_id)===String(homeId);
+          const desired={is_home_course:shouldBeHome};
+          if(Boolean(existing.is_home_course)!==shouldBeHome){
+            await request(`/user_courses?id=eq.${encodeURIComponent(existing.id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(desired)});
           }
         }
-        if(selected.length){
-          await request('/user_courses',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(selected)});
+
+        // If the selected home course has no relation yet, create exactly one.
+        if(homeId && !existingByCourse.has(String(homeId))){
+          await request('/user_courses',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({user_id:currentUserId,course_id:homeId,is_member:false,is_home_course:true,is_favorite:false})});
         }
 
-        userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(userId)}`)||[];
+        userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(currentUserId)}`)||[];
         window.boundsProfile={...window.boundsProfile,...profileData[0]};
-        writeTeePreferences(userId,{tee_gender_preference:$('#profileTeeGender').value,tee_name_preference:$('#profileTeeName').value||null});
+        writeTeePreferences(currentUserId,{tee_gender_preference:$('#profileTeeGender').value,tee_name_preference:$('#profileTeeName').value||null});
         const roundHcp=$('#hcpInput'); if(roundHcp)roundHcp.value=h;
         $('#profileMessage').textContent='Opgeslagen';
         document.dispatchEvent(new CustomEvent('bounds:profile-updated',{detail:window.boundsProfile}));

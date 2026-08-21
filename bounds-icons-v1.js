@@ -4,6 +4,7 @@
     home:'<path d="M3.5 10.5 12 3.8l8.5 6.7"/><path d="M5.5 9.5v9h13v-9"/><path d="M9.5 18.5v-5h5v5"/>',
     play:'<path d="M6.5 20V4"/><path d="M6.5 4h9.5l-2.4 3 2.4 3H6.5"/><path d="M4 20h5"/>',
     game:'<path d="M4 19.5h16"/><path d="M5.5 16.5 10 12l3.2 2.5L19 8"/><path d="M16.5 8H19v2.5"/>',
+    social:'<circle cx="9" cy="8" r="3"/><path d="M3.5 19c.6-3.5 2.5-5.5 5.5-5.5s4.9 2 5.5 5.5"/><circle cx="17" cy="9" r="2.3"/><path d="M15 14.5c2.4.2 4 1.7 4.5 4.5"/>',
     courses:'<path d="M6 20V4"/><path d="M6 4h10l-2.4 3L16 10H6"/><path d="M3.5 20h5"/>',
     flag:'<path d="M6 20V4"/><path d="M6 4h10l-2.4 3L16 10H6"/>',
     location:'<path d="M12 21s7-6.1 7-12A7 7 0 0 0 5 9c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.2"/>',
@@ -31,9 +32,7 @@
     return `<svg class="bounds-icon bounds-icon-${name}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
   }
   window.boundsIcon = icon;
-  function renderStatic(){
-    document.querySelectorAll('[data-bounds-icon]').forEach(el=>{ el.innerHTML=icon(el.dataset.boundsIcon, Number(el.dataset.iconSize)||20); });
-  }
+  function renderStatic(){document.querySelectorAll('[data-bounds-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.boundsIcon,Number(el.dataset.iconSize)||20);});}
   window.renderBoundsIcons=renderStatic;
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',renderStatic); else renderStatic();
 })();

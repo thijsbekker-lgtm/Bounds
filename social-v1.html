@@ -1,0 +1,62 @@
+<section class="social-page" aria-label="Social">
+  <div class="social-head">
+    <div>
+      <div class="eyebrow">SOCIAL</div>
+      <h1>Social</h1>
+      <p>Speel met de juiste mensen.</p>
+    </div>
+    <button class="social-icon-button" type="button" aria-label="Meldingen">♡</button>
+  </div>
+
+  <nav class="social-tabs" aria-label="Social navigatie">
+    <button class="social-tab active" type="button">Overzicht</button>
+    <button class="social-tab" type="button">Vrienden</button>
+    <button class="social-tab" type="button">Verzoeken</button>
+  </nav>
+
+  <div class="social-actions">
+    <article class="social-action-card">
+      <div class="social-action-icon">♧</div>
+      <div>
+        <h2>Play Together</h2>
+        <p>Speel samen met vrienden. Plan een ronde en nodig ze uit.</p>
+        <button class="social-primary" type="button">Start een ronde</button>
+      </div>
+    </article>
+    <article class="social-action-card">
+      <div class="social-action-icon">⌕</div>
+      <div>
+        <h2>Find a Golfer</h2>
+        <p>Vind golfers die passen bij jouw planning, handicap en speelstijl.</p>
+        <button class="social-secondary" type="button">Zoek een golfer</button>
+      </div>
+    </article>
+  </div>
+
+  <section class="social-section">
+    <div class="social-section-head"><h2>Vandaag actief</h2><button type="button">Bekijk alles →</button></div>
+    <div class="social-people">
+      <div><span class="avatar">T</span><strong>Thijs</strong><small>Jij</small></div>
+      <div><span class="avatar">J</span><strong>Jeroen</strong><small>1,2 km</small></div>
+      <div><span class="avatar">R</span><strong>Rik</strong><small>2,1 km</small></div>
+      <div><span class="avatar">M</span><strong>Mark</strong><small>3,0 km</small></div>
+    </div>
+  </section>
+
+  <section class="social-section">
+    <div class="social-section-head"><h2>Uitnodigingen</h2><button type="button">Bekijk alles →</button></div>
+    <article class="social-invite">
+      <div class="avatar">P</div><div class="social-invite-copy"><strong>Pieter heeft je uitgenodigd</strong><span>De Pan · 17 mei · 10:00</span></div>
+      <button class="social-round-button" type="button">×</button><button class="social-round-button accept" type="button">✓</button>
+    </article>
+  </section>
+</section>
+
+<style>
+.social-page{max-width:980px;margin:0 auto;padding:32px 28px 72px;color:#182018}
+.social-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}.eyebrow{letter-spacing:.18em;font-weight:700;font-size:13px;color:#4d8b58}.social-head h1{font-size:42px;line-height:1;margin:8px 0}.social-head p{margin:0;color:#6c756d}.social-icon-button{border:0;background:#f5f7f4;border-radius:50%;width:48px;height:48px;font-size:22px}
+.social-tabs{display:flex;gap:8px;background:#f4f5f3;padding:5px;border-radius:30px;margin-bottom:24px}.social-tab{border:0;background:transparent;padding:11px 22px;border-radius:24px;font-weight:600;color:#687067}.social-tab.active{background:#172018;color:white}
+.social-actions{display:grid;grid-template-columns:1fr 1fr;gap:18px}.social-action-card{display:flex;gap:18px;padding:24px;border:1px solid #e8ebe7;border-radius:22px;background:#fff;box-shadow:0 5px 20px rgba(30,45,30,.04)}.social-action-icon{flex:0 0 48px;height:48px;border-radius:50%;background:#edf5ee;display:grid;place-items:center;color:#4d8b58;font-size:28px}.social-action-card h2{margin:0 0 7px;font-size:20px}.social-action-card p{margin:0 0 17px;color:#687067;line-height:1.45}.social-primary,.social-secondary{border:0;border-radius:22px;padding:11px 18px;font-weight:700;cursor:pointer}.social-primary{background:#172018;color:#fff}.social-secondary{background:#4d8b58;color:#fff}
+.social-section{margin-top:32px}.social-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.social-section-head h2{font-size:18px;margin:0}.social-section-head button{border:0;background:none;color:#4d8b58;font-weight:700}.social-people{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.social-people>div{text-align:center}.avatar{width:54px;height:54px;border-radius:50%;display:inline-grid;place-items:center;background:#dfe9df;color:#3d6845;font-weight:700;font-size:20px;margin-bottom:7px}.social-people strong,.social-people small{display:block}.social-people small{color:#788078;margin-top:3px}.social-invite{display:flex;align-items:center;gap:12px;padding:16px 18px;border:1px solid #e8ebe7;border-radius:18px}.social-invite-copy{flex:1}.social-invite-copy strong,.social-invite-copy span{display:block}.social-invite-copy span{color:#747d75;margin-top:4px}.social-round-button{border:1px solid #e1e5e1;background:#fff;border-radius:50%;width:38px;height:38px;font-size:20px}.social-round-button.accept{background:#4d8b58;color:#fff;border-color:#4d8b58}
+@media(max-width:700px){.social-page{padding:24px 16px 50px}.social-actions{grid-template-columns:1fr}.social-head h1{font-size:34px}.social-people{grid-template-columns:repeat(4,1fr);gap:8px}.social-people .avatar{width:46px;height:46px}.social-tab{padding:10px 13px}}
+</style>

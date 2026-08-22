@@ -15,8 +15,7 @@
       const form=card.querySelector('.social-flight-form');
       const actions=card.querySelector('.social-flight-actions');
       const note=card.querySelector('.social-flight-note');
-      const button=actions?.querySelector('button');
-      if(!title||!description||!form||!button)return;
+      if(!title||!description||!form||!actions)return;
 
       card.dataset.uxReady='1';
       const originalTitle=title.textContent.trim();
@@ -24,12 +23,12 @@
 
       const choice=document.createElement('div');
       choice.className='sf-choice';
-      choice.innerHTML=`<div class="sf-choice-copy"><h3>${originalTitle}</h3><p>${originalDescription}</p></div><div class="sf-choice-icon" aria-hidden="true">${index===0?'＋':'⌁'}</div>`;
+      choice.innerHTML=`<div class="sf-choice-copy"><h3>${originalTitle}</h3><p>${originalDescription}</p></div>`;
       title.replaceWith(choice);
       description.remove();
 
       form.hidden=true;
-      if(actions)actions.hidden=true;
+      actions.hidden=true;
       if(note)note.hidden=true;
 
       const open=document.createElement('button');
@@ -48,17 +47,22 @@
       const collapse=()=>{
         card.classList.remove('sf-expanded');
         form.hidden=true;
-        if(actions)actions.hidden=true;
+        actions.hidden=true;
         if(note)note.hidden=true;
         open.hidden=false;
         close.hidden=true;
       };
 
       open.addEventListener('click',()=>{
-        cards.forEach(other=>{if(other!==card){const otherClose=other.querySelector('.sf-close-button');otherClose?.click()}});
+        cards.forEach(other=>{
+          if(other!==card){
+            const otherClose=other.querySelector('.sf-close-button');
+            if(otherClose&&!otherClose.hidden)otherClose.click();
+          }
+        });
         card.classList.add('sf-expanded');
         form.hidden=false;
-        if(actions)actions.hidden=false;
+        actions.hidden=false;
         if(note)note.hidden=false;
         open.hidden=true;
         close.hidden=false;

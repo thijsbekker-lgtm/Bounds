@@ -1,4 +1,4 @@
-// BOUNDS profile preferences v12 — persist preferences for newly created accounts.
+// BOUNDS profile preferences v13 — persist identity and preferences for user accounts.
 (function(){
   const $=s=>document.querySelector(s);
   const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
@@ -15,7 +15,7 @@
     const r=await fetch(`${SUPABASE_URL}/rest/v1${path}`,{...options,headers});const text=await r.text();let body=null;try{body=text?JSON.parse(text):null}catch{body=text}
     if(!r.ok)throw new Error(body?.message||body?.hint||body?.details||body?.error||text||`HTTP ${r.status}`);return body;
   }
-  function renderLoading(){const host=$('#profilePreferences');if(host&&!host.innerHTML.trim())host.innerHTML='<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw golfvoorkeuren</h3><div class="muted">Profiel laden…</div></div>'}
+  function renderLoading(){const host=$('#profilePreferences');if(host&&!host.innerHTML.trim())host.innerHTML='<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw profiel</h3><div class="muted">Profiel laden…</div></div>'}
 
   async function loadContext(){
     const s=getSession();
@@ -41,13 +41,15 @@
   function render(){
     const host=$('#profilePreferences');if(!host||!profileReady)return;
     const p=window.boundsProfile||{};const id=window.boundsUser?.id||getSession()?.user?.id;const local=readLocal(id);
+    const displayName=String(p.display_name||local.display_name||window.boundsUser?.user_metadata?.display_name||window.boundsUser?.user_metadata?.full_name||window.boundsUser?.user_metadata?.name||'').trim();
     const hcp=Number.isFinite(Number(p.handicap_index))?p.handicap_index:(local.handicap_index??'');
     const gender=p.tee_gender_preference||local.tee_gender_preference||'men';
     const color=p.tee_color_preference||local.tee_color_preference||'';
     const style=p.playing_style||local.playing_style||'';
     const home=userCourses.find(r=>r.is_home_course)?.course_id||p.home_course_id||local.home_course_id||'';
 
-    host.innerHTML=`<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw golfvoorkeuren</h3><div class="profile-pref-grid">
+    host.innerHTML=`<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw profiel</h3><div class="profile-pref-grid">
+      <label>Naam<input id="profileDisplayNameInput" type="text" maxlength="80" autocomplete="name" value="${esc(displayName)}" placeholder="Bijv. Thijs"></label>
       <label>Handicap Index<input id="profileHcpInput" type="number" min="-10" max="54" step="0.1" value="${esc(hcp)}"></label>
       <label>Tee voor<select id="profileTeeGender"><option value="men" ${gender==='men'?'selected':''}>Heren</option><option value="women" ${gender==='women'?'selected':''}>Dames</option></select></label>
       <label>Tee kleur<select id="profileTeeColor"><option value="">Geen voorkeur</option><option value="Wit" ${color==='Wit'?'selected':''}>Wit</option><option value="Geel" ${color==='Geel'?'selected':''}>Geel</option><option value="Blauw" ${color==='Blauw'?'selected':''}>Blauw</option><option value="Rood" ${color==='Rood'?'selected':''}>Rood</option><option value="Oranje" ${color==='Oranje'?'selected':''}>Oranje</option></select></label>
@@ -58,6 +60,9 @@
     $('#saveProfilePreferences').onclick=async()=>{
       const b=$('#saveProfilePreferences');b.disabled=true;b.textContent='Opslaan…';
       try{
+        const name=String($('#profileDisplayNameInput').value||'').trim();
+        if(!name)throw new Error('Vul je naam in.');
+        if(name.length>80)throw new Error('Naam mag maximaal 80 tekens bevatten.');
         const h=Number($('#profileHcpInput').value);if(!Number.isFinite(h)||h<-10||h>54)throw new Error('Voer een handicap index van -10 tot 54 in.');
         const currentId=window.boundsUser?.id||getSession()?.user?.id;if(!currentId)throw new Error('Gebruikerssessie ontbreekt.');
         const homeId=$('#profileHomeCourse').value||null;
@@ -66,19 +71,14 @@
         const playingStyle=$('#profilePlayingStyle').value||null;
         const session=getSession();
 
-        const profilePayload={handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle};
+        const profilePayload={display_name:name,handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle};
         let profileData=await request(`/profiles?id=eq.${encodeURIComponent(currentId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(profilePayload)});
 
         // A freshly registered Supabase user can exist before its public.profiles row
-        // exists. PATCH then succeeds with zero returned rows, which previously caused
-        // the misleading "Profiel kon niet worden opgeslagen" error. Create the row
-        // explicitly when it is missing. This is isolated to profile persistence and
-        // does not touch the authentication/session flow.
+        // exists. PATCH then succeeds with zero returned rows, so create it explicitly.
+        // This remains isolated to profile persistence and does not touch authentication.
         if(!profileData?.[0]){
-          const email=session?.user?.email||'';
-          const metadata=session?.user?.user_metadata||{};
-          const displayName=String(metadata.display_name||metadata.full_name||metadata.name||email.split('@')[0]||'Golfer').trim().slice(0,80)||'Golfer';
-          profileData=await request('/profiles',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id:currentId,display_name:displayName,...profilePayload})});
+          profileData=await request('/profiles',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id:currentId,...profilePayload})});
         }
         if(!profileData?.[0])throw new Error('Profiel kon niet worden opgeslagen.');
 
@@ -95,7 +95,7 @@
         try{userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(currentId)}`)||userCourses}catch(e){console.warn('BOUNDS user_courses refresh failed',e)}
 
         window.boundsProfile={...window.boundsProfile,...profileData[0]};
-        writeLocal(currentId,{handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle});
+        writeLocal(currentId,{display_name:name,handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle});
         const roundHcp=$('#hcpInput');if(roundHcp)roundHcp.value=h;
         $('#profileMessage').textContent='Opgeslagen';
         document.dispatchEvent(new CustomEvent('bounds:profile-updated',{detail:window.boundsProfile}));

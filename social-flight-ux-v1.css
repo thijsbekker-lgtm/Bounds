@@ -1,30 +1,34 @@
 /* BOUNDS Social flight UX — progressive disclosure */
 #page-social .social-flight-panel{display:grid;gap:24px}
-#page-social .social-flight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#page-social .social-flight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 #page-social .social-flight-card{border:1px solid #e6eae6;border-radius:20px;background:#fff;padding:22px}
 #page-social .social-flight-card [hidden]{display:none!important}
-#page-social .social-flight-card .sf-choice{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+#page-social .social-flight-card .sf-choice{display:block}
 #page-social .social-flight-card .sf-choice-copy{min-width:0}
 #page-social .social-flight-card .sf-choice h3{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em}
 #page-social .social-flight-card .sf-choice p{margin:0;color:#687067;line-height:1.45;font-size:.9rem;max-width:430px}
-#page-social .social-flight-card .sf-choice-icon{width:42px;height:42px;border-radius:14px;background:#edf4ed;color:#4d8b58;display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
 #page-social .social-flight-card.sf-expanded{box-shadow:0 10px 30px rgba(24,32,24,.05)}
-#page-social .social-flight-card .social-flight-form{margin-top:20px}
-#page-social .social-flight-card .sf-advanced-note{margin-top:15px;color:#7a817a;font-size:.78rem;line-height:1.4}
-#page-social .social-flight-card .sf-open-button{margin-top:18px;border:0;border-radius:20px;padding:10px 16px;background:#182018;color:#fff;font:inherit;font-weight:700}
-#page-social .social-flight-card .sf-close-button{margin-top:18px;border:1px solid #e1e5e1;border-radius:20px;padding:9px 14px;background:#fff;color:#182018;font:inherit;font-weight:700}
+#page-social .social-flight-card .social-flight-form{margin-top:18px}
+#page-social .social-flight-card .social-flight-form:not([hidden]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:18px!important}
 #page-social .social-flight-card .social-flight-form label{font-size:.78rem;font-weight:700;color:#5f685f}
-#page-social .social-flight-card .social-flight-form input,#page-social .social-flight-card .social-flight-form select{border-radius:12px}
+#page-social .social-flight-card .social-flight-form input,#page-social .social-flight-card .social-flight-form select{width:100%;min-height:46px;height:46px;box-sizing:border-box;border-radius:12px;padding:0 12px;font:inherit;font-size:.92rem;background:#fff}
+#page-social .social-flight-card .social-flight-form label.wide{grid-column:1 / -1}
+#page-social .social-flight-card .sf-advanced-note{margin-top:12px;color:#7a817a;font-size:.78rem;line-height:1.4}
+#page-social .social-flight-card .sf-open-button{margin-top:18px;border:0;border-radius:18px;padding:11px 17px;background:#182018;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+#page-social .social-flight-card .sf-close-button{margin-top:14px;border:1px solid #e1e5e1;border-radius:18px;padding:9px 14px;background:#fff;color:#182018;font:inherit;font-weight:700;cursor:pointer}
+#page-social .social-flight-card .social-flight-actions:not([hidden]){display:flex;align-items:center;gap:10px;margin-top:14px;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important}
+#page-social .social-flight-card .social-flight-note:not([hidden]){display:block;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:8px!important}
 #page-social .social-flight-section-title{margin-top:4px}
 #page-social .social-flight-section-title h3{font-size:1rem;margin:0}
 #page-social .social-flight-section-title span{font-size:.78rem;color:#7a817a}
 
-/* Explicitly override the older focus-within animation CSS. Visibility is state-driven. */
 #page-social .social-flight-card .social-flight-form[hidden],
 #page-social .social-flight-card .social-flight-actions[hidden],
 #page-social .social-flight-card .social-flight-note[hidden]{display:none!important}
-#page-social .social-flight-card .social-flight-form:not([hidden]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:20px!important}
-#page-social .social-flight-card .social-flight-actions:not([hidden]){display:flex;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:14px!important}
-#page-social .social-flight-card .social-flight-note:not([hidden]){display:block;max-height:none!important;height:auto!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:8px!important}
 
-@media(max-width:700px){#page-social .social-flight-grid{grid-template-columns:1fr}#page-social .social-flight-card{padding:20px}#page-social .social-flight-card .social-flight-form:not([hidden]){grid-template-columns:1fr}}
+@media(max-width:700px){
+  #page-social .social-flight-grid{grid-template-columns:1fr}
+  #page-social .social-flight-card{padding:20px}
+  #page-social .social-flight-card .social-flight-form:not([hidden]){grid-template-columns:1fr}
+  #page-social .social-flight-card .social-flight-form label.wide{grid-column:auto}
+}

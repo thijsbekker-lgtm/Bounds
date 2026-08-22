@@ -1,4 +1,4 @@
-// BOUNDS profile preferences v11 — handicap, tee selection/color, playing style and home course.
+// BOUNDS profile preferences v12 — persist preferences for newly created accounts.
 (function(){
   const $=s=>document.querySelector(s);
   const SUPABASE_URL='https://ynlncjnjnbujzfjsfdwb.supabase.co';
@@ -22,8 +22,6 @@
     if(!s?.access_token||!s?.user?.id)return false;
     window.boundsUser=s.user;
 
-    // Core profile loading must never depend on optional Social/profile fields.
-    // This keeps My Game usable if an older preview has a partial schema/RLS state.
     let rows=[];
     try{
       rows=await request(`/profiles?select=id,display_name,handicap_index,target_handicap,region,woonplaats,avatar_url,home_course_id,favorite_course_id,tee_gender_preference,tee_color_preference,playing_style&id=eq.${encodeURIComponent(s.user.id)}&limit=1`);
@@ -34,8 +32,6 @@
     }
     window.boundsProfile=rows?.[0]||window.boundsProfile||{};
 
-    // Course data is supporting UI only; it must not prevent the profile card
-    // from rendering when course/RLS data is temporarily unavailable.
     try{courses=await request('/courses?select=id,name,location&order=name')||[]}catch(e){console.warn('BOUNDS courses could not be loaded',e);courses=[]}
     try{userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(s.user.id)}`)||[]}catch(e){console.warn('BOUNDS user_courses could not be loaded',e);userCourses=[]}
 
@@ -45,11 +41,11 @@
   function render(){
     const host=$('#profilePreferences');if(!host||!profileReady)return;
     const p=window.boundsProfile||{};const id=window.boundsUser?.id||getSession()?.user?.id;const local=readLocal(id);
-    const hcp=Number.isFinite(Number(p.handicap_index))?p.handicap_index:'';
+    const hcp=Number.isFinite(Number(p.handicap_index))?p.handicap_index:(local.handicap_index??'');
     const gender=p.tee_gender_preference||local.tee_gender_preference||'men';
     const color=p.tee_color_preference||local.tee_color_preference||'';
     const style=p.playing_style||local.playing_style||'';
-    const home=userCourses.find(r=>r.is_home_course)?.course_id||p.home_course_id||'';
+    const home=userCourses.find(r=>r.is_home_course)?.course_id||p.home_course_id||local.home_course_id||'';
 
     host.innerHTML=`<div class="profile-pref-card card"><div class="eyebrow">PROFIEL</div><h3>Jouw golfvoorkeuren</h3><div class="profile-pref-grid">
       <label>Handicap Index<input id="profileHcpInput" type="number" min="-10" max="54" step="0.1" value="${esc(hcp)}"></label>
@@ -68,8 +64,22 @@
         const teeGender=$('#profileTeeGender').value;
         const teeColor=$('#profileTeeColor').value||null;
         const playingStyle=$('#profilePlayingStyle').value||null;
+        const session=getSession();
 
-        const profileData=await request(`/profiles?id=eq.${encodeURIComponent(currentId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle})});
+        const profilePayload={handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle};
+        let profileData=await request(`/profiles?id=eq.${encodeURIComponent(currentId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(profilePayload)});
+
+        // A freshly registered Supabase user can exist before its public.profiles row
+        // exists. PATCH then succeeds with zero returned rows, which previously caused
+        // the misleading "Profiel kon niet worden opgeslagen" error. Create the row
+        // explicitly when it is missing. This is isolated to profile persistence and
+        // does not touch the authentication/session flow.
+        if(!profileData?.[0]){
+          const email=session?.user?.email||'';
+          const metadata=session?.user?.user_metadata||{};
+          const displayName=String(metadata.display_name||metadata.full_name||metadata.name||email.split('@')[0]||'Golfer').trim().slice(0,80)||'Golfer';
+          profileData=await request('/profiles',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id:currentId,display_name:displayName,...profilePayload})});
+        }
         if(!profileData?.[0])throw new Error('Profiel kon niet worden opgeslagen.');
 
         const existingByCourse=new Map(userCourses.map(r=>[String(r.course_id),r]));
@@ -85,11 +95,11 @@
         try{userCourses=await request(`/user_courses?select=id,course_id,is_member,is_home_course,is_favorite&user_id=eq.${encodeURIComponent(currentId)}`)||userCourses}catch(e){console.warn('BOUNDS user_courses refresh failed',e)}
 
         window.boundsProfile={...window.boundsProfile,...profileData[0]};
-        writeLocal(currentId,{tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle});
+        writeLocal(currentId,{handicap_index:h,home_course_id:homeId,tee_gender_preference:teeGender,tee_color_preference:teeColor,playing_style:playingStyle});
         const roundHcp=$('#hcpInput');if(roundHcp)roundHcp.value=h;
         $('#profileMessage').textContent='Opgeslagen';
         document.dispatchEvent(new CustomEvent('bounds:profile-updated',{detail:window.boundsProfile}));
-      }catch(e){console.error(e);$('#profileMessage').textContent=e.message||'Opslaan mislukt'}finally{b.disabled=false;b.textContent='Opslaan'}
+      }catch(e){console.error('BOUNDS profile save failed',e);$('#profileMessage').textContent=e.message||'Opslaan mislukt'}finally{b.disabled=false;b.textContent='Opslaan'}
     };
   }
 
